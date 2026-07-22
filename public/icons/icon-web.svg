@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <defs>
+    <linearGradient id="hfGrad" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="48" y2="48">
+      <stop offset="0%" stop-color="#00C8FF"/>
+      <stop offset="50%" stop-color="#6D2EFF"/>
+      <stop offset="100%" stop-color="#FF2DB8"/>
+    </linearGradient>
+  </defs>
+
+  <g>
+    <circle cx="24" cy="24" r="15" stroke="url(#hfGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <line x1="9" y1="24" x2="39" y2="24" stroke="url(#hfGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M24,9 C31,9 31,39 24,39" stroke="url(#hfGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <path d="M24,9 C17,9 17,39 24,39" stroke="url(#hfGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <path d="M12,16.5 C19,20 29,20 36,16.5" stroke="url(#hfGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <path d="M12,31.5 C19,28 29,28 36,31.5" stroke="url(#hfGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </g>
+</svg>

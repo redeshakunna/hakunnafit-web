@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <defs>
+    <linearGradient id="hfGrad" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="48" y2="48">
+      <stop offset="0%" stop-color="#00C8FF"/>
+      <stop offset="50%" stop-color="#6D2EFF"/>
+      <stop offset="100%" stop-color="#FF2DB8"/>
+    </linearGradient>
+  </defs>
+  <g>
+    <path d="M8,8 L8,40 L41,40" stroke="url(#hfGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <path d="M11,32 L20,23 L27,29 L39,14" stroke="url(#hfGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <path d="M30,14 L39,14 L39,23" stroke="url(#hfGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </g>
+</svg>

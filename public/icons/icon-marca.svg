@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+
+  <defs>
+    <linearGradient id="hfGrad" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="48" y2="48">
+      <stop offset="0%" stop-color="#00C8FF"/>
+      <stop offset="50%" stop-color="#6D2EFF"/>
+      <stop offset="100%" stop-color="#FF2DB8"/>
+    </linearGradient>
+    <filter id="hfGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="1.3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <g>
+    <path d="M24,6 L37,11 V23 C37,33 31,39 24,42 C17,39 11,33 11,23 V11 Z" stroke="url(#hfGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <line x1="19" y1="18" x2="19" y2="30" stroke="url(#hfGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <line x1="29" y1="18" x2="29" y2="30" stroke="url(#hfGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <line x1="19" y1="24" x2="29" y2="24" stroke="url(#hfGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </g>
+</svg>
