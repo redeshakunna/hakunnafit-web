@@ -17,6 +17,15 @@ export interface Database {
           necesidades: string[] | null;
           mensaje: string | null;
           estado: string;
+          plan: "starter" | "pro" | "elite" | null;
+          ciudad: string | null;
+          subdominio_propuesto: string | null;
+          especialidad: string | null;
+          metodo_actual: string | null;
+          pasarela_interes: string | null;
+          tiene_dominio: string | null;
+          tiene_logo: string | null;
+          interes_tienda: string | null;
           created_at: string;
         };
         Insert: {
@@ -29,9 +38,176 @@ export interface Database {
           necesidades?: string[] | null;
           mensaje?: string | null;
           estado?: string;
+          plan?: "starter" | "pro" | "elite" | null;
+          ciudad?: string | null;
+          subdominio_propuesto?: string | null;
+          especialidad?: string | null;
+          metodo_actual?: string | null;
+          pasarela_interes?: string | null;
+          tiene_dominio?: string | null;
+          tiene_logo?: string | null;
+          interes_tienda?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["hakunnafit_leads"]["Insert"]>;
+        Relationships: [];
+      };
+      trainers: {
+        Row: {
+          id: string;
+          business_name: string;
+          whatsapp: string | null;
+          plan: "starter" | "pro" | "elite" | null;
+          landing_status: "pendiente" | "en_diseno" | "en_revision" | "publicada" | "suspendida";
+          dashboard_access: "sin_acceso" | "activo" | "suspendido" | "bloqueado";
+          lead_id: string | null;
+          proximo_cobro: string | null;
+          ciudad: string | null;
+          subdominio: string | null;
+          created_at: string;
+          pais: string | null;
+          especialidad: string | null;
+          instagram: string | null;
+          facebook: string | null;
+          biografia: string | null;
+          avatar_url: string | null;
+          notas_internas: string | null;
+          dominio_propio: string | null;
+        };
+        Insert: {
+          id?: string;
+          business_name?: string;
+          whatsapp?: string | null;
+          plan?: "starter" | "pro" | "elite" | null;
+          landing_status?: "pendiente" | "en_diseno" | "en_revision" | "publicada" | "suspendida";
+          dashboard_access?: "sin_acceso" | "activo" | "suspendido" | "bloqueado";
+          lead_id?: string | null;
+          proximo_cobro?: string | null;
+          ciudad?: string | null;
+          subdominio?: string | null;
+          created_at?: string;
+          pais?: string | null;
+          especialidad?: string | null;
+          instagram?: string | null;
+          facebook?: string | null;
+          biografia?: string | null;
+          avatar_url?: string | null;
+          notas_internas?: string | null;
+          dominio_propio?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["trainers"]["Insert"]>;
+        Relationships: [];
+      };
+      trainer_activity: {
+        Row: {
+          id: string;
+          trainer_id: string;
+          type: string;
+          title: string;
+          description: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          trainer_id: string;
+          type: string;
+          title: string;
+          description?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["trainer_activity"]["Insert"]>;
+        Relationships: [];
+      };
+      clients: {
+        Row: {
+          id: string;
+          trainer_id: string;
+          full_name: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          trainer_id: string;
+          full_name: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["clients"]["Insert"]>;
+        Relationships: [];
+      };
+      weekly_plans: {
+        Row: {
+          id: string;
+          client_id: string;
+          trainer_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          client_id: string;
+          trainer_id: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["weekly_plans"]["Insert"]>;
+        Relationships: [];
+      };
+      evaluations: {
+        Row: {
+          id: string;
+          client_id: string;
+          trainer_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          client_id: string;
+          trainer_id: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["evaluations"]["Insert"]>;
+        Relationships: [];
+      };
+      profiles: {
+        Row: {
+          id: string;
+          role: "trainer" | "client";
+          full_name: string | null;
+          email: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id: string;
+          role?: "trainer" | "client";
+          full_name?: string | null;
+          email?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;
+        Relationships: [];
+      };
+      notifications: {
+        Row: {
+          id: string;
+          type: "lead_nuevo" | "entrenador_aprobado" | "estado_cambio" | "cobro_por_vencer";
+          title: string;
+          message: string;
+          link: string | null;
+          trainer_id: string | null;
+          lead_id: string | null;
+          read: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          type: "lead_nuevo" | "entrenador_aprobado" | "estado_cambio" | "cobro_por_vencer";
+          title: string;
+          message: string;
+          link?: string | null;
+          trainer_id?: string | null;
+          lead_id?: string | null;
+          read?: boolean;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["notifications"]["Insert"]>;
         Relationships: [];
       };
       products: {

@@ -43,7 +43,7 @@ export function HakunnaFitCtaBanner() {
 
           <button
             type="button"
-            onClick={openModal}
+            onClick={() => openModal()}
             className="inline-flex shrink-0 items-center gap-2 rounded-full px-7 py-3.5 text-sm font-semibold text-white transition-transform hover:scale-105 sm:text-base"
             style={{ background: "linear-gradient(90deg,#00C8FF,#6D2EFF,#FF2DB8)" }}
           >

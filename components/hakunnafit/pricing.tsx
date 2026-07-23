@@ -13,8 +13,7 @@ interface Plan {
   semester: number;
   annual: number;
   featured?: boolean;
-  featuresIntro?: string;
-  features: string[];
+  highlights: string[];
   cta: string;
 }
 
@@ -22,23 +21,16 @@ const plans: Plan[] = [
   {
     key: "starter",
     name: "Starter",
-    tagline: "Para entrenadores que están comenzando.",
+    tagline: "Tu presencia profesional, lista rápido.",
     monthly: 120000,
     semester: 648000,
     annual: 1224000,
-    features: [
+    highlights: [
       "Hasta 5 clientes",
-      "Dashboard básico",
-      "Gestión de clientes",
-      "Creación de rutinas",
-      "Seguimiento de progreso",
-      "Fotos de evolución",
-      "Medidas corporales",
-      "Peso e IMC",
-      "Agenda",
-      "Recordatorios",
-      "Chat con clientes",
-      "Landing básica",
+      "Landing con tu marca, lista en días",
+      "Plantilla profesional lista para publicar",
+      "Ideal si apenas estás comenzando",
+      "Actualizaciones y seguridad incluidas",
       "Soporte por correo",
     ],
     cta: "Comenzar ahora",
@@ -46,24 +38,17 @@ const plans: Plan[] = [
   {
     key: "pro",
     name: "Pro",
-    tagline: "Para entrenadores en crecimiento.",
+    tagline: "La opción que elige la mayoría de entrenadores.",
     monthly: 220000,
     semester: 1188000,
     annual: 2244000,
     featured: true,
-    featuresIntro: "Todo lo del Starter más:",
-    features: [
+    highlights: [
       "Hasta 15 clientes",
-      "App para entrenador",
-      "Rutinas generadas con IA",
-      "Planes nutricionales con IA",
-      "Recomendaciones automáticas",
+      "Dashboard completo: clientes, rutinas y agenda",
+      "Rutinas y planes nutricionales con IA",
       "Landing personalizada",
-      "Integración con Wompi",
-      "Integración con Stripe",
-      "Integración con Mercado Pago",
-      "Panel de métricas",
-      "Exportación de rutinas y planes en PDF",
+      "Pagos integrados (Wompi, Stripe, Mercado Pago)",
       "Soporte prioritario",
     ],
     cta: "Comenzar ahora",
@@ -71,21 +56,16 @@ const plans: Plan[] = [
   {
     key: "elite",
     name: "Elite",
-    tagline: "Para entrenadores que desean escalar su marca.",
+    tagline: "Tu marca, sin límites.",
     monthly: 390000,
     semester: 2106000,
     annual: 3978000,
-    featuresIntro: "Todo lo del plan PRO más:",
-    features: [
-      "Hasta 35 clientes",
-      "Aplicación personalizada con el logo del entrenador",
+    highlights: [
+      "Hasta 30 clientes",
+      "Todo lo de Pro, a tu manera",
       "Dominio propio",
+      "App con tu logo y tu marca",
       "Tienda de suplementos integrada",
-      "Comisiones por ventas de suplementos",
-      "Reportes avanzados",
-      "Automatizaciones por correo",
-      "Automatizaciones por WhatsApp",
-      "Recordatorios inteligentes",
       "Soporte VIP",
     ],
     cta: "Comenzar ahora",
@@ -152,10 +132,10 @@ function PlanCard({ plan }: { plan: Plan }) {
 
       <div className="mt-6">
         <div className="flex items-baseline gap-1.5">
-          <span className="font-[family-name:var(--font-hf-heading)] text-3xl font-black text-white sm:text-4xl">
+          <span className="whitespace-nowrap font-[family-name:var(--font-hf-heading)] text-2xl font-black tracking-tight text-white sm:text-3xl">
             {cop(plan.monthly)}
           </span>
-          <span className="text-sm text-white/45">/mes</span>
+          <span className="shrink-0 text-sm text-white/45">/mes</span>
         </div>
 
         <div className="mt-4 space-y-1.5 border-t border-white/10 pt-4">
@@ -165,16 +145,11 @@ function PlanCard({ plan }: { plan: Plan }) {
       </div>
 
       <div className="mt-7 flex-1">
-        {plan.featuresIntro && (
-          <p className="mb-3 text-[12px] font-semibold uppercase tracking-wide text-white/40">
-            {plan.featuresIntro}
-          </p>
-        )}
-        <ul className="space-y-2.5">
-          {plan.features.map((f) => (
-            <li key={f} className="flex items-start gap-2.5 text-[13px] leading-snug text-white/70">
+        <ul className="space-y-3">
+          {plan.highlights.map((h) => (
+            <li key={h} className="flex items-start gap-2.5 text-[13.5px] leading-snug text-white/80">
               <GradientCheck />
-              {f}
+              {h}
             </li>
           ))}
         </ul>
@@ -182,7 +157,7 @@ function PlanCard({ plan }: { plan: Plan }) {
 
       <button
         type="button"
-        onClick={openModal}
+        onClick={() => openModal(plan.key as "starter" | "pro" | "elite")}
         className={`mt-8 flex items-center justify-center rounded-full px-6 py-3 text-sm font-semibold transition-transform hover:scale-[1.02] ${
           plan.featured
             ? "text-white"
@@ -203,7 +178,7 @@ function PlanCard({ plan }: { plan: Plan }) {
     return (
       <div className="relative lg:z-10 lg:scale-[1.06]">
         <span className="absolute -top-4 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-full px-4 py-1.5 text-[11px] font-bold text-white shadow-lg" style={{ background: "linear-gradient(90deg,#00C8FF,#6D2EFF,#FF2DB8)" }}>
-          ⭐ Más Popular
+          ⭐ Recomendado
         </span>
         <div
           className="h-full rounded-[26px] p-[2px]"

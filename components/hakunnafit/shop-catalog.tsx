@@ -103,7 +103,7 @@ export function HakunnaFitShopCatalog({ products }: { products: Product[] }) {
 
         <button
           onClick={() => setCartOpen(true)}
-          className="relative flex items-center gap-2 rounded-full border border-white/15 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:border-white/30"
+          className="relative flex items-center gap-2 rounded-full border border-white/15 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:border-white/30"
         >
           <ShoppingBag size={18} />
           Carrito
@@ -123,7 +123,7 @@ export function HakunnaFitShopCatalog({ products }: { products: Product[] }) {
           <button
             key={key}
             onClick={() => setFilter(key)}
-            className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+            className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
               filter === key ? "text-white" : "text-white/50 hover:text-white"
             }`}
             style={

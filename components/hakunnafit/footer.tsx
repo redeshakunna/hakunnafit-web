@@ -40,7 +40,7 @@ export function HakunnaFitFooter() {
               <a
                 key={item.label}
                 href={item.href}
-                className="font-[family-name:var(--font-hf-heading)] text-xs font-bold uppercase tracking-[0.12em] text-white/70 transition-colors hover:text-hf-blue"
+                className="font-[family-name:var(--font-hf-body)] text-xs font-medium uppercase tracking-[0.12em] text-white/70 transition-colors hover:text-hf-blue"
               >
                 {item.label}
               </a>

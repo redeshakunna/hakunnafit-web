@@ -40,7 +40,7 @@ export function HakunnaFitHeader() {
             <a
               key={item.label}
               href={item.href}
-              className="group relative py-2 font-[family-name:var(--font-hf-heading)] text-[13px] font-bold uppercase tracking-[0.12em] text-white/70 transition-colors duration-300 hover:text-hf-blue"
+              className="group relative py-2 font-[family-name:var(--font-hf-body)] text-[13px] font-medium uppercase tracking-[0.12em] text-white/70 transition-colors duration-300 hover:text-hf-blue"
             >
               {item.label}
               <span
@@ -55,13 +55,13 @@ export function HakunnaFitHeader() {
           {/* TODO: reemplazar por el login real de entrenadores cuando exista el portal. */}
           <a
             href="#"
-            className="rounded-full border border-white/15 px-5 py-2.5 text-sm font-medium text-white/80 transition-colors hover:border-white/30 hover:text-white"
+            className="rounded-full border border-white/15 px-5 py-2.5 text-sm font-semibold text-white/80 transition-colors hover:border-white/30 hover:text-white"
           >
             Iniciar sesión
           </a>
           <button
             type="button"
-            onClick={openModal}
+            onClick={() => openModal()}
             className="relative rounded-full px-5 py-2.5 text-sm font-semibold text-white transition-transform hover:scale-105"
             style={{ background: "linear-gradient(90deg,#00C8FF,#6D2EFF,#FF2DB8)" }}
           >
@@ -117,7 +117,7 @@ export function HakunnaFitHeader() {
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.06 }}
-                  className="text-3xl font-bold tracking-tight"
+                  className="text-3xl font-medium tracking-tight"
                 >
                   {item.label}
                 </motion.a>

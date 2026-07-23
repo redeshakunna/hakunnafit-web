@@ -1,19 +1,24 @@
 import type { Metadata } from "next";
-import { Orbitron, Poppins } from "next/font/google";
+import { Space_Grotesk, Inter } from "next/font/google";
 import { HakunnaFitSiteBackground } from "@/components/hakunnafit/site-background";
 import { LeadModalProvider } from "@/components/hakunnafit/lead-modal-provider";
 import "./globals.css";
 
-const orbitron = Orbitron({
+// Identidad tipográfica unificada de HakunnaFit (landing, dashboards, HakAI
+// Studio, formularios, tablas, modales, etc.): Space Grotesk para títulos y
+// encabezados, Inter para todo el resto. Cargadas vía next/font/google y
+// expuestas como variables CSS para que toda la app las use de forma
+// consistente (ver tailwind.config.ts y globals.css).
+const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
-  weight: ["600", "800", "900"],
+  weight: ["600", "700"],
   variable: "--font-hf-heading",
   display: "swap",
 });
 
-const poppins = Poppins({
+const inter = Inter({
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-hf-body",
   display: "swap",
 });
@@ -31,7 +36,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body className={`${orbitron.variable} ${poppins.variable} bg-hf-black text-white antialiased`}>
+      <body className={`${spaceGrotesk.variable} ${inter.variable} bg-hf-black text-white antialiased`}>
         <HakunnaFitSiteBackground />
         <LeadModalProvider>{children}</LeadModalProvider>
       </body>

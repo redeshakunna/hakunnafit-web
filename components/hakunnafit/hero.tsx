@@ -177,7 +177,7 @@ export function HakunnaFitHero() {
               {slide.ctaHref === "#lead-form" ? (
                 <button
                   type="button"
-                  onClick={openModal}
+                  onClick={() => openModal()}
                   className="rounded-full px-7 py-3.5 text-sm font-semibold text-white transition-transform hover:scale-105 sm:text-base"
                   style={{ background: "linear-gradient(90deg,#00C8FF,#6D2EFF,#FF2DB8)" }}
                 >

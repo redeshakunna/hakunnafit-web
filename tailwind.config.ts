@@ -18,6 +18,10 @@ const config: Config = {
         "hf-black": "#111111",
       },
       fontFamily: {
+        // Inter es la fuente por defecto de toda la app (texto, formularios,
+        // tablas, botones, dashboard); Space Grotesk se reserva para
+        // títulos/encabezados vía la clase "heading" o la variable CSS.
+        sans: ["var(--font-hf-body)", "system-ui", "sans-serif"],
         heading: ["var(--font-hf-heading)", "system-ui", "sans-serif"],
         body: ["var(--font-hf-body)", "system-ui", "sans-serif"],
       },

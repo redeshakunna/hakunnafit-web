@@ -148,7 +148,7 @@ export function HakunnaFitChatWidget() {
               {!loading && messages.length <= 2 && (
                 <button
                   type="button"
-                  onClick={openModal}
+                  onClick={() => openModal()}
                   className="rounded-full border border-white/15 px-4 py-2 text-xs font-semibold text-white/80 transition-colors hover:border-hf-blue/40 hover:text-white"
                 >
                   Quiero mi demo →

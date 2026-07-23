@@ -1,11 +1,48 @@
 "use server";
 
 import { getSupabase } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { buildWompiCheckoutUrl, buildWompiReference } from "@/lib/wompi";
+import { firstAvailableSlug, slugify, RESERVED_SUBDOMAINS } from "@/lib/slug";
+import { createNotification } from "@/lib/notifications";
+import { planLabel, type PlanKey } from "@/lib/catalog";
 
 export interface LeadResult {
   ok: boolean;
   error?: string;
+}
+
+export interface SubdomainCheckResult {
+  slug: string;
+  available: boolean;
+  reserved: boolean;
+}
+
+/**
+ * Chequeo en vivo mientras el visitante escribe el nombre que quiere para su
+ * página, usado por el modal de leads. hakunnafit_leads no tiene lectura
+ * pública (solo insert), así que esto corre server-side con la llave de
+ * servicio. No reserva nada — es solo una vista previa de disponibilidad;
+ * la unicidad definitiva se vuelve a validar al insertar el lead y otra vez
+ * al aprobarlo como entrenador.
+ */
+export async function checkSubdominioDisponible(raw: string): Promise<SubdomainCheckResult> {
+  const slug = slugify(raw);
+  if (!raw.trim()) return { slug: "", available: true, reserved: false };
+  if (RESERVED_SUBDOMAINS.has(slug)) return { slug, available: false, reserved: true };
+
+  const admin = getSupabaseAdmin();
+  const [{ data: trainer }, { data: lead }] = await Promise.all([
+    admin.from("trainers").select("id").eq("subdominio", slug).maybeSingle(),
+    admin
+      .from("hakunnafit_leads")
+      .select("id")
+      .eq("subdominio_propuesto", slug)
+      .neq("estado", "convertido")
+      .maybeSingle(),
+  ]);
+
+  return { slug, available: !trainer && !lead, reserved: false };
 }
 
 export async function submitHakunnaFitLead(formData: FormData): Promise<LeadResult> {
@@ -16,22 +53,74 @@ export async function submitHakunnaFitLead(formData: FormData): Promise<LeadResu
     return { ok: false, error: "Nombre y correo son obligatorios." };
   }
 
-  const necesidades = formData.getAll("necesidades") as string[];
+  const negocio = (formData.get("negocio") as string) || null;
+  const planRaw = (formData.get("plan") as string) || null;
+  const plan = planRaw === "starter" || planRaw === "pro" || planRaw === "elite" ? planRaw : null;
+
+  // Calculamos un subdominio propuesto (no se reserva de forma definitiva
+  // todavía — solo evitamos que choque con uno ya usado o ya propuesto por
+  // otra solicitud pendiente). Se usa la llave de servicio únicamente para
+  // esta lectura de unicidad + el insert; esta función nunca crea cuentas.
+  // Si el visitante escribió un nombre para su página (validado en vivo por
+  // checkSubdominioDisponible mientras escribía), ese es el que se usa como
+  // base en vez del nombre del negocio.
+  const subdominioDeseado = (formData.get("subdominio_deseado") as string) || "";
+  let subdominioPropuesto: string | null = null;
+  try {
+    const admin = getSupabaseAdmin();
+    const [{ data: existingTrainers }, { data: pendingLeads }] = await Promise.all([
+      admin.from("trainers").select("subdominio"),
+      admin.from("hakunnafit_leads").select("subdominio_propuesto").neq("estado", "convertido"),
+    ]);
+    const taken = new Set([
+      ...RESERVED_SUBDOMAINS,
+      ...(existingTrainers ?? []).map((t) => t.subdominio),
+      ...(pendingLeads ?? []).map((l) => l.subdominio_propuesto),
+    ].filter((s): s is string => !!s));
+    subdominioPropuesto = firstAvailableSlug(subdominioDeseado || negocio || nombre, taken);
+  } catch {
+    // Si falla el cálculo del subdominio, seguimos sin bloquear el envío del
+    // formulario — Nando puede asignarlo manualmente al aprobar.
+    subdominioPropuesto = null;
+  }
 
   const supabase = getSupabase();
-  const { error } = await supabase.from("hakunnafit_leads").insert({
-    nombre,
-    negocio: (formData.get("negocio") as string) || null,
-    email,
-    whatsapp: (formData.get("whatsapp") as string) || null,
-    num_clientes: (formData.get("num_clientes") as string) || null,
-    necesidades: necesidades.length ? necesidades : null,
-    mensaje: (formData.get("mensaje") as string) || null,
-  });
+  const { data: inserted, error } = await supabase
+    .from("hakunnafit_leads")
+    .insert({
+      nombre,
+      negocio,
+      email,
+      whatsapp: (formData.get("whatsapp") as string) || null,
+      num_clientes: (formData.get("num_clientes") as string) || null,
+      mensaje: (formData.get("mensaje") as string) || null,
+      plan,
+      ciudad: (formData.get("ciudad") as string) || null,
+      subdominio_propuesto: subdominioPropuesto,
+      especialidad: (formData.get("especialidad") as string) || null,
+      metodo_actual: (formData.get("metodo_actual") as string) || null,
+      pasarela_interes: (formData.get("pasarela_interes") as string) || null,
+      tiene_dominio: (formData.get("tiene_dominio") as string) || null,
+      tiene_logo: (formData.get("tiene_logo") as string) || null,
+      interes_tienda: (formData.get("interes_tienda") as string) || null,
+    })
+    .select("id")
+    .single();
 
   if (error) {
     return { ok: false, error: "No pudimos enviar tu solicitud. Intenta de nuevo." };
   }
+
+  const planTxt = plan ? planLabel(plan as PlanKey) : "sin plan definido";
+  await createNotification({
+    type: "lead_nuevo",
+    title: `Nueva solicitud: ${negocio || nombre}`,
+    message: `${nombre}${negocio ? ` (${negocio})` : ""} quiere el plan ${planTxt}. Ciudad: ${
+      (formData.get("ciudad") as string) || "no indicada"
+    }.`,
+    link: "/panel-hakunna/solicitudes",
+    leadId: inserted?.id ?? null,
+  });
 
   return { ok: true };
 }

@@ -10,6 +10,36 @@ body {
   background-color: #ffffff;
 }
 
+/* Jerarquía tipográfica centralizada: Space Grotesk para encabezados (H1-H4),
+   Inter para todo lo demás (ya es la fuente sans por defecto vía Tailwind).
+   Cualquier clase de peso/familia puesta a mano en un componente (font-bold,
+   font-[family-name:...]) sigue ganando por estar en la capa de utilities. */
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-hf-heading), system-ui, sans-serif;
+  }
+
+  h1,
+  h2 {
+    font-weight: 700;
+  }
+
+  h3,
+  h4 {
+    font-weight: 600;
+  }
+
+  /* Único selector de tablas de toda la app (paneles del super admin). */
+  td {
+    font-weight: 500;
+  }
+}
+
 /* Fondo claro solo para fotos reales (no logos/insignias transparentes,
    que deben fundirse con el fondo de su propia sección). */
 .img-photo-fallback {

@@ -2,9 +2,12 @@
 
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
 
+export type HakunnaFitPlanKey = "starter" | "pro" | "elite";
+
 interface LeadModalContextValue {
   isOpen: boolean;
-  openModal: () => void;
+  selectedPlan: HakunnaFitPlanKey | null;
+  openModal: (plan?: HakunnaFitPlanKey) => void;
   closeModal: () => void;
 }
 
@@ -12,11 +15,18 @@ const LeadModalContext = createContext<LeadModalContextValue | null>(null);
 
 export function LeadModalStateProvider({ children }: { children: React.ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<HakunnaFitPlanKey | null>(null);
 
-  const openModal = useCallback(() => setIsOpen(true), []);
+  const openModal = useCallback((plan?: HakunnaFitPlanKey) => {
+    setSelectedPlan(plan ?? null);
+    setIsOpen(true);
+  }, []);
   const closeModal = useCallback(() => setIsOpen(false), []);
 
-  const value = useMemo(() => ({ isOpen, openModal, closeModal }), [isOpen, openModal, closeModal]);
+  const value = useMemo(
+    () => ({ isOpen, selectedPlan, openModal, closeModal }),
+    [isOpen, selectedPlan, openModal, closeModal]
+  );
 
   return <LeadModalContext.Provider value={value}>{children}</LeadModalContext.Provider>;
 }

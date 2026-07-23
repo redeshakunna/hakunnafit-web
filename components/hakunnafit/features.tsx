@@ -183,7 +183,7 @@ export function HakunnaFitFeatures() {
 
               <button
                 type="button"
-                onClick={openModal}
+                onClick={() => openModal()}
                 className="mt-5 inline-flex w-fit items-center gap-1.5 rounded-full border border-white/15 px-4 py-2 text-xs font-semibold text-white/90 transition-colors hover:border-hf-blue/40 hover:text-white"
               >
                 Saber más <ArrowRight size={13} />
