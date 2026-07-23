@@ -35,8 +35,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es">
-      <body className={`${spaceGrotesk.variable} ${inter.variable} bg-hf-black text-white antialiased`}>
+    <html lang="es" className={`${spaceGrotesk.variable} ${inter.variable}`}>
+      {/* Las variables de fuente van en <html>, no en <body>: la regla de
+          Tailwind que fija la fuente base (html { font-family: var(--font-hf-body) })
+          vive en <html>, y las variables CSS solo se heredan de padres a
+          hijos — si quedaban solo en <body> (hijo de html), esa regla no
+          podía verlas y el navegador caía a su fuente por defecto (serif)
+          para todo lo que no fuera un encabezado h1-h6. */}
+      <body className="bg-hf-black text-white antialiased">
         <HakunnaFitSiteBackground />
         <LeadModalProvider>{children}</LeadModalProvider>
       </body>

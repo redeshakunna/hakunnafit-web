@@ -26,6 +26,7 @@ export interface Database {
           tiene_dominio: string | null;
           tiene_logo: string | null;
           interes_tienda: string | null;
+          fuente: string;
           created_at: string;
         };
         Insert: {
@@ -47,6 +48,7 @@ export interface Database {
           tiene_dominio?: string | null;
           tiene_logo?: string | null;
           interes_tienda?: string | null;
+          fuente?: string;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["hakunnafit_leads"]["Insert"]>;

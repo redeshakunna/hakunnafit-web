@@ -43,6 +43,7 @@ export interface LeadRow {
   tiene_dominio: string | null;
   tiene_logo: string | null;
   interes_tienda: string | null;
+  fuente: string;
   created_at: string;
 }
 
@@ -301,6 +302,66 @@ export async function updateLead(input: UpdateLeadInput): Promise<AdminActionRes
   if (Object.keys(update).length === 0) return { ok: true };
 
   const { error } = await supabase.from("hakunnafit_leads").update(update).eq("id", input.leadId);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+export interface CreateLeadInput {
+  nombre: string;
+  negocio?: string | null;
+  email: string;
+  whatsapp?: string | null;
+  ciudad?: string | null;
+  plan?: PlanKey | null;
+  numClientes?: string | null;
+  mensaje?: string | null;
+  subdominioDeseado?: string | null;
+}
+
+/**
+ * Crea una solicitud manualmente desde el panel — para cuando alguien
+ * contacta a Nando directo (WhatsApp, llamada, en persona) en vez de llenar
+ * el formulario público. Queda marcada con fuente "manual" para distinguirla
+ * en Solicitudes, y sigue el mismo flujo de aprobación que cualquier otra.
+ */
+export async function createLeadManual(input: CreateLeadInput): Promise<AdminActionResult> {
+  await requireAdmin();
+
+  const nombre = input.nombre.trim();
+  const email = input.email.trim();
+  if (!nombre || !email) return { ok: false, error: "Nombre y correo son obligatorios." };
+
+  const supabase = getSupabaseAdmin();
+
+  let subdominioPropuesto: string | null = null;
+  try {
+    const [{ data: existingTrainers }, { data: pendingLeads }] = await Promise.all([
+      supabase.from("trainers").select("subdominio"),
+      supabase.from("hakunnafit_leads").select("subdominio_propuesto").neq("estado", "convertido"),
+    ]);
+    const taken = new Set([
+      ...RESERVED_SUBDOMAINS,
+      ...(existingTrainers ?? []).map((t) => t.subdominio),
+      ...(pendingLeads ?? []).map((l) => l.subdominio_propuesto),
+    ].filter((s): s is string => !!s));
+    subdominioPropuesto = firstAvailableSlug(input.subdominioDeseado || input.negocio || nombre, taken);
+  } catch {
+    subdominioPropuesto = null;
+  }
+
+  const { error } = await supabase.from("hakunnafit_leads").insert({
+    nombre,
+    negocio: input.negocio || null,
+    email,
+    whatsapp: input.whatsapp || null,
+    num_clientes: input.numClientes || null,
+    mensaje: input.mensaje || null,
+    plan: input.plan ?? null,
+    ciudad: input.ciudad || null,
+    subdominio_propuesto: subdominioPropuesto,
+    fuente: "manual",
+  });
+
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }

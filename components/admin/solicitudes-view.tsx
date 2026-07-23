@@ -2,17 +2,23 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Inbox, Mail, PhoneCall, CheckCircle2, XCircle } from "lucide-react";
+import { Inbox, Mail, PhoneCall, CheckCircle2, XCircle, Plus, Share2 } from "lucide-react";
 import {
   convertLeadToTrainer,
   updateLeadEstado,
   updateLead,
+  createLeadManual,
   type LeadRow,
   type PlanKey,
+  type CreateLeadInput,
 } from "@/lib/admin-actions";
+import { PLANS } from "@/lib/catalog";
 import { KpiCard } from "./kpi-card";
 import { Pill, fmtDate, planLabels, planTone } from "./admin-ui";
 import { LeadEditModal } from "./lead-edit-modal";
+import { NewLeadModal } from "./new-lead-modal";
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://hakunnafit.com";
 
 const estadoTone: Record<string, "neutral" | "good" | "warn" | "bad"> = {
   nuevo: "warn",
@@ -38,6 +44,8 @@ export function SolicitudesView({ initialLeads }: { initialLeads: LeadRow[] }) {
   const [convertPlan, setConvertPlan] = useState<PlanKey>("pro");
   const [convertProximoCobro, setConvertProximoCobro] = useState("");
   const [isPending, startTransition] = useTransition();
+  const [creatingLead, setCreatingLead] = useState(false);
+  const [sharePlan, setSharePlan] = useState<PlanKey | "">("");
 
   const filtered = useMemo(() => {
     return leads.filter((l) => {
@@ -122,11 +130,61 @@ export function SolicitudesView({ initialLeads }: { initialLeads: LeadRow[] }) {
     });
   }
 
+  function handleCreateLead(input: CreateLeadInput) {
+    startTransition(async () => {
+      const result = await createLeadManual(input);
+      if (!result.ok) {
+        alert(result.error ?? "No se pudo crear la solicitud.");
+        return;
+      }
+      setCreatingLead(false);
+      router.refresh();
+    });
+  }
+
+  function shareFormByWhatsapp() {
+    const url = `${SITE_URL}/?solicitud=1${sharePlan ? `&plan=${sharePlan}` : ""}`;
+    const message = `¡Hola! Completa este formulario para solicitar tu demo de HakunnaFit: ${url}`;
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+  }
+
   return (
     <div>
-      <div>
-        <h1 className="text-xl font-bold text-white">Solicitudes</h1>
-        <p className="mt-1 text-sm text-white/50">Gestiona todas las solicitudes de demo.</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-white">Solicitudes</h1>
+          <p className="mt-1 text-sm text-white/50">Gestiona todas las solicitudes de demo.</p>
+        </div>
+        <button
+          onClick={() => setCreatingLead(true)}
+          className="flex h-10 items-center gap-1.5 rounded-full px-4 text-xs font-semibold text-white"
+          style={{ background: "linear-gradient(90deg,#00C8FF,#6D2EFF,#FF2DB8)" }}
+        >
+          <Plus size={14} /> Nueva solicitud
+        </button>
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.02] p-3">
+        <Share2 size={15} className="text-white/40" />
+        <span className="text-xs text-white/60">Compartir formulario por WhatsApp:</span>
+        <select
+          value={sharePlan}
+          onChange={(e) => setSharePlan(e.target.value as PlanKey | "")}
+          className="h-8 rounded-lg border border-white/15 bg-white/5 px-2 text-xs text-white"
+        >
+          <option value="" className="bg-[#0b0f1a] text-white">Cualquier plan</option>
+          {PLANS.map((p) => (
+            <option key={p.key} value={p.key} className="bg-[#0b0f1a] text-white">
+              {p.label}
+            </option>
+          ))}
+        </select>
+        <button
+          onClick={shareFormByWhatsapp}
+          className="h-8 rounded-full border border-white/15 px-3 text-xs font-semibold text-white/80 hover:border-white/30 hover:text-white"
+        >
+          Compartir
+        </button>
       </div>
 
       <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-5">
@@ -218,6 +276,13 @@ export function SolicitudesView({ initialLeads }: { initialLeads: LeadRow[] }) {
         onConvertPlanChange={setConvertPlan}
         onConvertProximoCobroChange={setConvertProximoCobro}
         onConfirmConvert={handleConvert}
+      />
+
+      <NewLeadModal
+        open={creatingLead}
+        isPending={isPending}
+        onClose={() => setCreatingLead(false)}
+        onCreate={handleCreateLead}
       />
     </div>
   );

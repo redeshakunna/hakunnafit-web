@@ -244,7 +244,9 @@ export function LeadEditModal({
 
             <div className="mt-5 grid grid-cols-2 gap-2 border-t border-white/10 pt-4 text-[11px] text-white/50">
               <span>Fuente</span>
-              <span className="text-right text-white">Formulario web</span>
+              <span className="text-right text-white">
+                {lead.fuente === "manual" ? "Agregada manualmente" : "Formulario web"}
+              </span>
               <span>Fecha</span>
               <span className="text-right text-white">{fmtDate(lead.created_at)}</span>
             </div>
