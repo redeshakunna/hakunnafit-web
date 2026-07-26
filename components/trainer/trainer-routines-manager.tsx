@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import Image from "next/image";
 import { Plus, Trash2, X, Dumbbell, Moon } from "lucide-react";
 import type { TrainerRow } from "@/lib/admin-actions";
 import type { ClientRow } from "@/lib/trainer-clients-actions";
@@ -429,9 +430,23 @@ function ExerciseBlockEditor({
                 <button
                   key={ex.id}
                   onClick={() => selectExercise(ex)}
-                  className="flex w-full items-center justify-between px-3 py-2 text-left text-xs text-white/80 hover:bg-white/5"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-white/80 hover:bg-white/5"
                 >
-                  <span>{ex.name}</span>
+                  {ex.image_url ? (
+                    <Image
+                      src={ex.image_url}
+                      alt=""
+                      width={28}
+                      height={28}
+                      unoptimized
+                      className="h-7 w-7 shrink-0 rounded-md object-cover"
+                    />
+                  ) : (
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/5">
+                      <Dumbbell size={12} className="text-white/30" />
+                    </span>
+                  )}
+                  <span className="flex-1">{ex.name}</span>
                   <span className="text-[10px] text-white/30">{ex.muscle_group}</span>
                 </button>
               ))}
