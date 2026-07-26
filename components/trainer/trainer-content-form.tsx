@@ -4,18 +4,20 @@ import { useState, useTransition } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { updateOwnContent } from "@/lib/trainer-actions";
 import type { TrainerRow } from "@/lib/admin-actions";
+import { useLivePreview } from "./live-preview-context";
 
 type Servicio = { titulo: string; descripcion: string; tipo: "directo" | "personalizado" };
 
 export function TrainerContentForm({ trainer }: { trainer: TrainerRow }) {
-  const [tagline, setTagline] = useState(trainer.tagline || "");
-  const [biografia, setBiografia] = useState(trainer.biografia || "");
-  const [whatsapp, setWhatsapp] = useState(trainer.whatsapp || "");
-  const [ciudad, setCiudad] = useState(trainer.ciudad || "");
-  const [emailPublico, setEmailPublico] = useState(trainer.email_publico || "");
-  const [instagram, setInstagram] = useState(trainer.instagram || "");
-  const [facebook, setFacebook] = useState(trainer.facebook || "");
-  const [servicios, setServicios] = useState<Servicio[]>(
+  const { patchDraft } = useLivePreview();
+  const [tagline, setTaglineState] = useState(trainer.tagline || "");
+  const [biografia, setBiografiaState] = useState(trainer.biografia || "");
+  const [whatsapp, setWhatsappState] = useState(trainer.whatsapp || "");
+  const [ciudad, setCiudadState] = useState(trainer.ciudad || "");
+  const [emailPublico, setEmailPublicoState] = useState(trainer.email_publico || "");
+  const [instagram, setInstagramState] = useState(trainer.instagram || "");
+  const [facebook, setFacebookState] = useState(trainer.facebook || "");
+  const [servicios, setServiciosState] = useState<Servicio[]>(
     (trainer.servicios as Servicio[] | null) || []
   );
 
@@ -23,14 +25,59 @@ export function TrainerContentForm({ trainer }: { trainer: TrainerRow }) {
   const [status, setStatus] = useState<"idle" | "ok" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
 
+  // Cada setter actualiza el estado local del formulario y, a la vez, el
+  // borrador que consume la vista previa en vivo (ver live-preview-context) —
+  // así lo que se escribe aquí se ve al instante en la landing renderizada
+  // al lado, sin guardar nada todavía.
+  function setTagline(v: string) {
+    setTaglineState(v);
+    patchDraft({ tagline: v });
+  }
+  function setBiografia(v: string) {
+    setBiografiaState(v);
+    patchDraft({ biografia: v });
+  }
+  function setWhatsapp(v: string) {
+    setWhatsappState(v);
+    patchDraft({ whatsapp: v });
+  }
+  function setCiudad(v: string) {
+    setCiudadState(v);
+    patchDraft({ ciudad: v });
+  }
+  function setEmailPublico(v: string) {
+    setEmailPublicoState(v);
+    patchDraft({ emailPublico: v });
+  }
+  function setInstagram(v: string) {
+    setInstagramState(v);
+    patchDraft({ instagram: v });
+  }
+  function setFacebook(v: string) {
+    setFacebookState(v);
+    patchDraft({ facebook: v });
+  }
+
   function updateServicio(i: number, patch: Partial<Servicio>) {
-    setServicios((prev) => prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
+    setServiciosState((prev) => {
+      const next = prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s));
+      patchDraft({ servicios: next });
+      return next;
+    });
   }
   function addServicio() {
-    setServicios((prev) => [...prev, { titulo: "", descripcion: "", tipo: "directo" }]);
+    setServiciosState((prev) => {
+      const next = [...prev, { titulo: "", descripcion: "", tipo: "directo" as const }];
+      patchDraft({ servicios: next });
+      return next;
+    });
   }
   function removeServicio(i: number) {
-    setServicios((prev) => prev.filter((_, idx) => idx !== i));
+    setServiciosState((prev) => {
+      const next = prev.filter((_, idx) => idx !== i);
+      patchDraft({ servicios: next });
+      return next;
+    });
   }
 
   function save() {

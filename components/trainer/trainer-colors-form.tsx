@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { updateOwnColors } from "@/lib/trainer-actions";
 import type { TrainerRow } from "@/lib/admin-actions";
+import { useLivePreview } from "./live-preview-context";
 
 const SUGGESTED_PALETTES: { label: string; primario: string; secundario: string; terciario: string }[] = [
   { label: "Verde Lima", primario: "#22C55E", secundario: "#15803D", terciario: "#86EFAC" },
@@ -14,12 +15,29 @@ const SUGGESTED_PALETTES: { label: string; primario: string; secundario: string;
 ];
 
 export function TrainerColorsForm({ trainer }: { trainer: TrainerRow }) {
-  const [colorPrimario, setColorPrimario] = useState(trainer.color_primario || "#22C55E");
-  const [colorSecundario, setColorSecundario] = useState(trainer.color_secundario || "#15803D");
-  const [colorTerciario, setColorTerciario] = useState(trainer.color_terciario || "#86EFAC");
+  const { patchDraft } = useLivePreview();
+  const [colorPrimario, setColorPrimarioState] = useState(trainer.color_primario || "#22C55E");
+  const [colorSecundario, setColorSecundarioState] = useState(trainer.color_secundario || "#15803D");
+  const [colorTerciario, setColorTerciarioState] = useState(trainer.color_terciario || "#86EFAC");
   const [isPending, startTransition] = useTransition();
   const [status, setStatus] = useState<"idle" | "ok" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
+
+  // Cada setter actualiza el estado local del formulario y, a la vez, el
+  // borrador que consume la vista previa en vivo — así el cambio se ve al
+  // instante en la landing renderizada al lado, sin tocar la base de datos.
+  function setColorPrimario(v: string) {
+    setColorPrimarioState(v);
+    patchDraft({ colorPrimario: v });
+  }
+  function setColorSecundario(v: string) {
+    setColorSecundarioState(v);
+    patchDraft({ colorSecundario: v });
+  }
+  function setColorTerciario(v: string) {
+    setColorTerciarioState(v);
+    patchDraft({ colorTerciario: v });
+  }
 
   function applyPalette(p: (typeof SUGGESTED_PALETTES)[number]) {
     setColorPrimario(p.primario);

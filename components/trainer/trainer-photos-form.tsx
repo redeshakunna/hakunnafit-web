@@ -5,6 +5,8 @@ import Image from "next/image";
 import { Upload } from "lucide-react";
 import { uploadOwnPhoto, type OwnPhotoSlot } from "@/lib/trainer-actions";
 import type { TrainerRow } from "@/lib/admin-actions";
+import { useLivePreview } from "./live-preview-context";
+import type { StarterTrainerProfile } from "@/components/hakunnafit/starter-templates/types";
 
 const SLOTS: { slot: OwnPhotoSlot; label: string; hint?: string }[] = [
   { slot: "logo_url", label: "Logo", hint: "Si no subes uno, tu landing muestra el nombre de tu negocio con un estilo acorde al diseño." },
@@ -14,7 +16,19 @@ const SLOTS: { slot: OwnPhotoSlot; label: string; hint?: string }[] = [
   { slot: "foto4_url", label: "Foto 4" },
 ];
 
+// Cada slot de foto del panel (snake_case, tal como vive en la tabla
+// trainers) corresponde a un campo distinto del borrador de la vista previa
+// en vivo (camelCase, ver starter-templates/types.ts).
+const SLOT_TO_DRAFT_KEY: Record<OwnPhotoSlot, keyof StarterTrainerProfile> = {
+  logo_url: "logoUrl",
+  avatar_url: "avatarUrl",
+  foto2_url: "foto2Url",
+  foto3_url: "foto3Url",
+  foto4_url: "foto4Url",
+};
+
 export function TrainerPhotosForm({ trainer }: { trainer: TrainerRow }) {
+  const { patchDraft } = useLivePreview();
   const initial: Record<OwnPhotoSlot, string | null> = {
     logo_url: trainer.logo_url,
     avatar_url: trainer.avatar_url,
@@ -39,7 +53,10 @@ export function TrainerPhotosForm({ trainer }: { trainer: TrainerRow }) {
             hint={s.hint}
             url={urls[s.slot]}
             error={errors[s.slot]}
-            onUploaded={(url) => setUrls((prev) => ({ ...prev, [s.slot]: url }))}
+            onUploaded={(url) => {
+              setUrls((prev) => ({ ...prev, [s.slot]: url }));
+              patchDraft({ [SLOT_TO_DRAFT_KEY[s.slot]]: url });
+            }}
             onError={(err) => setErrors((prev) => ({ ...prev, [s.slot]: err }))}
           />
         ))}

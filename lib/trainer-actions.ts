@@ -4,9 +4,11 @@ import { getSupabaseAdmin } from "./supabase-admin";
 import { requireTrainer } from "./trainer-auth";
 import { canEditLanding } from "./admin-helpers";
 import type { AdminActionResult, Estadistica, Testimonio, TransformacionPar } from "./admin-actions";
+import type { StarterLandingTemplateKey } from "./catalog";
 
 const MAX_AVATAR_BYTES = 3 * 1024 * 1024; // 3 MB
 const ALLOWED_AVATAR_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const VALID_TEMPLATES: StarterLandingTemplateKey[] = ["impacto", "claro", "personal"];
 
 /**
  * Todas las acciones de este archivo son para el panel de autoservicio del
@@ -99,6 +101,27 @@ export async function updateOwnColors(input: UpdateOwnColorsInput): Promise<Admi
   if (error) return { ok: false, error: error.message };
 
   await logOwnActivity(trainer.id, "informacion_actualizada", "Entrenador actualizó los colores de su landing");
+  return { ok: true };
+}
+
+/**
+ * Cambia el modelo de landing Starter (Impacto/Claro/Personal) que se
+ * publica en el subdominio del entrenador. Separado de updateOwnColors
+ * porque es un cambio estructural (layout completo), no solo estético — se
+ * confirma con su propio botón "Usar esta plantilla" en la vista previa en
+ * vivo del panel, en vez de guardarse junto con los colores.
+ */
+export async function updateOwnTemplate(landingTemplate: StarterLandingTemplateKey): Promise<AdminActionResult> {
+  const trainer = await assertEditable();
+  if (!VALID_TEMPLATES.includes(landingTemplate)) {
+    return { ok: false, error: "Modelo de landing no válido." };
+  }
+
+  const supabase = getSupabaseAdmin();
+  const { error } = await supabase.from("trainers").update({ landing_template: landingTemplate }).eq("id", trainer.id);
+  if (error) return { ok: false, error: error.message };
+
+  await logOwnActivity(trainer.id, "informacion_actualizada", "Entrenador cambió el modelo de su landing");
   return { ok: true };
 }
 
