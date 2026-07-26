@@ -17,6 +17,7 @@ import {
  */
 function trainerRowToStarterProfile(trainer: TrainerRow): StarterTrainerProfile {
   return {
+    subdominio: trainer.subdominio ?? "",
     businessName: trainer.business_name,
     especialidad: trainer.especialidad,
     ciudad: trainer.ciudad,

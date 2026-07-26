@@ -68,6 +68,7 @@ export const DEFAULT_SECCIONES_ACTIVAS: StarterSeccionesActivas = {
 };
 
 export interface StarterTrainerProfile {
+  subdominio: string;
   businessName: string;
   especialidad: string | null;
   ciudad: string | null;

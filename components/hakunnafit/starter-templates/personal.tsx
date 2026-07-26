@@ -260,7 +260,7 @@ export function PersonalTemplate({ trainer }: { trainer: StarterTrainerProfile }
         {/* Formulario de contacto */}
         <div className="mt-8 text-left">
           <p className="mb-2.5 text-xs font-semibold uppercase tracking-[0.2em] text-white/60">¿Hablamos?</p>
-          <WhatsappContactForm whatsapp={trainer.whatsapp} theme="glass" />
+          <WhatsappContactForm whatsapp={trainer.whatsapp} subdominio={trainer.subdominio} theme="glass" />
         </div>
 
         <p className="mt-8 text-[10px] uppercase tracking-[0.3em] text-white/50">Impulsado por HakunnaFit</p>

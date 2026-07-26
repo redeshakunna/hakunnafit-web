@@ -447,7 +447,7 @@ export function ImpactoTemplate({ trainer }: { trainer: StarterTrainerProfile })
               {trainer.ciudad && <span className="flex items-center gap-2"><MapPin size={15} />{trainer.ciudad}</span>}
             </div>
           </div>
-          <WhatsappContactForm whatsapp={trainer.whatsapp} theme="light" />
+          <WhatsappContactForm whatsapp={trainer.whatsapp} subdominio={trainer.subdominio} theme="light" />
         </div>
       </section>
 

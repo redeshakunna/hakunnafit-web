@@ -434,7 +434,7 @@ export function ClaroTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
             )}
           </div>
           <div className="w-full max-w-xs rounded-2xl bg-white p-5 shadow-sm">
-            <WhatsappContactForm whatsapp={trainer.whatsapp} theme="light" />
+            <WhatsappContactForm whatsapp={trainer.whatsapp} subdominio={trainer.subdominio} theme="light" />
             {trainer.emailPublico && (
               <p className="mt-4 flex items-center justify-center gap-1.5 text-xs text-gray-500">
                 <Mail size={13} />

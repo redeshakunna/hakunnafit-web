@@ -42,6 +42,7 @@ export default async function TrainerLandingPage({
       <>
         <Template
           trainer={{
+            subdominio: params.subdominio,
             businessName: trainer.business_name,
             especialidad: trainer.especialidad,
             ciudad: trainer.ciudad,

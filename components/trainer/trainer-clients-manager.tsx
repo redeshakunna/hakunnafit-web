@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Plus, Search, Trash2, X, MessageCircle, TrendingUp, CalendarClock } from "lucide-react";
+import { Plus, Search, Trash2, X, MessageCircle, TrendingUp, CalendarClock, Copy, Check, Link2 } from "lucide-react";
 import type { TrainerRow } from "@/lib/admin-actions";
 import { PLAN_CLIENT_CAP, planLabel } from "@/lib/catalog";
 import {
@@ -80,9 +80,19 @@ export function TrainerClientsManager({ trainer, initialClients }: { trainer: Tr
   const [detailClient, setDetailClient] = useState<ClientRow | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const cap = PLAN_CLIENT_CAP[trainer.plan ?? "starter"];
   const atCap = clients.length >= cap;
+  const registrationUrl = trainer.subdominio ? `https://${trainer.subdominio}.hakunnafit.com/registro` : null;
+
+  function copyRegistrationLink() {
+    if (!registrationUrl) return;
+    navigator.clipboard.writeText(registrationUrl).then(() => {
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    });
+  }
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -189,6 +199,36 @@ export function TrainerClientsManager({ trainer, initialClients }: { trainer: Tr
         <p className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-xs text-amber-400">
           Llegaste al límite de clientes de tu plan. Sube de plan desde Mi Negocio para agregar más.
         </p>
+      )}
+
+      {registrationUrl && (
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-hf-blue/10 text-hf-blue">
+              <Link2 size={14} />
+            </span>
+            <div>
+              <p className="text-xs font-semibold text-white">Comparte tu link de registro</p>
+              <p className="text-xs text-white/50">
+                Mándaselo por WhatsApp a un cliente puntual para que llene sus datos antes de su evaluación.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={copyRegistrationLink}
+            className="flex shrink-0 items-center gap-1.5 rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/5"
+          >
+            {linkCopied ? (
+              <>
+                <Check size={13} className="text-emerald-400" /> Copiado
+              </>
+            ) : (
+              <>
+                <Copy size={13} /> Copiar link
+              </>
+            )}
+          </button>
+        </div>
       )}
 
       <div className="mt-5 flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2">
