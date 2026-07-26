@@ -123,6 +123,12 @@ export interface Database {
           color_primario: string;
           color_secundario: string;
           color_terciario: string;
+          banner_url: string | null;
+          secciones_activas: Json;
+          preguntas_frecuentes: Json | null;
+          landing_draft: Json | null;
+          landing_draft_updated_at: string | null;
+          landing_published_at: string | null;
         };
         Insert: {
           id?: string;
@@ -162,6 +168,12 @@ export interface Database {
           color_primario?: string;
           color_secundario?: string;
           color_terciario?: string;
+          banner_url?: string | null;
+          secciones_activas?: Json;
+          preguntas_frecuentes?: Json | null;
+          landing_draft?: Json | null;
+          landing_draft_updated_at?: string | null;
+          landing_published_at?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["trainers"]["Insert"]>;
         Relationships: [];
@@ -208,16 +220,68 @@ export interface Database {
         Row: {
           id: string;
           trainer_id: string;
+          user_id: string | null;
           full_name: string;
+          email: string | null;
+          whatsapp: string | null;
+          sexo: string | null;
+          objetivo: string | null;
+          nivel: string | null;
+          actividad: string | null;
+          rutina_actual: string | null;
+          peso_actual: number | null;
+          altura: number | null;
+          plan_elegido: string | null;
+          dias_por_semana: number | null;
+          horario_entreno: string | null;
+          status: "pendiente_evaluacion" | "activo" | "pausado" | "inactivo";
           created_at: string;
         };
         Insert: {
           id?: string;
           trainer_id: string;
+          user_id?: string | null;
           full_name: string;
+          email?: string | null;
+          whatsapp?: string | null;
+          sexo?: string | null;
+          objetivo?: string | null;
+          nivel?: string | null;
+          actividad?: string | null;
+          rutina_actual?: string | null;
+          peso_actual?: number | null;
+          altura?: number | null;
+          plan_elegido?: string | null;
+          dias_por_semana?: number | null;
+          horario_entreno?: string | null;
+          status?: "pendiente_evaluacion" | "activo" | "pausado" | "inactivo";
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["clients"]["Insert"]>;
+        Relationships: [];
+      };
+      measurements: {
+        Row: {
+          id: string;
+          client_id: string;
+          fecha: string;
+          peso: number | null;
+          medidas: Json | null;
+          foto_url: string | null;
+          notas: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          client_id: string;
+          fecha?: string;
+          peso?: number | null;
+          medidas?: Json | null;
+          foto_url?: string | null;
+          notas?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["measurements"]["Insert"]>;
         Relationships: [];
       };
       weekly_plans: {
@@ -241,12 +305,16 @@ export interface Database {
           id: string;
           client_id: string;
           trainer_id: string;
+          scheduled_at: string | null;
+          status: string;
           created_at: string;
         };
         Insert: {
           id?: string;
           client_id: string;
           trainer_id: string;
+          scheduled_at?: string | null;
+          status?: string;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["evaluations"]["Insert"]>;

@@ -41,6 +41,32 @@ export interface StarterTestimonio {
   estrellas: number;
 }
 
+// Pregunta frecuente de la sección FAQ — la única sección de la landing que
+// no tenía ningún dato asociado hasta ahora (Mi Sitio Web, ver panel).
+export interface StarterFaq {
+  pregunta: string;
+  respuesta: string;
+}
+
+// Qué secciones de la landing están visibles — controlado desde Mi Sitio
+// Web en el panel. "hero", "sobre_mi" y "contacto" no están aquí a propósito:
+// son la portada, la presentación y el único medio de contacto de la
+// landing, así que siempre se muestran (ninguna landing útil debería poder
+// quedar sin ellas). Lo que sí se puede activar/desactivar es lo demás.
+export interface StarterSeccionesActivas {
+  servicios: boolean;
+  transformaciones: boolean;
+  galeria: boolean;
+  faq: boolean;
+}
+
+export const DEFAULT_SECCIONES_ACTIVAS: StarterSeccionesActivas = {
+  servicios: true,
+  transformaciones: true,
+  galeria: true,
+  faq: true,
+};
+
 export interface StarterTrainerProfile {
   businessName: string;
   especialidad: string | null;
@@ -61,9 +87,12 @@ export interface StarterTrainerProfile {
   testimonios: StarterTestimonio[] | null;
   tagline: string | null;
   logoUrl: string | null;
+  bannerUrl: string | null;
   colorPrimario: string;
   colorSecundario: string;
   colorTerciario: string;
+  faqs: StarterFaq[] | null;
+  seccionesActivas: StarterSeccionesActivas;
 }
 
 // CSS custom properties con los 3 colores del entrenador — se ponen una vez
@@ -358,6 +387,18 @@ const TESTIMONIOS_BY_BRANCH: Record<string, StarterTestimonio[]> = {
 export function resolveTestimonios(trainer: StarterTrainerProfile): StarterTestimonio[] {
   if (trainer.testimonios?.length) return trainer.testimonios;
   return (trainer.especialidad && TESTIMONIOS_BY_BRANCH[trainer.especialidad]) || DEFAULT_TESTIMONIOS;
+}
+
+// FAQ — a diferencia de servicios/estadísticas/testimonios, no hay set por
+// defecto ni por rama: si el entrenador no ha escrito ninguna desde Mi Sitio
+// Web, la sección simplemente no se muestra (no tiene sentido inventar
+// preguntas genéricas que no reflejen su negocio real).
+export function resolveFaqs(trainer: StarterTrainerProfile): StarterFaq[] {
+  return trainer.faqs?.filter((f) => f.pregunta.trim() && f.respuesta.trim()) ?? [];
+}
+
+export function seccionActiva(trainer: StarterTrainerProfile, key: keyof StarterSeccionesActivas): boolean {
+  return trainer.seccionesActivas?.[key] ?? DEFAULT_SECCIONES_ACTIVAS[key];
 }
 
 // Iniciales para el avatar de un testimonio (nunca foto de stock — sería una

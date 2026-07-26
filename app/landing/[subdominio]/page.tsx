@@ -8,7 +8,9 @@ import type {
   StarterTransformacion,
   StarterEstadistica,
   StarterTestimonio,
+  StarterFaq,
 } from "@/components/hakunnafit/starter-templates/types";
+import { DEFAULT_SECCIONES_ACTIVAS } from "@/components/hakunnafit/starter-templates/types";
 
 export const revalidate = 0;
 
@@ -27,7 +29,7 @@ export default async function TrainerLandingPage({
   const { data: trainer } = await supabase
     .from("trainers")
     .select(
-      "business_name, plan, landing_template, especialidad, ciudad, whatsapp, email_publico, biografia, avatar_url, foto2_url, foto3_url, foto4_url, instagram, facebook, mostrar_transformaciones, transformaciones, servicios, estadisticas, testimonios, tagline, logo_url, color_primario, color_secundario, color_terciario"
+      "business_name, plan, landing_template, especialidad, ciudad, whatsapp, email_publico, biografia, avatar_url, foto2_url, foto3_url, foto4_url, instagram, facebook, mostrar_transformaciones, transformaciones, servicios, estadisticas, testimonios, tagline, logo_url, banner_url, color_primario, color_secundario, color_terciario, preguntas_frecuentes, secciones_activas"
     )
     .eq("subdominio", params.subdominio)
     .maybeSingle();
@@ -59,9 +61,15 @@ export default async function TrainerLandingPage({
             testimonios: trainer.testimonios as StarterTestimonio[] | null,
             tagline: trainer.tagline,
             logoUrl: trainer.logo_url,
+            bannerUrl: trainer.banner_url,
             colorPrimario: trainer.color_primario,
             colorSecundario: trainer.color_secundario,
             colorTerciario: trainer.color_terciario,
+            faqs: trainer.preguntas_frecuentes as StarterFaq[] | null,
+            seccionesActivas: {
+              ...DEFAULT_SECCIONES_ACTIVAS,
+              ...(trainer.secciones_activas as Partial<typeof DEFAULT_SECCIONES_ACTIVAS> | null),
+            },
           }}
         />
         <WhatsappChatWidget

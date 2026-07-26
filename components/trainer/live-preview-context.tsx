@@ -3,7 +3,10 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import type { TrainerRow } from "@/lib/admin-actions";
 import type { StarterLandingTemplateKey } from "@/lib/catalog";
-import type { StarterTrainerProfile } from "@/components/hakunnafit/starter-templates/types";
+import {
+  DEFAULT_SECCIONES_ACTIVAS,
+  type StarterTrainerProfile,
+} from "@/components/hakunnafit/starter-templates/types";
 
 /**
  * Convierte la fila de Supabase (snake_case, tal como la usa el resto del
@@ -33,9 +36,15 @@ function trainerRowToStarterProfile(trainer: TrainerRow): StarterTrainerProfile 
     testimonios: trainer.testimonios,
     tagline: trainer.tagline,
     logoUrl: trainer.logo_url,
+    bannerUrl: trainer.banner_url,
     colorPrimario: trainer.color_primario,
     colorSecundario: trainer.color_secundario,
     colorTerciario: trainer.color_terciario,
+    faqs: trainer.preguntas_frecuentes,
+    seccionesActivas: {
+      ...DEFAULT_SECCIONES_ACTIVAS,
+      ...(trainer.secciones_activas as Partial<StarterTrainerProfile["seccionesActivas"]> | null),
+    },
   };
 }
 

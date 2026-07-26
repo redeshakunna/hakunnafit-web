@@ -144,6 +144,12 @@ export interface TrainerRow {
   color_primario: string;
   color_secundario: string;
   color_terciario: string;
+  banner_url: string | null;
+  secciones_activas: Record<string, boolean>;
+  preguntas_frecuentes: { pregunta: string; respuesta: string }[] | null;
+  landing_draft: Record<string, unknown> | null;
+  landing_draft_updated_at: string | null;
+  landing_published_at: string | null;
 }
 
 export interface TrainerActivityRow {

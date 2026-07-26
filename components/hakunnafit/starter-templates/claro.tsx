@@ -22,10 +22,12 @@ import {
   instagramHref,
   planWhatsappMessage,
   resolveEstadisticas,
+  resolveFaqs,
   resolveServicios,
   resolveTagline,
   resolveTestimonios,
   resolveTransformaciones,
+  seccionActiva,
   secondaryPhoto,
   transformacionesWhatsappMessage,
   whatsappHref,
@@ -52,6 +54,7 @@ export function ClaroTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
   const estadisticas = resolveEstadisticas(trainer);
   const testimonios = resolveTestimonios(trainer);
   const tagline = resolveTagline(trainer);
+  const faqs = resolveFaqs(trainer);
   const featureLabels = [...servicios.map((s) => s.titulo), ...DEFAULT_ICON_LABELS].slice(0, 5);
   const primerStat = estadisticas[0];
 
@@ -85,6 +88,13 @@ export function ClaroTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
           )}
         </div>
       </header>
+
+      {/* Banner de marca — opcional, solo si el entrenador subió uno desde Mi Marca */}
+      {trainer.bannerUrl && (
+        <div className="relative h-32 w-full sm:h-52">
+          <Image src={trainer.bannerUrl} alt="" fill sizes="100vw" className="object-cover" priority />
+        </div>
+      )}
 
       {/* Hero */}
       <section id="inicio" className="relative overflow-hidden px-6 pb-16 pt-16 sm:pt-24">
@@ -234,6 +244,7 @@ export function ClaroTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
       </section>
 
       {/* Servicios */}
+      {seccionActiva(trainer, "servicios") && (
       <section id="servicios" className="border-t border-gray-200/70 px-6 py-20">
         <div className="mx-auto max-w-2xl">
           <span className="text-xs font-semibold uppercase tracking-[0.3em] text-gray-400">Servicios</span>
@@ -268,9 +279,10 @@ export function ClaroTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
           </div>
         </div>
       </section>
+      )}
 
       {/* Galería adicional — solo si el entrenador subió más de 2 fotos */}
-      {galeria.length > 0 && (
+      {seccionActiva(trainer, "galeria") && galeria.length > 0 && (
         <section className="border-t border-gray-200/70 px-6 py-16">
           <div className={`mx-auto grid max-w-2xl gap-4 ${galeria.length > 1 ? "sm:grid-cols-2" : ""}`}>
             {galeria.map((url, i) => (
@@ -289,7 +301,7 @@ export function ClaroTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
       )}
 
       {/* Transformaciones */}
-      {transformaciones && (
+      {seccionActiva(trainer, "transformaciones") && transformaciones && (
         <section id="resultados" className="border-t border-gray-200/70 px-6 py-20">
           <div className="mx-auto max-w-4xl">
             <span className="text-xs font-semibold uppercase tracking-[0.3em] text-gray-400">Resultados</span>
@@ -373,6 +385,29 @@ export function ClaroTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
           </div>
         </div>
       </section>
+
+      {/* Preguntas frecuentes */}
+      {seccionActiva(trainer, "faq") && faqs.length > 0 && (
+        <section id="faq" className="border-t border-gray-200/70 bg-white px-6 py-20">
+          <div className="mx-auto max-w-3xl">
+            <div className="text-center">
+              <span className="text-xs font-semibold uppercase tracking-[0.3em] text-gray-400">Preguntas frecuentes</span>
+              <h2 className="mt-2 font-[family-name:var(--font-hf-heading)] text-2xl font-bold text-gray-900">¿Tienes dudas?</h2>
+            </div>
+            <div className="mt-8 flex flex-col gap-3">
+              {faqs.map((f, i) => (
+                <details key={i} className="group rounded-2xl border border-gray-200 px-5 py-4">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-gray-900">
+                    {f.pregunta}
+                    <span className="shrink-0 text-[var(--hf-primary)] transition-transform group-open:rotate-45">+</span>
+                  </summary>
+                  <p className="mt-3 text-sm leading-relaxed text-gray-500">{f.respuesta}</p>
+                </details>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Contacto */}
       <section

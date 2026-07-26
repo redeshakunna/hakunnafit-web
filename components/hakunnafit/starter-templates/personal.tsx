@@ -8,10 +8,12 @@ import {
   instagramHref,
   planWhatsappMessage,
   resolveEstadisticas,
+  resolveFaqs,
   resolveServicios,
   resolveTagline,
   resolveTestimonios,
   resolveTransformaciones,
+  seccionActiva,
   transformacionesWhatsappMessage,
   whatsappHref,
   type StarterTrainerProfile,
@@ -35,6 +37,7 @@ export function PersonalTemplate({ trainer }: { trainer: StarterTrainerProfile }
   const estadisticas = resolveEstadisticas(trainer);
   const testimonios = resolveTestimonios(trainer);
   const tagline = resolveTagline(trainer);
+  const faqs = resolveFaqs(trainer);
 
   return (
     <main
@@ -122,6 +125,7 @@ export function PersonalTemplate({ trainer }: { trainer: StarterTrainerProfile }
         </div>
 
         {/* Servicios/planes — acordeón */}
+        {seccionActiva(trainer, "servicios") && (
         <div className="mt-8 rounded-2xl border border-white/20 bg-white/5 p-1.5 text-left">
           {servicios.map((s) => {
             const waPlan = whatsappHref(trainer.whatsapp, planWhatsappMessage(s.titulo));
@@ -146,9 +150,10 @@ export function PersonalTemplate({ trainer }: { trainer: StarterTrainerProfile }
             );
           })}
         </div>
+        )}
 
         {/* Transformaciones — carrusel angosto */}
-        {transformaciones && (
+        {seccionActiva(trainer, "transformaciones") && transformaciones && (
           <div className="mt-8 text-left">
             <p className="mb-2.5 text-xs font-semibold uppercase tracking-[0.2em] text-white/60">Resultados</p>
             <div className="flex gap-2.5 overflow-x-auto pb-1">
@@ -221,7 +226,7 @@ export function PersonalTemplate({ trainer }: { trainer: StarterTrainerProfile }
         </div>
 
         {/* Galería adicional — solo si el entrenador subió más de 2 fotos */}
-        {galeria.length > 0 && (
+        {seccionActiva(trainer, "galeria") && galeria.length > 0 && (
           <div className="mt-8 text-left">
             <p className="mb-2.5 text-xs font-semibold uppercase tracking-[0.2em] text-white/60">Más fotos</p>
             <div className="flex gap-2.5 overflow-x-auto pb-1">
@@ -229,6 +234,24 @@ export function PersonalTemplate({ trainer }: { trainer: StarterTrainerProfile }
                 <div key={i} className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl border border-white/20">
                   <Image src={url} alt={trainer.businessName} fill sizes="96px" className="object-cover" />
                 </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Preguntas frecuentes */}
+        {seccionActiva(trainer, "faq") && faqs.length > 0 && (
+          <div className="mt-8 text-left">
+            <p className="mb-2.5 text-xs font-semibold uppercase tracking-[0.2em] text-white/60">Preguntas frecuentes</p>
+            <div className="flex flex-col gap-2">
+              {faqs.map((f, i) => (
+                <details key={i} className="group rounded-xl border border-white/15 bg-white/5 px-3 py-2.5">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-xs font-semibold text-white">
+                    {f.pregunta}
+                    <ChevronDown size={13} className="shrink-0 text-white/60 transition-transform group-open:rotate-180" />
+                  </summary>
+                  <p className="mt-1.5 text-xs leading-relaxed text-white/70">{f.respuesta}</p>
+                </details>
               ))}
             </div>
           </div>

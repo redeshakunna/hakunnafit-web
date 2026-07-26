@@ -26,10 +26,12 @@ import {
   instagramHref,
   planWhatsappMessage,
   resolveEstadisticas,
+  resolveFaqs,
   resolveServicios,
   resolveTagline,
   resolveTestimonios,
   resolveTransformaciones,
+  seccionActiva,
   secondaryPhoto,
   transformacionesWhatsappMessage,
   whatsappHref,
@@ -58,6 +60,7 @@ export function ImpactoTemplate({ trainer }: { trainer: StarterTrainerProfile })
   const estadisticas = resolveEstadisticas(trainer);
   const testimonios = resolveTestimonios(trainer);
   const tagline = resolveTagline(trainer);
+  const faqs = resolveFaqs(trainer);
   const [nombrePila, ...resto] = trainer.businessName.split(" ");
   const apellido = resto.join(" ");
 
@@ -93,6 +96,14 @@ export function ImpactoTemplate({ trainer }: { trainer: StarterTrainerProfile })
           )}
         </div>
       </header>
+
+      {/* Banner de marca — opcional, solo si el entrenador subió uno desde Mi Marca */}
+      {trainer.bannerUrl && (
+        <div className="relative h-32 w-full sm:h-52">
+          <Image src={trainer.bannerUrl} alt="" fill sizes="100vw" className="object-cover" priority />
+          <div className="absolute inset-0 bg-gradient-to-t from-hf-black to-transparent" />
+        </div>
+      )}
 
       {/* Hero */}
       <section id="inicio" className="relative overflow-hidden px-6 pb-20 pt-16 sm:pt-24">
@@ -239,6 +250,7 @@ export function ImpactoTemplate({ trainer }: { trainer: StarterTrainerProfile })
       </section>
 
       {/* Servicios */}
+      {seccionActiva(trainer, "servicios") && (
       <section id="servicios" className="bg-hf-black px-6 py-20">
         <div className="mx-auto max-w-5xl text-center">
           <span className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--hf-primary)]">Servicios</span>
@@ -278,9 +290,10 @@ export function ImpactoTemplate({ trainer }: { trainer: StarterTrainerProfile })
           </div>
         </div>
       </section>
+      )}
 
       {/* Transformaciones */}
-      {transformaciones && (
+      {seccionActiva(trainer, "transformaciones") && transformaciones && (
         <section id="resultados" className="bg-[#0b0f1a] px-6 py-20">
           <div className="mx-auto max-w-5xl text-center">
             <span className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--hf-primary)]">Transformaciones</span>
@@ -340,7 +353,7 @@ export function ImpactoTemplate({ trainer }: { trainer: StarterTrainerProfile })
       )}
 
       {/* Galería adicional — solo si el entrenador subió más de 2 fotos */}
-      {galeria.length > 0 && (
+      {seccionActiva(trainer, "galeria") && galeria.length > 0 && (
         <section className="bg-hf-black px-6 py-16">
           <div className="mx-auto max-w-5xl">
             <div className={`grid gap-4 ${galeria.length > 1 ? "sm:grid-cols-2" : ""}`}>
@@ -393,6 +406,29 @@ export function ImpactoTemplate({ trainer }: { trainer: StarterTrainerProfile })
           </div>
         </div>
       </section>
+
+      {/* Preguntas frecuentes */}
+      {seccionActiva(trainer, "faq") && faqs.length > 0 && (
+        <section id="faq" className="bg-[#0b0f1a] px-6 py-20">
+          <div className="mx-auto max-w-3xl">
+            <div className="text-center">
+              <span className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--hf-primary)]">Preguntas frecuentes</span>
+              <h2 className="mt-2 font-[family-name:var(--font-hf-heading)] text-3xl font-bold text-white">¿Tienes dudas?</h2>
+            </div>
+            <div className="mt-10 flex flex-col gap-3">
+              {faqs.map((f, i) => (
+                <details key={i} className="group rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-4">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-white">
+                    {f.pregunta}
+                    <span className="shrink-0 text-[var(--hf-primary)] transition-transform group-open:rotate-45">+</span>
+                  </summary>
+                  <p className="mt-3 text-sm leading-relaxed text-white/60">{f.respuesta}</p>
+                </details>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Contacto */}
       <section id="contacto" className="px-6 py-20" style={{ background: GREEN }}>

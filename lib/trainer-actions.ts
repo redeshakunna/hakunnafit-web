@@ -5,6 +5,7 @@ import { requireTrainer } from "./trainer-auth";
 import { canEditLanding } from "./admin-helpers";
 import type { AdminActionResult, Estadistica, Testimonio, TransformacionPar } from "./admin-actions";
 import type { StarterLandingTemplateKey } from "./catalog";
+import type { Json } from "./database.types";
 
 const MAX_AVATAR_BYTES = 3 * 1024 * 1024; // 3 MB
 const ALLOWED_AVATAR_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -32,46 +33,61 @@ async function logOwnActivity(trainerId: string, type: string, title: string, de
   await supabase.from("trainer_activity").insert({ trainer_id: trainerId, type, title, description: description ?? null });
 }
 
-export interface UpdateOwnContentInput {
+export interface UpdateOwnBrandInput {
   tagline?: string | null;
   biografia?: string | null;
+  especialidad?: string | null;
   whatsapp?: string | null;
   ciudad?: string | null;
   emailPublico?: string | null;
   instagram?: string | null;
   facebook?: string | null;
-  servicios?: { titulo: string; descripcion: string; tipo: "directo" | "personalizado" }[] | null;
+  dominioPropio?: string | null;
 }
 
-export async function updateOwnContent(input: UpdateOwnContentInput): Promise<AdminActionResult> {
+/**
+ * Mi Marca — identidad del entrenador (frase principal, bio, especialidad,
+ * contacto y redes). A diferencia de Mi Sitio Web, esto se guarda siempre al
+ * instante (como en Shopify/Stripe "brand settings") — no tiene concepto de
+ * borrador, porque son datos de perfil, no contenido editorial de la
+ * landing.
+ */
+export async function updateOwnBrand(input: UpdateOwnBrandInput): Promise<AdminActionResult> {
   const trainer = await assertEditable();
   const supabase = getSupabaseAdmin();
 
   const update: {
     tagline?: string | null;
     biografia?: string | null;
+    especialidad?: string | null;
     whatsapp?: string | null;
     ciudad?: string | null;
     email_publico?: string | null;
     instagram?: string | null;
     facebook?: string | null;
-    servicios?: { titulo: string; descripcion: string; tipo: "directo" | "personalizado" }[] | null;
+    dominio_propio?: string | null;
   } = {};
   if (input.tagline !== undefined) update.tagline = input.tagline || null;
   if (input.biografia !== undefined) update.biografia = input.biografia || null;
+  if (input.especialidad !== undefined) update.especialidad = input.especialidad || null;
   if (input.whatsapp !== undefined) update.whatsapp = input.whatsapp || null;
   if (input.ciudad !== undefined) update.ciudad = input.ciudad || null;
   if (input.emailPublico !== undefined) update.email_publico = input.emailPublico || null;
   if (input.instagram !== undefined) update.instagram = input.instagram || null;
   if (input.facebook !== undefined) update.facebook = input.facebook || null;
-  if (input.servicios !== undefined) update.servicios = input.servicios;
+  // dominio_propio es exclusivo Elite — se ignora silenciosamente si el
+  // entrenador no está en ese plan (la UI ya lo oculta, esto es la
+  // revalidación server-side).
+  if (input.dominioPropio !== undefined && trainer.plan === "elite") {
+    update.dominio_propio = input.dominioPropio || null;
+  }
 
   if (Object.keys(update).length === 0) return { ok: true };
 
   const { error } = await supabase.from("trainers").update(update).eq("id", trainer.id);
   if (error) return { ok: false, error: error.message };
 
-  await logOwnActivity(trainer.id, "informacion_actualizada", "Entrenador editó su información");
+  await logOwnActivity(trainer.id, "informacion_actualizada", "Entrenador editó su marca");
   return { ok: true };
 }
 
@@ -125,6 +141,69 @@ export async function updateOwnTemplate(landingTemplate: StarterLandingTemplateK
   return { ok: true };
 }
 
+// ---------------------------------------------------------------------------
+// Mi Sitio Web — a diferencia de Mi Marca, esto SÍ tiene un concepto real de
+// borrador: el entrenador puede dejar cambios a medio hacer (guardarOwnSitioWebDraft)
+// sin que se reflejen en su landing pública, y solo pasan a producción
+// cuando presiona "Publicar cambios" (publishOwnSitioWeb). El borrador vive
+// en trainers.landing_draft (jsonb) — un espejo de exactamente estos mismos
+// campos, nunca de logo/colores/bio (esos son de Mi Marca y siempre se
+// guardan al instante).
+// ---------------------------------------------------------------------------
+
+export interface SitioWebDraftShape {
+  servicios: { titulo: string; descripcion: string; tipo: "directo" | "personalizado" }[];
+  seccionesActivas: { servicios: boolean; transformaciones: boolean; galeria: boolean; faq: boolean };
+  faqs: { pregunta: string; respuesta: string }[];
+  mostrarTransformaciones: boolean;
+  transformaciones: TransformacionPar[] | null;
+}
+
+/**
+ * Guarda el estado actual del editor de Mi Sitio Web como borrador — no
+ * toca ninguna columna "en vivo" que lea la landing pública, así que el
+ * entrenador puede cerrar el panel y retomar exactamente donde iba la
+ * próxima vez que entre, sin arriesgarse a publicar algo a medias.
+ */
+export async function saveOwnSitioWebDraft(draft: SitioWebDraftShape): Promise<AdminActionResult> {
+  const trainer = await assertEditable();
+  const supabase = getSupabaseAdmin();
+  const { error } = await supabase
+    .from("trainers")
+    .update({ landing_draft: draft as unknown as Json, landing_draft_updated_at: new Date().toISOString() })
+    .eq("id", trainer.id);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/**
+ * Publica los cambios de Mi Sitio Web: copia el borrador (o, si no hay
+ * borrador guardado, el estado que se le pasa directamente) a las columnas
+ * en vivo que lee /landing/[subdominio] — a partir de aquí es visible para
+ * cualquiera que entre a la landing.
+ */
+export async function publishOwnSitioWeb(draft: SitioWebDraftShape): Promise<AdminActionResult> {
+  const trainer = await assertEditable();
+  const supabase = getSupabaseAdmin();
+  const { error } = await supabase
+    .from("trainers")
+    .update({
+      servicios: draft.servicios,
+      secciones_activas: draft.seccionesActivas,
+      preguntas_frecuentes: draft.faqs,
+      mostrar_transformaciones: draft.mostrarTransformaciones,
+      transformaciones: draft.transformaciones,
+      landing_draft: null,
+      landing_draft_updated_at: null,
+      landing_published_at: new Date().toISOString(),
+    })
+    .eq("id", trainer.id);
+  if (error) return { ok: false, error: error.message };
+
+  await logOwnActivity(trainer.id, "informacion_actualizada", "Entrenador publicó cambios en su sitio web");
+  return { ok: true };
+}
+
 export interface UpdateOwnTransformacionesInput {
   mostrarTransformaciones: boolean;
   transformaciones: TransformacionPar[] | null;
@@ -168,7 +247,7 @@ function validateImageFile(file: FormDataEntryValue | null): { ok: true; file: F
   return { ok: true, file };
 }
 
-export type OwnPhotoSlot = "avatar_url" | "foto2_url" | "foto3_url" | "foto4_url" | "logo_url";
+export type OwnPhotoSlot = "avatar_url" | "foto2_url" | "foto3_url" | "foto4_url" | "logo_url" | "banner_url";
 
 /**
  * Sube cualquiera de las fotos propias del entrenador (perfil, fotos de la
@@ -202,6 +281,7 @@ export async function uploadOwnPhoto(
     foto3_url?: string;
     foto4_url?: string;
     logo_url?: string;
+    banner_url?: string;
   } = {};
   photoUpdate[slot] = data.publicUrl;
 
@@ -239,4 +319,59 @@ export async function uploadOwnTransformacionPhoto(
 
   const { data } = supabase.storage.from("avatars").getPublicUrl(path);
   return { ok: true, url: data.publicUrl };
+}
+
+// ---------------------------------------------------------------------------
+// Mi Negocio — lectura de datos reales para el resumen de cuenta del
+// entrenador (uso de clientes, solicitudes recibidas). Deliberadamente NO
+// incluye estadísticas de HakAI o de visitas a la landing porque todavía no
+// existe ninguna tabla que registre ese uso real — mostrar un número ahí
+// sería inventar datos, así que esa sección del panel se limita a indicar si
+// la función está incluida en el plan, sin fingir una métrica.
+// ---------------------------------------------------------------------------
+
+export interface OwnClientStats {
+  total: number;
+  activos: number;
+  prospectos: number;
+  pausados: number;
+}
+
+export async function getOwnClientStats(): Promise<OwnClientStats> {
+  const trainer = await requireTrainer();
+  const supabase = getSupabaseAdmin();
+  const { data } = await supabase.from("clients").select("status").eq("trainer_id", trainer.id);
+  const rows = data ?? [];
+  return {
+    total: rows.length,
+    activos: rows.filter((r) => r.status === "activo").length,
+    prospectos: rows.filter((r) => r.status === "pendiente_evaluacion").length,
+    pausados: rows.filter((r) => r.status === "pausado" || r.status === "inactivo").length,
+  };
+}
+
+export interface OwnActivityRow {
+  id: string;
+  type: string;
+  title: string;
+  description: string | null;
+  created_at: string;
+}
+
+/**
+ * Actividad reciente del propio entrenador — mismo trainer_activity que ya
+ * alimenta cada acción de este archivo (logOwnActivity), ahora leído de
+ * vuelta para el resumen del Dashboard.
+ */
+export async function getOwnRecentActivity(limit = 6): Promise<OwnActivityRow[]> {
+  const trainer = await requireTrainer();
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("trainer_activity")
+    .select("id, type, title, description, created_at")
+    .eq("trainer_id", trainer.id)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error || !data) return [];
+  return data as OwnActivityRow[];
 }

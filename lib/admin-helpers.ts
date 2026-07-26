@@ -1,4 +1,5 @@
 import type { TrainerRow } from "./admin-actions";
+import { PLAN_FEATURES, type FeatureKey, type PlanKey } from "./catalog";
 
 /**
  * Un entrenador cuenta como "activo" (para KPIs e ingresos) si:
@@ -47,6 +48,27 @@ export function getPaymentStatus(proximoCobro: string | null, isSuspended: boole
 export function canEditLanding(t: Pick<TrainerRow, "plan" | "landing_status">): boolean {
   if (t.plan === "starter") return true;
   return t.landing_status === "publicada";
+}
+
+/**
+ * ¿El plan del entrenador incluye esta función? Única fuente de verdad para
+ * ocultar/bloquear módulos del panel de autoservicio (Admin Landing) según
+ * PLAN_FEATURES en catalog.ts — así el sidebar, el contenido de cada módulo
+ * y cualquier upsell futuro siempre leen del mismo catálogo, en vez de
+ * repetir la lógica de "starter vs pro vs elite" en cada pantalla.
+ */
+export function hasFeature(plan: PlanKey | null, feature: FeatureKey): boolean {
+  return PLAN_FEATURES[plan ?? "starter"].includes(feature);
+}
+
+/**
+ * Plan mínimo (el más barato) que ya incluye esta función — para mostrar
+ * "Disponible desde plan Pro" en los módulos bloqueados.
+ */
+export function minPlanForFeature(feature: FeatureKey): PlanKey {
+  if (PLAN_FEATURES.starter.includes(feature)) return "starter";
+  if (PLAN_FEATURES.pro.includes(feature)) return "pro";
+  return "elite";
 }
 
 export const paymentStatusLabels: Record<PaymentStatus, string> = {
