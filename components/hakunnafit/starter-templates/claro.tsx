@@ -14,6 +14,7 @@ import {
   Utensils,
 } from "lucide-react";
 import {
+  brandColorVars,
   facebookHref,
   galleryPhotos,
   heroWhatsappMessage,
@@ -31,6 +32,7 @@ import {
   type StarterTrainerProfile,
 } from "./types";
 import { WhatsappContactForm } from "./contact-form";
+import { BrandMark } from "./brand-mark";
 
 const iconRow = [Dumbbell, Utensils, TrendingUp, Target, Award];
 const DEFAULT_ICON_LABELS = ["Motivación y disciplina", "Resultados garantizados"];
@@ -54,15 +56,18 @@ export function ClaroTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
   const primerStat = estadisticas[0];
 
   return (
-    <main className="min-h-screen w-full bg-[#F7F7F2] text-gray-900">
+    <main className="min-h-screen w-full bg-[#F7F7F2] text-gray-900" style={brandColorVars(trainer)}>
       {/* Nav */}
       <header className="border-b border-gray-200/70">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <span className="font-[family-name:var(--font-hf-heading)] text-sm font-bold uppercase tracking-[0.15em]">
-            {trainer.businessName}
-          </span>
+          <BrandMark
+            logoUrl={trainer.logoUrl}
+            businessName={trainer.businessName}
+            className="h-8 w-36"
+            textClassName="font-[family-name:var(--font-hf-heading)] text-sm font-bold uppercase tracking-[0.15em]"
+          />
           <nav className="hidden items-center gap-7 text-sm font-medium text-gray-500 sm:flex">
-            <a href="#inicio" className="border-b-2 border-emerald-600 pb-1 text-gray-900">Inicio</a>
+            <a href="#inicio" className="border-b-2 border-[var(--hf-primary)] pb-1 text-gray-900">Inicio</a>
             <a href="#sobre-mi" className="hover:text-gray-900">Sobre mí</a>
             <a href="#servicios" className="hover:text-gray-900">Servicios</a>
             <a href="#resultados" className="hover:text-gray-900">Resultados</a>
@@ -73,7 +78,7 @@ export function ClaroTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
               href={wa}
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-full border-2 border-emerald-600 px-4 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-600 hover:text-white"
+              className="rounded-full border-2 border-[var(--hf-primary)] px-4 py-1.5 text-xs font-semibold text-[var(--hf-secondary)] hover:bg-[var(--hf-primary)] hover:text-white"
             >
               WhatsApp
             </a>
@@ -91,7 +96,7 @@ export function ClaroTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
             <h1 className="mt-4 font-[family-name:var(--font-hf-heading)] text-4xl font-black uppercase leading-[1.05] text-gray-900 sm:text-5xl">
               <span className="block">{tagline.split(",")[0]}</span>
               {tagline.includes(",") && (
-                <span className="block text-emerald-600">{tagline.split(",").slice(1).join(",").trim()}</span>
+                <span className="block text-[var(--hf-primary)]">{tagline.split(",").slice(1).join(",").trim()}</span>
               )}
             </h1>
             <p className="mt-5 max-w-md text-base leading-relaxed text-gray-500">
@@ -139,7 +144,10 @@ export function ClaroTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
           </div>
 
           <div className="relative mx-auto aspect-[4/5] w-full max-w-xs overflow-hidden rounded-3xl">
-            <div className="pointer-events-none absolute inset-0 -z-10 scale-125 rounded-full bg-emerald-500/10 blur-2xl" />
+            <div
+              className="pointer-events-none absolute inset-0 -z-10 scale-125 rounded-full blur-2xl"
+              style={{ backgroundColor: "color-mix(in srgb, var(--hf-primary) 10%, transparent)" }}
+            />
             <Image
               src={trainer.avatarUrl || "/images/NO_image.png"}
               alt={trainer.businessName}
@@ -163,7 +171,10 @@ export function ClaroTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
             const Icon = iconRow[i % iconRow.length];
             return (
               <div key={label} className="flex flex-col items-center gap-2">
-                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                <div
+                  className="flex h-11 w-11 items-center justify-center rounded-full text-[var(--hf-primary)]"
+                  style={{ backgroundColor: "color-mix(in srgb, var(--hf-primary) 8%, white)" }}
+                >
                   <Icon size={18} />
                 </div>
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-600">{label}</p>
@@ -176,7 +187,7 @@ export function ClaroTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
       {/* Sobre mí */}
       <section id="sobre-mi" className="px-6 py-20">
         <div className="mx-auto grid max-w-5xl items-center gap-10 sm:grid-cols-[280px_1fr]">
-          <div className="relative mx-auto aspect-[4/3] w-full overflow-hidden rounded-2xl border-l-4 border-emerald-600 sm:aspect-[3/4]">
+          <div className="relative mx-auto aspect-[4/3] w-full overflow-hidden rounded-2xl border-l-4 border-[var(--hf-primary)] sm:aspect-[3/4]">
             <Image
               src={secondaryPhoto(trainer)}
               alt={trainer.businessName}
@@ -186,7 +197,7 @@ export function ClaroTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
             />
           </div>
           <div>
-            <span className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-600">Sobre mí</span>
+            <span className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--hf-primary)]">Sobre mí</span>
             <h2 className="mt-2 font-[family-name:var(--font-hf-heading)] text-3xl font-bold uppercase leading-tight text-gray-900">
               {primerStat ? `Más de ${primerStat.valor.replace(/^\+/, "")} ayudando` : "Ayudando"}
               <br />a personas a cambiar su vida.
@@ -200,7 +211,7 @@ export function ClaroTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
                 href={wa}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-gray-900 hover:text-emerald-700"
+                className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-gray-900 hover:text-[var(--hf-secondary)]"
               >
                 Conoce más sobre mí
                 <span aria-hidden>→</span>
@@ -215,7 +226,7 @@ export function ClaroTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
         <div className="mx-auto grid max-w-5xl grid-cols-2 gap-6 divide-gray-700 text-center sm:grid-cols-4 sm:divide-x">
           {estadisticas.map((stat, i) => (
             <div key={i} className="px-2">
-              <p className="font-[family-name:var(--font-hf-heading)] text-2xl font-bold text-emerald-400">{stat.valor}</p>
+              <p className="font-[family-name:var(--font-hf-heading)] text-2xl font-bold text-[var(--hf-tertiary)]">{stat.valor}</p>
               <p className="mt-1 text-[11px] uppercase tracking-wide text-white/50">{stat.etiqueta}</p>
             </div>
           ))}
@@ -332,7 +343,7 @@ export function ClaroTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
       {/* Testimonios */}
       <section className="border-t border-gray-200/70 bg-white px-6 py-20">
         <div className="mx-auto max-w-5xl text-center">
-          <Quote className="mx-auto text-emerald-600/30" size={26} />
+          <Quote className="mx-auto" style={{ color: "color-mix(in srgb, var(--hf-primary) 30%, transparent)" }} size={26} />
           <span className="text-xs font-semibold uppercase tracking-[0.3em] text-gray-400">Testimonios</span>
           <h2 className="mt-2 font-[family-name:var(--font-hf-heading)] text-2xl font-bold text-gray-900">
             Lo que dicen mis clientes
@@ -342,12 +353,15 @@ export function ClaroTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
               <div key={i} className="flex flex-col rounded-2xl border border-gray-200 bg-[#FAFAF7] p-5 text-left">
                 <p className="flex-1 text-sm leading-relaxed text-gray-600">“{t.texto}”</p>
                 <div className="mt-4 flex items-center gap-3">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-700">
+                  <div
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-[var(--hf-secondary)]"
+                    style={{ backgroundColor: "color-mix(in srgb, var(--hf-primary) 15%, white)" }}
+                  >
                     {initialsOf(t.nombre)}
                   </div>
                   <div>
                     <p className="text-xs font-semibold text-gray-900">{t.nombre}</p>
-                    <div className="flex gap-0.5 text-emerald-500">
+                    <div className="flex gap-0.5 text-[var(--hf-primary)]">
                       {Array.from({ length: 5 }).map((_, s) => (
                         <Star key={s} size={11} fill={s < t.estrellas ? "currentColor" : "none"} />
                       ))}
@@ -361,10 +375,14 @@ export function ClaroTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
       </section>
 
       {/* Contacto */}
-      <section id="contacto" className="border-t border-gray-200/70 bg-emerald-50 px-6 py-16">
+      <section
+        id="contacto"
+        className="border-t border-gray-200/70 px-6 py-16"
+        style={{ backgroundColor: "color-mix(in srgb, var(--hf-primary) 8%, white)" }}
+      >
         <div className="mx-auto flex max-w-4xl flex-col items-center gap-8 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-center sm:text-left">
-            <span className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-700">Hablemos de tus objetivos</span>
+            <span className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--hf-secondary)]">Hablemos de tus objetivos</span>
             <h2 className="mt-2 max-w-sm font-[family-name:var(--font-hf-heading)] text-2xl font-bold text-gray-900">
               Estoy aquí para ayudarte a lograr tu mejor versión.
             </h2>
@@ -398,7 +416,7 @@ export function ClaroTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
             {trainer.businessName}
           </span>
           <span>© {new Date().getFullYear()} {trainer.businessName}. Todos los derechos reservados.</span>
-          <span className="text-emerald-700">{tagline}</span>
+          <span className="text-[var(--hf-secondary)]">{tagline}</span>
         </div>
       </footer>
     </main>

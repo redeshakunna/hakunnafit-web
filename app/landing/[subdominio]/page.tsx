@@ -27,7 +27,7 @@ export default async function TrainerLandingPage({
   const { data: trainer } = await supabase
     .from("trainers")
     .select(
-      "business_name, plan, landing_template, especialidad, ciudad, whatsapp, email_publico, biografia, avatar_url, foto2_url, foto3_url, foto4_url, instagram, facebook, mostrar_transformaciones, transformaciones, servicios, estadisticas, testimonios, tagline"
+      "business_name, plan, landing_template, especialidad, ciudad, whatsapp, email_publico, biografia, avatar_url, foto2_url, foto3_url, foto4_url, instagram, facebook, mostrar_transformaciones, transformaciones, servicios, estadisticas, testimonios, tagline, logo_url, color_primario, color_secundario, color_terciario"
     )
     .eq("subdominio", params.subdominio)
     .maybeSingle();
@@ -58,6 +58,10 @@ export default async function TrainerLandingPage({
             estadisticas: trainer.estadisticas as StarterEstadistica[] | null,
             testimonios: trainer.testimonios as StarterTestimonio[] | null,
             tagline: trainer.tagline,
+            logoUrl: trainer.logo_url,
+            colorPrimario: trainer.color_primario,
+            colorSecundario: trainer.color_secundario,
+            colorTerciario: trainer.color_terciario,
           }}
         />
         <WhatsappChatWidget

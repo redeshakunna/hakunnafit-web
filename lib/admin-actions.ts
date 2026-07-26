@@ -140,6 +140,10 @@ export interface TrainerRow {
   tagline: string | null;
   onboarding_step: string | null;
   onboarding_completed_at: string | null;
+  logo_url: string | null;
+  color_primario: string;
+  color_secundario: string;
+  color_terciario: string;
 }
 
 export interface TrainerActivityRow {
@@ -1595,8 +1599,26 @@ export async function activarEntrenador(leadId: string): Promise<AdminActionResu
 
   const welcomeMessage =
     plan === "starter"
-      ? `Tu landing ya está publicada${subdominioTxt ? ` en ${subdominioTxt}` : ""}. Cualquier ajuste de contenido lo coordinas directamente con nosotros.`
-      : "Ya quedaste activo en Hakunna Fit. Nuestro equipo va a contactarte para diseñar tu landing a la medida.";
+      ? `Tu landing ya está publicada${subdominioTxt ? ` en ${subdominioTxt}` : ""}. Crea tu contraseña para entrar a tu panel y editar textos, fotos, logo y colores cuando quieras.`
+      : "Ya quedaste activo en Hakunna Fit. Nuestro equipo va a diseñar tu landing a la medida — en cuanto esté lista, crea tu contraseña para entrar a tu panel y ajustar textos, fotos, logo y colores.";
+
+  // Genera un link de "crear contraseña" (recovery de Supabase Auth) para el
+  // primer acceso al panel de autoservicio — este entrenador nunca tuvo
+  // contraseña porque su cuenta se creó server-side (auth.admin.createUser)
+  // sin una. Si falla, el correo sale igual sin el botón de acceso; el
+  // entrenador puede pedir "olvidé mi contraseña" desde /panel/login más
+  // adelante.
+  let setPasswordUrl: string | undefined;
+  try {
+    const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+      type: "recovery",
+      email: lead.email,
+      options: { redirectTo: `${SITE_URL}/auth/callback?next=/panel/set-password` },
+    });
+    if (!linkError) setPasswordUrl = linkData?.properties?.action_link;
+  } catch {
+    setPasswordUrl = undefined;
+  }
 
   await sendLeadEmail({
     to: lead.email,
@@ -1605,6 +1627,8 @@ export async function activarEntrenador(leadId: string): Promise<AdminActionResu
       nombre: lead.nombre,
       title: "¡Tu cuenta ya está activa!",
       message: welcomeMessage,
+      ctaLabel: setPasswordUrl ? "Crear mi contraseña" : undefined,
+      ctaUrl: setPasswordUrl,
       color: "#00C8FF",
     }),
   }).catch(() => {});

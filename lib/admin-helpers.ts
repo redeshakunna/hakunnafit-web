@@ -36,6 +36,19 @@ export function getPaymentStatus(proximoCobro: string | null, isSuspended: boole
   return "al_dia";
 }
 
+/**
+ * ¿El propio entrenador puede editar su landing (textos/fotos/logo/colores)
+ * desde su panel de autoservicio?
+ * - Starter: sí, en cuanto se crea (su landing se publica sola al activarse).
+ * - Pro/Elite: no hasta que Nando termine el diseño manual y la landing quede
+ *   "publicada" — antes de eso cualquier cambio del entrenador se perdería
+ *   con el próximo ajuste de diseño de Nando.
+ */
+export function canEditLanding(t: Pick<TrainerRow, "plan" | "landing_status">): boolean {
+  if (t.plan === "starter") return true;
+  return t.landing_status === "publicada";
+}
+
 export const paymentStatusLabels: Record<PaymentStatus, string> = {
   al_dia: "Al día",
   proximo_vencer: "Próximo a vencer",

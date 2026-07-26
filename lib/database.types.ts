@@ -119,6 +119,10 @@ export interface Database {
           tagline: string | null;
           onboarding_step: string | null;
           onboarding_completed_at: string | null;
+          logo_url: string | null;
+          color_primario: string;
+          color_secundario: string;
+          color_terciario: string;
         };
         Insert: {
           id?: string;
@@ -154,6 +158,10 @@ export interface Database {
           tagline?: string | null;
           onboarding_step?: string | null;
           onboarding_completed_at?: string | null;
+          logo_url?: string | null;
+          color_primario?: string;
+          color_secundario?: string;
+          color_terciario?: string;
         };
         Update: Partial<Database["public"]["Tables"]["trainers"]["Insert"]>;
         Relationships: [];

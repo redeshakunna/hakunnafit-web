@@ -18,6 +18,7 @@ import {
   Utensils,
 } from "lucide-react";
 import {
+  brandColorVars,
   facebookHref,
   galleryPhotos,
   heroWhatsappMessage,
@@ -35,11 +36,12 @@ import {
   type StarterTrainerProfile,
 } from "./types";
 import { WhatsappContactForm } from "./contact-form";
+import { BrandMark } from "./brand-mark";
 
 const servicioIcons = [Dumbbell, Utensils, Sparkles, TrendingUp];
 const statIcons = [User, Users, ClipboardCheck, ShieldCheck];
-const GREEN = "linear-gradient(90deg,#22C55E,#15803D)";
-const GREEN_DIAG = "linear-gradient(135deg,#22C55E,#15803D)";
+const GREEN = "linear-gradient(90deg,var(--hf-primary),var(--hf-secondary))";
+const GREEN_DIAG = "linear-gradient(135deg,var(--hf-primary),var(--hf-secondary))";
 
 // Modelo "Impacto" — fondo oscuro, franja diagonal verde y foto grande,
 // pensado para transmitir energía. Estructura de landing completa: nav,
@@ -56,30 +58,22 @@ export function ImpactoTemplate({ trainer }: { trainer: StarterTrainerProfile })
   const estadisticas = resolveEstadisticas(trainer);
   const testimonios = resolveTestimonios(trainer);
   const tagline = resolveTagline(trainer);
-  const initials = trainer.businessName
-    .split(" ")
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase();
   const [nombrePila, ...resto] = trainer.businessName.split(" ");
   const apellido = resto.join(" ");
 
   return (
-    <main className="min-h-screen w-full bg-hf-black text-white">
+    <main className="min-h-screen w-full bg-hf-black text-white" style={brandColorVars(trainer)}>
       {/* Nav */}
       <header className="sticky top-0 z-30 border-b border-white/10 bg-hf-black/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg text-sm font-black" style={{ background: GREEN_DIAG }}>
-              {initials}
-            </div>
-            <span className="font-[family-name:var(--font-hf-heading)] text-sm font-bold uppercase tracking-wide">
-              {trainer.businessName}
-            </span>
-          </div>
+          <BrandMark
+            logoUrl={trainer.logoUrl}
+            businessName={trainer.businessName}
+            className="h-9 w-36"
+            textClassName="font-[family-name:var(--font-hf-heading)] text-sm font-bold uppercase tracking-wide"
+          />
           <nav className="hidden items-center gap-7 text-sm font-medium text-white/60 sm:flex">
-            <a href="#inicio" className="border-b-2 border-emerald-400 pb-1 text-white">Inicio</a>
+            <a href="#inicio" className="border-b-2 border-[var(--hf-primary)] pb-1 text-white">Inicio</a>
             <a href="#sobre-mi" className="hover:text-white">Sobre mí</a>
             <a href="#servicios" className="hover:text-white">Servicios</a>
             <a href="#resultados" className="hover:text-white">Resultados</a>
@@ -112,26 +106,32 @@ export function ImpactoTemplate({ trainer }: { trainer: StarterTrainerProfile })
         <div
           className="pointer-events-none absolute inset-y-0 right-[4%] hidden w-[8%] opacity-30 lg:block"
           style={{
-            background: "linear-gradient(135deg,#86EFAC,#22C55E)",
+            background: "linear-gradient(135deg,var(--hf-tertiary),var(--hf-primary))",
             clipPath: "polygon(38% 0, 100% 0, 100% 100%, 0% 100%)",
           }}
         />
-        <div className="pointer-events-none absolute -left-20 top-24 h-64 w-64 rounded-full bg-emerald-500/10 blur-[110px]" />
+        <div
+          className="pointer-events-none absolute -left-20 top-24 h-64 w-64 rounded-full blur-[110px]"
+          style={{ backgroundColor: "color-mix(in srgb, var(--hf-primary) 10%, transparent)" }}
+        />
         <div className="relative mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2">
           <div>
-            <span className="text-xs font-semibold uppercase tracking-[0.25em] text-emerald-400">
+            <span className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--hf-primary)]">
               {trainer.especialidad || "Entrenador Personal"}
             </span>
             <h1 className="mt-4 font-[family-name:var(--font-hf-heading)] text-5xl font-black uppercase leading-[0.95] sm:text-6xl">
               <span className="block text-white">{nombrePila}</span>
-              {apellido && <span className="block text-emerald-400">{apellido}</span>}
+              {apellido && <span className="block text-[var(--hf-primary)]">{apellido}</span>}
             </h1>
-            <p className="mt-4 max-w-md font-[family-name:var(--font-hf-heading)] text-lg italic text-emerald-300/90">
+            <p
+              className="mt-4 max-w-md font-[family-name:var(--font-hf-heading)] text-lg italic"
+              style={{ color: "color-mix(in srgb, var(--hf-tertiary) 90%, transparent)" }}
+            >
               {tagline}
             </p>
             {trainer.ciudad && (
               <span className="mt-3 flex items-center gap-1.5 text-sm text-white/50">
-                <MapPin size={14} className="text-emerald-400" />
+                <MapPin size={14} className="text-[var(--hf-primary)]" />
                 {trainer.ciudad}
               </span>
             )}
@@ -158,17 +158,17 @@ export function ImpactoTemplate({ trainer }: { trainer: StarterTrainerProfile })
             {(ig || fb || trainer.emailPublico) && (
               <div className="mt-7 flex items-center gap-3">
                 {ig && (
-                  <a href={ig} target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 text-white/70 hover:border-emerald-400 hover:text-emerald-400">
+                  <a href={ig} target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 text-white/70 hover:border-[var(--hf-primary)] hover:text-[var(--hf-primary)]">
                     <Instagram size={16} />
                   </a>
                 )}
                 {fb && (
-                  <a href={fb} target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 text-white/70 hover:border-emerald-400 hover:text-emerald-400">
+                  <a href={fb} target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 text-white/70 hover:border-[var(--hf-primary)] hover:text-[var(--hf-primary)]">
                     <Facebook size={16} />
                   </a>
                 )}
                 {trainer.emailPublico && (
-                  <a href={`mailto:${trainer.emailPublico}`} aria-label="Correo" className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 text-white/70 hover:border-emerald-400 hover:text-emerald-400">
+                  <a href={`mailto:${trainer.emailPublico}`} aria-label="Correo" className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 text-white/70 hover:border-[var(--hf-primary)] hover:text-[var(--hf-primary)]">
                     <Mail size={16} />
                   </a>
                 )}
@@ -191,7 +191,10 @@ export function ImpactoTemplate({ trainer }: { trainer: StarterTrainerProfile })
 
       {/* Sobre mí + estadísticas */}
       <section id="sobre-mi" className="relative overflow-hidden bg-[#0b0f1a] px-6 py-20">
-        <div className="pointer-events-none absolute -left-10 top-10 h-40 w-40 rounded-[45%] border border-emerald-500/20" />
+        <div
+          className="pointer-events-none absolute -left-10 top-10 h-40 w-40 rounded-[45%] border"
+          style={{ borderColor: "color-mix(in srgb, var(--hf-primary) 20%, transparent)" }}
+        />
         <div className="mx-auto grid max-w-5xl items-center gap-10 sm:grid-cols-[260px_1fr]">
           <div className="relative mx-auto aspect-square w-52 overflow-hidden rounded-2xl sm:w-full">
             <Image
@@ -203,10 +206,10 @@ export function ImpactoTemplate({ trainer }: { trainer: StarterTrainerProfile })
             />
           </div>
           <div>
-            <span className="text-xs font-semibold uppercase tracking-[0.25em] text-emerald-400">Sobre mí</span>
+            <span className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--hf-primary)]">Sobre mí</span>
             <h2 className="mt-2 font-[family-name:var(--font-hf-heading)] text-3xl font-bold text-white">
               Entreno personas,{" "}
-              <span className="text-emerald-400">transformo vidas.</span>
+              <span className="text-[var(--hf-primary)]">transformo vidas.</span>
             </h2>
             <p className="mt-4 max-w-xl text-base leading-relaxed text-white/65">
               {trainer.biografia ||
@@ -217,7 +220,10 @@ export function ImpactoTemplate({ trainer }: { trainer: StarterTrainerProfile })
                 const Icon = statIcons[i % statIcons.length];
                 return (
                   <div key={i} className="flex items-start gap-2">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400">
+                    <div
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--hf-primary)]"
+                      style={{ backgroundColor: "color-mix(in srgb, var(--hf-primary) 15%, transparent)" }}
+                    >
                       <Icon size={16} />
                     </div>
                     <div>
@@ -235,7 +241,7 @@ export function ImpactoTemplate({ trainer }: { trainer: StarterTrainerProfile })
       {/* Servicios */}
       <section id="servicios" className="bg-hf-black px-6 py-20">
         <div className="mx-auto max-w-5xl text-center">
-          <span className="text-xs font-semibold uppercase tracking-[0.25em] text-emerald-400">Servicios</span>
+          <span className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--hf-primary)]">Servicios</span>
           <h2 className="mt-2 font-[family-name:var(--font-hf-heading)] text-3xl font-bold">¿Cómo puedo ayudarte?</h2>
           <div className="mt-10 grid gap-5 sm:grid-cols-3">
             {servicios.map((s, i) => {
@@ -244,7 +250,10 @@ export function ImpactoTemplate({ trainer }: { trainer: StarterTrainerProfile })
               return (
                 <div key={s.titulo} className="flex flex-col rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-left">
                   <div className="flex items-center justify-between">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400">
+                    <div
+                      className="flex h-11 w-11 items-center justify-center rounded-full text-[var(--hf-primary)]"
+                      style={{ backgroundColor: "color-mix(in srgb, var(--hf-primary) 15%, transparent)" }}
+                    >
                       <Icon size={19} />
                     </div>
                     <span className="rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white/50">
@@ -258,7 +267,7 @@ export function ImpactoTemplate({ trainer }: { trainer: StarterTrainerProfile })
                       href={waPlan}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="mt-4 text-xs font-semibold text-emerald-400 hover:text-white"
+                      className="mt-4 text-xs font-semibold text-[var(--hf-primary)] hover:text-white"
                     >
                       Quiero este plan →
                     </a>
@@ -274,7 +283,7 @@ export function ImpactoTemplate({ trainer }: { trainer: StarterTrainerProfile })
       {transformaciones && (
         <section id="resultados" className="bg-[#0b0f1a] px-6 py-20">
           <div className="mx-auto max-w-5xl text-center">
-            <span className="text-xs font-semibold uppercase tracking-[0.25em] text-emerald-400">Transformaciones</span>
+            <span className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--hf-primary)]">Transformaciones</span>
             <h2 className="mt-2 font-[family-name:var(--font-hf-heading)] text-3xl font-bold text-white">Resultados reales</h2>
             <div className="mt-10 grid gap-6 sm:grid-cols-3">
               {transformaciones.map((pair, i) => (
@@ -355,8 +364,8 @@ export function ImpactoTemplate({ trainer }: { trainer: StarterTrainerProfile })
       <section className="bg-[#0b0f1a] px-6 py-20">
         <div className="mx-auto max-w-5xl">
           <div className="flex flex-col items-center gap-2 text-center">
-            <Quote className="text-emerald-500/40" size={30} />
-            <span className="text-xs font-semibold uppercase tracking-[0.25em] text-emerald-400">Testimonios</span>
+            <Quote style={{ color: "color-mix(in srgb, var(--hf-primary) 40%, transparent)" }} size={30} />
+            <span className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--hf-primary)]">Testimonios</span>
             <h2 className="font-[family-name:var(--font-hf-heading)] text-3xl font-bold text-white">Lo que dicen mis clientes</h2>
           </div>
           <div className="mt-10 grid gap-5 sm:grid-cols-3">
@@ -364,12 +373,15 @@ export function ImpactoTemplate({ trainer }: { trainer: StarterTrainerProfile })
               <div key={i} className="flex flex-col rounded-2xl border border-white/10 bg-white/[0.03] p-5">
                 <p className="flex-1 text-sm italic leading-relaxed text-white/75">“{t.texto}”</p>
                 <div className="mt-4 flex items-center gap-3">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-xs font-bold text-emerald-300">
+                  <div
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-[var(--hf-tertiary)]"
+                    style={{ backgroundColor: "color-mix(in srgb, var(--hf-primary) 20%, transparent)" }}
+                  >
                     {initialsOf(t.nombre)}
                   </div>
                   <div>
                     <p className="text-xs font-semibold text-white">{t.nombre}</p>
-                    <div className="flex gap-0.5 text-emerald-400">
+                    <div className="flex gap-0.5 text-[var(--hf-primary)]">
                       {Array.from({ length: 5 }).map((_, s) => (
                         <Star key={s} size={11} fill={s < t.estrellas ? "currentColor" : "none"} />
                       ))}
@@ -386,7 +398,7 @@ export function ImpactoTemplate({ trainer }: { trainer: StarterTrainerProfile })
       <section id="contacto" className="px-6 py-20" style={{ background: GREEN }}>
         <div className="mx-auto grid max-w-5xl gap-10 sm:grid-cols-2">
           <div>
-            <span className="text-xs font-semibold uppercase tracking-[0.25em] text-emerald-950/70">Contacto</span>
+            <span className="text-xs font-semibold uppercase tracking-[0.25em] text-white/70">Contacto</span>
             <h2 className="mt-2 font-[family-name:var(--font-hf-heading)] text-3xl font-bold text-white">
               Estoy aquí para ayudarte a lograr tu mejor versión.
             </h2>

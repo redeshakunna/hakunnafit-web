@@ -6,6 +6,7 @@
 // facebook son null. Las 3 plantillas comparten esta misma información — lo
 // que cambia entre ellas es la distribución y los componentes usados para
 // mostrarla, no los datos.
+import type { CSSProperties } from "react";
 import { TRAINER_BRANCHES } from "@/lib/catalog";
 
 export interface StarterServicio {
@@ -59,6 +60,24 @@ export interface StarterTrainerProfile {
   estadisticas: StarterEstadistica[] | null;
   testimonios: StarterTestimonio[] | null;
   tagline: string | null;
+  logoUrl: string | null;
+  colorPrimario: string;
+  colorSecundario: string;
+  colorTerciario: string;
+}
+
+// CSS custom properties con los 3 colores del entrenador — se ponen una vez
+// en el contenedor raíz de cada plantilla (spread sobre su `style`) y de ahí
+// en adelante cualquier elemento de la plantilla los usa vía var(--hf-primary)
+// / var(--hf-secondary) / var(--hf-tertiary) en vez de un hex fijo. Así el
+// panel de autoservicio del entrenador (updateOwnColors) cambia la landing
+// entera sin tocar ningún componente.
+export function brandColorVars(trainer: StarterTrainerProfile): CSSProperties {
+  return {
+    ["--hf-primary" as string]: trainer.colorPrimario,
+    ["--hf-secondary" as string]: trainer.colorSecundario,
+    ["--hf-tertiary" as string]: trainer.colorTerciario,
+  } as CSSProperties;
 }
 
 // El pago en Starter es siempre por transferencia manual — no hay checkout

@@ -17,6 +17,7 @@ import {
   type StarterTrainerProfile,
 } from "./types";
 import { WhatsappContactForm } from "./contact-form";
+import { BrandMark } from "./brand-mark";
 
 // Modelo "Personal" — formato centrado tipo tarjeta de presentación /
 // link-in-bio, todo en una sola tarjeta que se desplaza verticalmente.
@@ -38,7 +39,9 @@ export function PersonalTemplate({ trainer }: { trainer: StarterTrainerProfile }
   return (
     <main
       className="flex min-h-screen w-full justify-center px-4 py-10 sm:py-16"
-      style={{ background: "linear-gradient(160deg,#00C8FF,#6D2EFF 55%,#FF2DB8)" }}
+      style={{
+        background: `linear-gradient(160deg, ${trainer.colorPrimario}, ${trainer.colorSecundario} 55%, ${trainer.colorTerciario})`,
+      }}
     >
       <div className="w-full max-w-sm rounded-[2rem] border border-white/20 bg-white/10 p-7 text-center backdrop-blur-md sm:p-8">
         <div className="relative mx-auto h-24 w-24 overflow-hidden rounded-full border-2 border-white/70">
@@ -52,9 +55,16 @@ export function PersonalTemplate({ trainer }: { trainer: StarterTrainerProfile }
           />
         </div>
 
-        <h1 className="mt-5 font-[family-name:var(--font-hf-heading)] text-2xl font-bold leading-tight text-white">
-          {trainer.businessName}
-        </h1>
+        <div className="mt-5 flex justify-center">
+          <BrandMark
+            logoUrl={trainer.logoUrl}
+            businessName={trainer.businessName}
+            gradientText={false}
+            className="h-10 w-44"
+            imageClassName="object-contain object-center"
+            textClassName="font-[family-name:var(--font-hf-heading)] text-2xl font-bold leading-tight text-white"
+          />
+        </div>
         <p className="mt-1 font-[family-name:var(--font-hf-heading)] text-sm italic text-white/80">{tagline}</p>
 
         {trainer.especialidad && <p className="mt-1.5 text-sm font-medium text-white/85">{trainer.especialidad}</p>}

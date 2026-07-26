@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { RESERVED_SUBDOMAINS } from "@/lib/slug";
 
 // Dominio raíz de producción. Cualquier host que llegue como
@@ -10,26 +11,75 @@ import { RESERVED_SUBDOMAINS } from "@/lib/slug";
 // normal sin pasar por esta reescritura.
 const ROOT_DOMAIN = "hakunnafit.com";
 
-export function middleware(req: NextRequest) {
+// Rutas de /panel (panel de autoservicio del entrenador) accesibles sin
+// sesión — todo lo demás bajo /panel exige estar logueado.
+const PUBLIC_PANEL_ROUTES = new Set(["/panel/login", "/panel/set-password"]);
+
+export async function middleware(req: NextRequest) {
   const hostname = (req.headers.get("host") || "").split(":")[0].toLowerCase();
 
-  // En local/preview (localhost, *.vercel.app, IPs) no hay subdominio real de
-  // hakunnafit.com que resolver — se deja pasar todo tal cual; para probar el
-  // placeholder de un entrenador en esos entornos se usa directamente la ruta
-  // /landing/[subdominio].
-  if (!hostname.endsWith(`.${ROOT_DOMAIN}`)) {
-    return NextResponse.next();
+  // 1. Subdominios de entrenador — no tiene relación con la sesión de /panel.
+  if (hostname.endsWith(`.${ROOT_DOMAIN}`)) {
+    const subdomain = hostname.slice(0, -(`.${ROOT_DOMAIN}`.length));
+    if (subdomain && !subdomain.includes(".") && !RESERVED_SUBDOMAINS.has(subdomain)) {
+      const url = req.nextUrl.clone();
+      url.pathname = `/landing/${subdomain}${url.pathname === "/" ? "" : url.pathname}`;
+      return NextResponse.rewrite(url);
+    }
   }
 
-  const subdomain = hostname.slice(0, -(`.${ROOT_DOMAIN}`.length));
+  // 2. Panel de autoservicio del entrenador (/panel/*) — refresca la sesión
+  // de Supabase en cada request (necesario para que el access token no
+  // expire silenciosamente) y exige login salvo en las rutas públicas.
+  // OJO: debe ser una comparación exacta de segmento, no startsWith("/panel")
+  // a secas — si no, también atraparía /panel-hakunna (el panel de Nando,
+  // que usa su propio cookie de admin, nada de sesión Supabase) y lo
+  // mandaría a /panel/login por error.
+  if (req.nextUrl.pathname === "/panel" || req.nextUrl.pathname.startsWith("/panel/")) {
+    let response = NextResponse.next({ request: req });
 
-  if (!subdomain || subdomain.includes(".") || RESERVED_SUBDOMAINS.has(subdomain)) {
-    return NextResponse.next();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return req.cookies.get(name)?.value;
+          },
+          set(name: string, value: string, options: CookieOptions) {
+            req.cookies.set({ name, value, ...options });
+            response = NextResponse.next({ request: req });
+            response.cookies.set({ name, value, ...options });
+          },
+          remove(name: string, options: CookieOptions) {
+            req.cookies.set({ name, value: "", ...options });
+            response = NextResponse.next({ request: req });
+            response.cookies.set({ name, value: "", ...options });
+          },
+        },
+      }
+    );
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user && !PUBLIC_PANEL_ROUTES.has(req.nextUrl.pathname)) {
+      const url = req.nextUrl.clone();
+      url.pathname = "/panel/login";
+      return NextResponse.redirect(url);
+    }
+
+    if (user && req.nextUrl.pathname === "/panel/login") {
+      const url = req.nextUrl.clone();
+      url.pathname = "/panel";
+      return NextResponse.redirect(url);
+    }
+
+    return response;
   }
 
-  const url = req.nextUrl.clone();
-  url.pathname = `/landing/${subdomain}${url.pathname === "/" ? "" : url.pathname}`;
-  return NextResponse.rewrite(url);
+  return NextResponse.next();
 }
 
 export const config = {
