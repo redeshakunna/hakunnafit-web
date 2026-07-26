@@ -35,6 +35,36 @@ export async function sendAdminEmail(input: { subject: string; html: string }): 
   }
 }
 
+/**
+ * Igual que sendAdminEmail pero a un destinatario cualquiera — se usa para
+ * los correos que el sistema le envía al entrenador/solicitante (aprobación
+ * de solicitud, solicitud de cambios en el onboarding, etc.), no a Nando.
+ */
+export async function sendLeadEmail(input: { to: string; subject: string; html: string }): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return;
+
+  const from = process.env.EMAIL_FROM || "HakunnaFit <onboarding@resend.dev>";
+
+  try {
+    await fetch(RESEND_API_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from,
+        to: input.to,
+        subject: input.subject,
+        html: input.html,
+      }),
+    });
+  } catch {
+    // Un correo fallido no debe romper el flujo de aprobación.
+  }
+}
+
 function escapeHtml(text: string): string {
   return text
     .replace(/&/g, "&amp;")
@@ -129,6 +159,116 @@ const CONTACT = {
     { label: "TikTok", initial: "♪", color: "#111318", url: "https://www.tiktok.com/@HakunnaFit" },
   ],
 };
+
+/**
+ * Correo dirigido al solicitante/entrenador (no a Nando) — mismo diseño de
+ * marca que renderNotificationEmail (hero oscuro + mascota + footer de
+ * contacto), pero saludando por su nombre real y sin el panel interno de
+ * "pasos para Nando". Se usa para el correo de aprobación de solicitud (con
+ * el enlace de onboarding) y para avisos de "solicitar cambios" durante el
+ * onboarding.
+ */
+export function renderLeadEmail(input: {
+  nombre: string;
+  title: string;
+  message: string;
+  ctaLabel?: string;
+  ctaUrl?: string;
+  color?: string;
+}): string {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://hakunnafit.com";
+  const color = input.color || "#22C55E";
+  const nombre = escapeHtml(input.nombre);
+  const title = escapeHtml(input.title);
+  const message = escapeHtml(input.message);
+  const mascotUrl = `${siteUrl}/images/LogoWebMail.png`;
+  const logoUrl = `${siteUrl}/images/LogoHorizontal-trasnparente.png`;
+
+  const socialCircles = CONTACT.social
+    .map(
+      (s) =>
+        `<a href="${s.url}" style="display:inline-block;width:32px;height:32px;border-radius:50%;background-color:${s.color};color:#ffffff;font-size:12px;font-weight:700;text-align:center;line-height:32px;text-decoration:none;margin-right:8px;">${s.initial}</a>`
+    )
+    .join("");
+
+  const FONT_HEAD = `<style>
+      @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600;700&display=swap');
+      .hf-heading { font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+      .hf-body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+    </style>`;
+
+  return `<!doctype html>
+<html lang="es">
+  <head>${FONT_HEAD}</head>
+  <body style="margin:0;padding:0;background-color:#f2f2f6;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;" class="hf-body">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f2f2f6;padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background-color:#0b0f1a;border-radius:20px;overflow:hidden;">
+
+            <tr>
+              <td align="center" style="padding:14px 24px;background-color:#0b0f1a;border-bottom:1px solid #1b2032;">
+                <p style="margin:0;font-size:12px;color:#ffffff;">
+                  Hakunna Fit &bull; <span style="color:${color};">Entrena Inteligente. Vive Más Fuerte.</span>
+                </p>
+              </td>
+            </tr>
+
+            <tr>
+              <td align="center" style="padding:36px 32px 40px;background-color:#0b0f1a;">
+                <img src="${logoUrl}" width="220" alt="HakunnaFit" style="display:block;width:220px;height:auto;margin:0 auto 22px;" />
+                <p class="hf-heading" style="margin:0 0 14px;font-family:'Space Grotesk',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:20px;font-weight:700;color:#ffffff;text-align:center;">
+                  ¡Hola, <span style="color:${color};">${nombre}</span>!
+                </p>
+                <p class="hf-heading" style="margin:0 0 10px;font-family:'Space Grotesk',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:17px;font-weight:700;line-height:1.4;color:#ffffff;text-align:center;">${title}</p>
+                <p style="margin:0 0 24px;font-size:13.5px;line-height:1.65;color:#aeb2c4;text-align:center;max-width:440px;">${message}</p>
+                ${
+                  input.ctaUrl && input.ctaLabel
+                    ? `<a href="${input.ctaUrl}" style="display:inline-block;padding:13px 32px;border-radius:999px;background-color:${color};color:#ffffff;font-size:13px;font-weight:600;text-decoration:none;">${escapeHtml(input.ctaLabel)} →</a>`
+                    : ""
+                }
+              </td>
+            </tr>
+
+            <tr>
+              <td align="center" style="padding:28px 32px 28px;background-color:#ffffff;border-top-left-radius:22px;border-top-right-radius:22px;">
+                <img src="${mascotUrl}" width="96" alt="HakunnaFit" style="display:block;width:96px;height:auto;margin:0 auto 14px;" />
+                <p style="margin:0 0 16px;font-size:11.5px;line-height:1.6;color:#6b7086;text-align:center;max-width:380px;">
+                  Hakunna Fit es el ecosistema digital para entrenadores que quieren escalar su negocio.
+                </p>
+                <p style="margin:0 0 6px;font-size:12px;font-weight:700;color:#0b0f1a;text-align:center;">¿Dudas? Contáctanos</p>
+                <p style="margin:0 0 4px;font-size:11.5px;color:#6b7086;text-align:center;">
+                  <a href="mailto:soporte@send.hakunnafit.com" style="color:#6b7086;text-decoration:none;">soporte@send.hakunnafit.com</a>
+                  &nbsp;·&nbsp;
+                  <a href="${CONTACT.whatsappLink}" style="color:#6b7086;text-decoration:none;">${CONTACT.whatsappDisplay}</a>
+                </p>
+              </td>
+            </tr>
+
+            <tr>
+              <td align="center" style="padding:8px 32px 28px;background-color:#0b0f1a;">
+                <div style="text-align:center;margin-bottom:14px;">${socialCircles}</div>
+                <p style="margin:0;font-size:11px;font-weight:700;color:#00C8FF;text-align:center;">Entrena Inteligente.</p>
+                <p style="margin:0;font-size:11px;font-weight:700;color:#FF2DB8;text-align:center;">Vive Más Fuerte.</p>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:16px 32px;background-color:#0b0f1a;border-top:1px solid #1b2032;">
+                <p style="margin:0;font-size:10.5px;line-height:1.5;color:#6b7086;text-align:center;">
+                  © ${new Date().getFullYear()} Hakunna Fit. Todos los derechos reservados.<br />
+                  Este correo fue enviado automáticamente, por favor no respondas a este mensaje.
+                </p>
+              </td>
+            </tr>
+
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+}
 
 /**
  * Arma el HTML de la notificación siguiendo la línea visual de referencia:

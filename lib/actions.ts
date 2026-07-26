@@ -38,7 +38,7 @@ export async function checkSubdominioDisponible(raw: string): Promise<SubdomainC
       .from("hakunnafit_leads")
       .select("id")
       .eq("subdominio_propuesto", slug)
-      .neq("estado", "convertido")
+      .neq("estado", "entrenador_creado")
       .maybeSingle(),
   ]);
 
@@ -53,56 +53,57 @@ export async function submitHakunnaFitLead(formData: FormData): Promise<LeadResu
     return { ok: false, error: "Nombre y correo son obligatorios." };
   }
 
-  const negocio = (formData.get("negocio") as string) || null;
   const planRaw = (formData.get("plan") as string) || null;
   const plan = planRaw === "starter" || planRaw === "pro" || planRaw === "elite" ? planRaw : null;
 
-  // Calculamos un subdominio propuesto (no se reserva de forma definitiva
-  // todavía — solo evitamos que choque con uno ya usado o ya propuesto por
-  // otra solicitud pendiente). Se usa la llave de servicio únicamente para
-  // esta lectura de unicidad + el insert; esta función nunca crea cuentas.
-  // Si el visitante escribió un nombre para su página (validado en vivo por
-  // checkSubdominioDisponible mientras escribía), ese es el que se usa como
-  // base en vez del nombre del negocio.
-  const subdominioDeseado = (formData.get("subdominio_deseado") as string) || "";
+  // Solicitud pública corta — a propósito solo pide lo mínimo para revisar
+  // (nombre, correo, WhatsApp, ciudad, especialidad, plan, comentario). Todo
+  // lo demás (nombre de la página, plantilla, branding, servicios...) se
+  // recoge después en el wizard de onboarding, una vez Nando aprueba.
+  // El subdominio se calcula solo como sugerencia inicial a partir del
+  // nombre — el entrenador podrá ajustarlo en el paso de Branding del
+  // wizard; no se reserva de forma definitiva todavía.
   let subdominioPropuesto: string | null = null;
   try {
     const admin = getSupabaseAdmin();
     const [{ data: existingTrainers }, { data: pendingLeads }] = await Promise.all([
       admin.from("trainers").select("subdominio"),
-      admin.from("hakunnafit_leads").select("subdominio_propuesto").neq("estado", "convertido"),
+      admin.from("hakunnafit_leads").select("subdominio_propuesto").neq("estado", "entrenador_creado"),
     ]);
     const taken = new Set([
       ...RESERVED_SUBDOMAINS,
       ...(existingTrainers ?? []).map((t) => t.subdominio),
       ...(pendingLeads ?? []).map((l) => l.subdominio_propuesto),
     ].filter((s): s is string => !!s));
-    subdominioPropuesto = firstAvailableSlug(subdominioDeseado || negocio || nombre, taken);
+    subdominioPropuesto = firstAvailableSlug(nombre, taken);
   } catch {
     // Si falla el cálculo del subdominio, seguimos sin bloquear el envío del
-    // formulario — Nando puede asignarlo manualmente al aprobar.
+    // formulario — se asigna después, al aprobar la solicitud.
     subdominioPropuesto = null;
   }
 
-  const supabase = getSupabase();
+  // hakunnafit_leads solo tiene una política pública de INSERT (nunca de
+  // SELECT — no hay lectura pública de solicitudes). Encadenar
+  // .select().single() después del insert obliga a Postgrest a releer la
+  // fila insertada, y como no hay política de SELECT para "anon", eso
+  // rechaza la escritura con un error de RLS aunque el insert en sí sí
+  // estaba permitido. Se usa el cliente de servicio en su lugar: esta acción
+  // corre solo en el servidor (nunca en el navegador), así que es seguro, y
+  // evita tener que abrir una política de lectura pública que expondría
+  // correos/WhatsApp de todas las solicitudes a cualquiera con la llave anon.
+  const supabase = getSupabaseAdmin();
   const { data: inserted, error } = await supabase
     .from("hakunnafit_leads")
     .insert({
       nombre,
-      negocio,
       email,
       whatsapp: (formData.get("whatsapp") as string) || null,
-      num_clientes: (formData.get("num_clientes") as string) || null,
       mensaje: (formData.get("mensaje") as string) || null,
       plan,
       ciudad: (formData.get("ciudad") as string) || null,
       subdominio_propuesto: subdominioPropuesto,
       especialidad: (formData.get("especialidad") as string) || null,
-      metodo_actual: (formData.get("metodo_actual") as string) || null,
-      pasarela_interes: (formData.get("pasarela_interes") as string) || null,
-      tiene_dominio: (formData.get("tiene_dominio") as string) || null,
-      tiene_logo: (formData.get("tiene_logo") as string) || null,
-      interes_tienda: (formData.get("interes_tienda") as string) || null,
+      estado: "solicitud_recibida",
     })
     .select("id")
     .single();
@@ -114,8 +115,8 @@ export async function submitHakunnaFitLead(formData: FormData): Promise<LeadResu
   const planTxt = plan ? planLabel(plan as PlanKey) : "sin plan definido";
   await createNotification({
     type: "lead_nuevo",
-    title: `Nueva solicitud: ${negocio || nombre}`,
-    message: `${nombre}${negocio ? ` (${negocio})` : ""} quiere el plan ${planTxt}. Ciudad: ${
+    title: `Nueva solicitud: ${nombre}`,
+    message: `${nombre} quiere el plan ${planTxt}. Ciudad: ${
       (formData.get("ciudad") as string) || "no indicada"
     }.`,
     link: "/panel-hakunna/solicitudes",

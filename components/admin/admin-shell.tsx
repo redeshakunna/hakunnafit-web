@@ -18,7 +18,7 @@ import {
 import { logoutAdmin } from "@/lib/admin-auth";
 import { NotificationsBell } from "./notifications-bell";
 
-export type AdminSection = "dashboard" | "solicitudes" | "entrenadores" | "proximamente";
+export type AdminSection = "dashboard" | "solicitudes" | "entrenadores" | "landings" | "configuracion" | "proximamente";
 
 const navItems: {
   key: AdminSection;
@@ -30,9 +30,9 @@ const navItems: {
   { key: "dashboard", label: "Dashboard", href: "/panel-hakunna", icon: LayoutDashboard, enabled: true },
   { key: "solicitudes", label: "Solicitudes", href: "/panel-hakunna/solicitudes", icon: Inbox, enabled: true },
   { key: "entrenadores", label: "Entrenadores", href: "/panel-hakunna/entrenadores", icon: Users, enabled: true },
-  { key: "proximamente", label: "Landings", href: "/panel-hakunna/proximamente", icon: Globe, enabled: false },
+  { key: "landings", label: "Landings", href: "/panel-hakunna/landings", icon: Globe, enabled: true },
   { key: "proximamente", label: "HAKAI Studio", href: "/panel-hakunna/proximamente", icon: Sparkles, enabled: false },
-  { key: "proximamente", label: "Configuración", href: "/panel-hakunna/proximamente", icon: Settings, enabled: false },
+  { key: "configuracion", label: "Configuración", href: "/panel-hakunna/configuracion", icon: Settings, enabled: true },
   { key: "proximamente", label: "Auditoría", href: "/panel-hakunna/proximamente", icon: ShieldCheck, enabled: false },
 ];
 

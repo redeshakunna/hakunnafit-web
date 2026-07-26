@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   X,
@@ -36,6 +37,8 @@ import {
   PLAN_CLIENT_CAP,
   PLAN_FEATURES,
   FEATURE_DESCRIPTIONS,
+  TRAINER_BRANCHES,
+  branchLabel,
   type FeatureKey,
 } from "@/lib/catalog";
 import { fmtCOP, fmtDate, timeAgo, Pill, planTone } from "./admin-ui";
@@ -243,7 +246,7 @@ export function TrainerEditModal({
                     {trainer.especialidad && (
                       <span className="flex items-center gap-1">
                         <Globe size={12} />
-                        {trainer.especialidad}
+                        {branchLabel(trainer.especialidad)}
                       </span>
                     )}
                   </div>
@@ -317,12 +320,26 @@ export function TrainerEditModal({
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-white/40">Información general</p>
                     <div className="mt-3 grid gap-4 sm:grid-cols-2">
-                      <Field label="Nombre del negocio" defaultValue={trainer.business_name} onSave={(v) => onPatch(trainer.id, { business_name: v })} />
+                      <Field label="Nombre en la página" defaultValue={trainer.business_name} onSave={(v) => onPatch(trainer.id, { business_name: v })} />
                       <Field label="Correo (acceso a la cuenta)" type="email" defaultValue={trainer.email ?? ""} onSave={(v) => onPatch(trainer.id, { email: v })} />
                       <Field label="WhatsApp" defaultValue={trainer.whatsapp ?? ""} onSave={(v) => onPatch(trainer.id, { whatsapp: v })} />
                       <Field label="Ciudad" defaultValue={trainer.ciudad ?? ""} onSave={(v) => onPatch(trainer.id, { ciudad: v })} />
                       <Field label="País" defaultValue={trainer.pais ?? ""} placeholder="Ej: Colombia" onSave={(v) => onPatch(trainer.id, { pais: v })} />
-                      <Field label="Especialidad" defaultValue={trainer.especialidad ?? ""} placeholder="Ej: Entrenamiento Online" onSave={(v) => onPatch(trainer.id, { especialidad: v })} />
+                      <label className="block">
+                        <span className="mb-1 block text-[11px] text-white/50">Rama</span>
+                        <select
+                          value={trainer.especialidad ?? ""}
+                          onChange={(e) => onPatch(trainer.id, { especialidad: e.target.value || null })}
+                          className="h-9 w-full rounded-lg border border-white/15 bg-white/5 px-2 text-xs text-white"
+                        >
+                          <option value="" className="bg-[#0b0f1a] text-white">Sin especificar</option>
+                          {TRAINER_BRANCHES.map((b) => (
+                            <option key={b.key} value={b.key} className="bg-[#0b0f1a] text-white">
+                              {b.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
                       <Field label="Instagram" icon={<Instagram size={13} />} defaultValue={trainer.instagram ?? ""} placeholder="@usuario" onSave={(v) => onPatch(trainer.id, { instagram: v })} />
                       <Field label="Facebook" icon={<Facebook size={13} />} defaultValue={trainer.facebook ?? ""} placeholder="/usuario" onSave={(v) => onPatch(trainer.id, { facebook: v })} />
                     </div>
@@ -400,7 +417,11 @@ export function TrainerEditModal({
                     )}
 
                     {trainer.plan === "starter" && (
-                      <StarterFeaturePanel trainer={trainer} onUpgrade={(extra) => applyUpgrade("pro", extra)} />
+                      <StarterFeaturePanel
+                        trainer={trainer}
+                        onUpgrade={(extra) => applyUpgrade("pro", extra)}
+                        onPatch={onPatch}
+                      />
                     )}
                     {trainer.plan === "pro" && (
                       <UpsellPanel target="elite" trainer={trainer} onUpgrade={(extra) => applyUpgrade("elite", extra)} />
@@ -647,9 +668,11 @@ function FeatureCard({ feature, locked }: { feature: FeatureKey; locked?: boolea
 function StarterFeaturePanel({
   trainer,
   onUpgrade,
+  onPatch,
 }: {
   trainer: TrainerRow;
   onUpgrade: (extra: UpgradeExtra) => void;
+  onPatch: (trainerId: string, fields: Partial<TrainerRow>) => void;
 }) {
   const included = PLAN_FEATURES.starter;
   const locked = PLAN_FEATURES.pro.filter((f) => !included.includes(f)).slice(0, 5);
@@ -672,7 +695,88 @@ function StarterFeaturePanel({
           ))}
         </div>
       </div>
+      <TransformacionesPanel trainer={trainer} onPatch={onPatch} />
       <UpsellPanel target="pro" trainer={trainer} onUpgrade={onUpgrade} />
+    </div>
+  );
+}
+
+/**
+ * Control de la sección "Transformaciones" de la landing Starter. Por
+ * defecto se muestra con fotos de stock (el entrenador todavía no tiene
+ * fotos reales de clientes al registrarse) — desde aquí Nando puede
+ * desactivarla por completo, o pegar hasta 3 pares de fotos reales cuando el
+ * entrenador se las envíe.
+ */
+function TransformacionesPanel({
+  trainer,
+  onPatch,
+}: {
+  trainer: TrainerRow;
+  onPatch: (trainerId: string, fields: Partial<TrainerRow>) => void;
+}) {
+  const pares = trainer.transformaciones ?? [];
+  const rows = [0, 1, 2].map((i) => pares[i] ?? { antes: "", despues: "", nombre: "" });
+
+  function savePair(index: number, field: "antes" | "despues" | "nombre", value: string) {
+    const next = [0, 1, 2].map((i) => (i === index ? { ...rows[i], [field]: value } : rows[i]));
+    const cleaned = next.filter((p) => p.antes.trim() || p.despues.trim());
+    onPatch(trainer.id, { transformaciones: cleaned.length ? cleaned : null });
+  }
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold text-white/70">Sección "Transformaciones" de la landing</p>
+        <label className="flex items-center gap-1.5 text-[11px] text-white/60">
+          <input
+            type="checkbox"
+            checked={trainer.mostrar_transformaciones}
+            onChange={(e) => onPatch(trainer.id, { mostrar_transformaciones: e.target.checked })}
+            className="h-3.5 w-3.5 rounded border-white/20 bg-white/5 accent-hf-blue"
+          />
+          Mostrar
+        </label>
+      </div>
+      <p className="mt-1 text-[10.5px] text-white/30">
+        Mientras no haya fotos reales, se muestran fotos de referencia genéricas (con nombre de ejemplo, editable
+        aquí). Pega las URL de las fotos reales cuando el entrenador las envíe, o sube las fotos directamente desde{" "}
+        <Link href={`/panel-hakunna/landings/${trainer.id}`} className="text-hf-blue hover:text-white">
+          Administrar Landing
+        </Link>
+        .
+      </p>
+      {trainer.mostrar_transformaciones && (
+        <div className="mt-3 space-y-2">
+          {rows.map((pair, i) => (
+            <div key={i} className="space-y-1.5 rounded-lg border border-white/5 bg-white/[0.02] p-2">
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  key={`antes-${trainer.id}-${i}-${pair.antes}`}
+                  defaultValue={pair.antes}
+                  placeholder={`Antes ${i + 1} (URL)`}
+                  onBlur={(e) => savePair(i, "antes", e.target.value)}
+                  className="h-9 rounded-lg border border-white/15 bg-white/5 px-2 text-[11px] text-white placeholder:text-white/30"
+                />
+                <input
+                  key={`despues-${trainer.id}-${i}-${pair.despues}`}
+                  defaultValue={pair.despues}
+                  placeholder={`Después ${i + 1} (URL)`}
+                  onBlur={(e) => savePair(i, "despues", e.target.value)}
+                  className="h-9 rounded-lg border border-white/15 bg-white/5 px-2 text-[11px] text-white placeholder:text-white/30"
+                />
+              </div>
+              <input
+                key={`nombre-${trainer.id}-${i}-${pair.nombre}`}
+                defaultValue={pair.nombre ?? ""}
+                placeholder="Nombre y apellido (opcional)"
+                onBlur={(e) => savePair(i, "nombre", e.target.value)}
+                className="h-9 w-full rounded-lg border border-white/15 bg-white/5 px-2 text-[11px] text-white placeholder:text-white/30"
+              />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

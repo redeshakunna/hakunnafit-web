@@ -2,29 +2,27 @@
 
 import { motion } from "framer-motion";
 import { useLeadModal } from "./lead-modal-context";
+import type { PlanPrices } from "@/lib/plan-settings-actions";
 
 const cop = (n: number) => `$${new Intl.NumberFormat("es-CO").format(n)} COP`;
 
 interface Plan {
-  key: string;
+  key: "starter" | "pro" | "elite";
   name: string;
   tagline: string;
-  monthly: number;
-  semester: number;
-  annual: number;
   featured?: boolean;
   highlights: string[];
   cta: string;
 }
 
+// Los montos ya no viven aquí — vienen de plan_settings (editable en
+// /panel-hakunna/configuracion) y se pasan como prop `prices`. Este arreglo
+// solo guarda el copy de marketing, que no depende de precio.
 const plans: Plan[] = [
   {
     key: "starter",
     name: "Starter",
     tagline: "Tu presencia profesional, lista rápido.",
-    monthly: 120000,
-    semester: 648000,
-    annual: 1224000,
     highlights: [
       "Hasta 5 clientes",
       "Landing con tu marca, lista en días",
@@ -33,15 +31,12 @@ const plans: Plan[] = [
       "Actualizaciones y seguridad incluidas",
       "Soporte por correo",
     ],
-    cta: "Comenzar ahora",
+    cta: "Solicitar Plan",
   },
   {
     key: "pro",
     name: "Pro",
     tagline: "La opción que elige la mayoría de entrenadores.",
-    monthly: 220000,
-    semester: 1188000,
-    annual: 2244000,
     featured: true,
     highlights: [
       "Hasta 15 clientes",
@@ -51,15 +46,12 @@ const plans: Plan[] = [
       "Pagos integrados (Wompi, Stripe, Mercado Pago)",
       "Soporte prioritario",
     ],
-    cta: "Comenzar ahora",
+    cta: "Solicitar Plan",
   },
   {
     key: "elite",
     name: "Elite",
     tagline: "Tu marca, sin límites.",
-    monthly: 390000,
-    semester: 2106000,
-    annual: 3978000,
     highlights: [
       "Hasta 30 clientes",
       "Todo lo de Pro, a tu manera",
@@ -68,7 +60,7 @@ const plans: Plan[] = [
       "Tienda de suplementos integrada",
       "Soporte VIP",
     ],
-    cta: "Comenzar ahora",
+    cta: "Solicitar Plan",
   },
 ];
 
@@ -116,7 +108,7 @@ function PriceTier({ label, price, badge }: { label: string; price: number; badg
   );
 }
 
-function PlanCard({ plan }: { plan: Plan }) {
+function PlanCard({ plan, price }: { plan: Plan; price: PlanPrices[Plan["key"]] }) {
   const { openModal } = useLeadModal();
 
   const card = (
@@ -133,14 +125,14 @@ function PlanCard({ plan }: { plan: Plan }) {
       <div className="mt-6">
         <div className="flex items-baseline gap-1.5">
           <span className="whitespace-nowrap font-[family-name:var(--font-hf-heading)] text-2xl font-black tracking-tight text-white sm:text-3xl">
-            {cop(plan.monthly)}
+            {cop(price.monthlyCop)}
           </span>
           <span className="shrink-0 text-sm text-white/45">/mes</span>
         </div>
 
         <div className="mt-4 space-y-1.5 border-t border-white/10 pt-4">
-          <PriceTier label="6 meses" price={plan.semester} badge="Ahorra 10%" />
-          <PriceTier label="Anual" price={plan.annual} badge="Ahorra 15% + 1 mes gratis" />
+          <PriceTier label="6 meses" price={price.semesterCop} badge="Ahorra 10%" />
+          <PriceTier label="Anual" price={price.annualCop} badge="Ahorra 15% + 1 mes gratis" />
         </div>
       </div>
 
@@ -193,7 +185,7 @@ function PlanCard({ plan }: { plan: Plan }) {
   return <div className="h-full">{card}</div>;
 }
 
-export function HakunnaFitPricing() {
+export function HakunnaFitPricing({ prices }: { prices: PlanPrices }) {
   return (
     <section id="precios" className="relative w-full py-20 sm:py-28">
       <GradientCheckDefs />
@@ -224,7 +216,7 @@ export function HakunnaFitPricing() {
               transition={{ duration: 0.5, delay: i * 0.1 }}
               className="h-full"
             >
-              <PlanCard plan={plan} />
+              <PlanCard plan={plan} price={prices[plan.key]} />
             </motion.div>
           ))}
         </div>

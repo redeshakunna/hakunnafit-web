@@ -27,6 +27,21 @@ export interface Database {
           tiene_logo: string | null;
           interes_tienda: string | null;
           fuente: string;
+          landing_template: string | null;
+          biografia: string | null;
+          instagram: string | null;
+          facebook: string | null;
+          avatar_url: string | null;
+          email_publico: string | null;
+          onboarding_token: string | null;
+          onboarding_token_expires_at: string | null;
+          onboarding_token_used_at: string | null;
+          revision_notas: string | null;
+          pago_estado: string;
+          pago_referencia: string | null;
+          pago_wompi_transaction_id: string | null;
+          pago_monto_cop: number | null;
+          pago_ciclo: string | null;
           created_at: string;
         };
         Insert: {
@@ -49,6 +64,21 @@ export interface Database {
           tiene_logo?: string | null;
           interes_tienda?: string | null;
           fuente?: string;
+          landing_template?: string | null;
+          biografia?: string | null;
+          instagram?: string | null;
+          facebook?: string | null;
+          avatar_url?: string | null;
+          email_publico?: string | null;
+          onboarding_token?: string | null;
+          onboarding_token_expires_at?: string | null;
+          onboarding_token_used_at?: string | null;
+          revision_notas?: string | null;
+          pago_estado?: string;
+          pago_referencia?: string | null;
+          pago_wompi_transaction_id?: string | null;
+          pago_monto_cop?: number | null;
+          pago_ciclo?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["hakunnafit_leads"]["Insert"]>;
@@ -75,6 +105,20 @@ export interface Database {
           avatar_url: string | null;
           notas_internas: string | null;
           dominio_propio: string | null;
+          landing_template: string | null;
+          mostrar_transformaciones: boolean;
+          transformaciones: Json | null;
+          updated_at: string;
+          email_publico: string | null;
+          foto2_url: string | null;
+          foto3_url: string | null;
+          foto4_url: string | null;
+          servicios: Json | null;
+          estadisticas: Json | null;
+          testimonios: Json | null;
+          tagline: string | null;
+          onboarding_step: string | null;
+          onboarding_completed_at: string | null;
         };
         Insert: {
           id?: string;
@@ -96,8 +140,40 @@ export interface Database {
           avatar_url?: string | null;
           notas_internas?: string | null;
           dominio_propio?: string | null;
+          landing_template?: string | null;
+          mostrar_transformaciones?: boolean;
+          transformaciones?: Json | null;
+          updated_at?: string;
+          email_publico?: string | null;
+          foto2_url?: string | null;
+          foto3_url?: string | null;
+          foto4_url?: string | null;
+          servicios?: Json | null;
+          estadisticas?: Json | null;
+          testimonios?: Json | null;
+          tagline?: string | null;
+          onboarding_step?: string | null;
+          onboarding_completed_at?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["trainers"]["Insert"]>;
+        Relationships: [];
+      };
+      plan_settings: {
+        Row: {
+          plan: "starter" | "pro" | "elite";
+          monthly_cop: number;
+          semester_cop: number;
+          annual_cop: number;
+          updated_at: string;
+        };
+        Insert: {
+          plan: "starter" | "pro" | "elite";
+          monthly_cop: number;
+          semester_cop: number;
+          annual_cop: number;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["plan_settings"]["Insert"]>;
         Relationships: [];
       };
       trainer_activity: {
@@ -196,6 +272,7 @@ export interface Database {
           trainer_id: string | null;
           lead_id: string | null;
           read: boolean;
+          dedupe_key: string | null;
           created_at: string;
         };
         Insert: {
@@ -207,6 +284,7 @@ export interface Database {
           trainer_id?: string | null;
           lead_id?: string | null;
           read?: boolean;
+          dedupe_key?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["notifications"]["Insert"]>;

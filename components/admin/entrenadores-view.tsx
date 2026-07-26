@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState, useTransition } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Users, UserCheck, UserPlus, Contact, DollarSign } from "lucide-react";
 import { updateTrainer, deleteTrainer, type TrainerRow } from "@/lib/admin-actions";
 import { PLANS, PLAN_PRICE_COP } from "@/lib/catalog";
@@ -17,6 +17,20 @@ const paymentTone: Record<PaymentStatus, "neutral" | "good" | "warn" | "bad"> = 
   sin_datos: "neutral",
   suspendido: "bad",
 };
+
+// Lee ?edit=<id> de la URL para abrir directo el editor de un entrenador —
+// usado por el botón "Administrar" de la pantalla de Landings, que enlaza
+// aquí en vez de duplicar el modal de edición en otra vista. useSearchParams
+// necesita un límite de Suspense propio.
+function EditParamWatcher({ onEdit }: { onEdit: (id: string) => void }) {
+  const params = useSearchParams();
+  useEffect(() => {
+    const id = params.get("edit");
+    if (id) onEdit(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params]);
+  return null;
+}
 
 export function EntrenadoresView({ initialTrainers }: { initialTrainers: TrainerRow[] }) {
   const router = useRouter();
@@ -125,6 +139,9 @@ export function EntrenadoresView({ initialTrainers }: { initialTrainers: Trainer
 
   return (
     <div>
+      <Suspense fallback={null}>
+        <EditParamWatcher onEdit={setSelectedId} />
+      </Suspense>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-white">Entrenadores</h1>

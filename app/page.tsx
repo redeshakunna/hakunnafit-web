@@ -8,17 +8,20 @@ import { HakunnaFitPricing } from "@/components/hakunnafit/pricing";
 import { HakunnaFitCtaBanner } from "@/components/hakunnafit/cta-banner";
 import { HakunnaFitFooter } from "@/components/hakunnafit/footer";
 import { HakunnaFitComingSoon } from "@/components/hakunnafit/coming-soon";
+import { getPlanPrices } from "@/lib/plan-settings-actions";
 
-// Mientras se sigue probando el panel de super admin, el home público muestra
+// Mientras se sigue probando el panel de super admin, el home público mostraba
 // la página de "en construcción" — el resto del sitio (/tienda, etc.) y todo
-// /panel-hakunna siguen funcionando normal. Cambia esto a false para volver a
-// publicar la landing completa (el código de abajo no se toca ni se borra).
-const SITE_UNDER_CONSTRUCTION = true;
+// /panel-hakunna siguen funcionando normal. Cambia esto a true para volver a
+// ocultar la landing completa (el código de abajo no se toca ni se borra).
+const SITE_UNDER_CONSTRUCTION = false;
 
-export default function HakunnaFitPage() {
+export default async function HakunnaFitPage() {
   if (SITE_UNDER_CONSTRUCTION) {
     return <HakunnaFitComingSoon />;
   }
+
+  const prices = await getPlanPrices();
 
   return (
     <>
@@ -29,7 +32,7 @@ export default function HakunnaFitPage() {
         <HakunnaFitBrandShowcase />
         <HakunnaFitFeatures />
         <HakunnaFitHowItWorks />
-        <HakunnaFitPricing />
+        <HakunnaFitPricing prices={prices} />
         <HakunnaFitCtaBanner />
       </main>
       <HakunnaFitFooter />

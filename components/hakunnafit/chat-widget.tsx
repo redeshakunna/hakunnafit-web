@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { MessageCircle, Send, X } from "lucide-react";
 import { useLeadModal } from "./lead-modal-context";
@@ -18,12 +19,19 @@ const GREETING: ChatMessage = {
 };
 
 export function HakunnaFitChatWidget() {
+  const pathname = usePathname();
   const { openModal } = useLeadModal();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([GREETING]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Este es el asistente de IA del sitio de marketing de HakunnaFit — no
+  // tiene sentido en la página propia de un entrenador (<subdominio>.hakunnafit.com),
+  // ahí en su lugar se muestra el WhatsappChatWidget con el WhatsApp del
+  // propio entrenador (ver app/landing/[subdominio]/page.tsx).
+  const isTrainerLanding = pathname?.startsWith("/landing/");
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -67,6 +75,8 @@ export function HakunnaFitChatWidget() {
       setLoading(false);
     }
   }
+
+  if (isTrainerLanding) return null;
 
   return (
     <div className="fixed bottom-5 right-5 z-[90] sm:bottom-6 sm:right-6">

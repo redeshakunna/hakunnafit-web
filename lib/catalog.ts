@@ -30,6 +30,66 @@ export const PLAN_CLIENT_CAP: Record<PlanKey, number> = {
   elite: 30,
 };
 
+// Los 3 modelos de landing estandarizados para el plan Starter. El propio
+// entrenador elige uno al llenar el formulario público (ver lead-modal.tsx);
+// la elección viaja con el lead y se copia al entrenador al aprobarlo
+// (convertLeadToTrainer). El componente real de cada uno vive en
+// components/hakunnafit/starter-templates/. Por ahora esto solo cubre
+// Starter — Pro/Elite quedan fuera de este catálogo hasta que se diseñen.
+export const STARTER_LANDING_TEMPLATES = [
+  {
+    key: "impacto",
+    label: "Impacto",
+    tagline: "Oscuro y deportivo",
+    description: "El mismo estilo de HakunnaFit: fondo oscuro, degradados de color y foto grande. Ideal para transmitir energía y fuerza.",
+  },
+  {
+    key: "claro",
+    label: "Claro",
+    tagline: "Minimalista y editorial",
+    description: "Fondo blanco, mucho espacio y tipografía grande. Ideal para un estilo boutique, profesional y elegante.",
+  },
+  {
+    key: "personal",
+    label: "Personal",
+    tagline: "Cercano, tipo tarjeta",
+    description: "Formato centrado tipo tarjeta de presentación, con tu foto y botones grandes para WhatsApp y redes. Ideal para verte cercano y fácil de contactar.",
+  },
+] as const;
+export type StarterLandingTemplateKey = (typeof STARTER_LANDING_TEMPLATES)[number]["key"];
+export const DEFAULT_STARTER_TEMPLATE: StarterLandingTemplateKey = "impacto";
+
+// Las 3 ramas/nichos de entrenador que HakunnaFit atiende. Reemplaza el
+// concepto anterior de "especialidad" genérica (fuerza/pérdida de
+// peso/funcional/otro) — el campo `especialidad` de hakunnafit_leads y
+// trainers ahora guarda una de estas 3 claves. Define tanto el copy/imágenes
+// por defecto de las landings Starter (ver starter-templates/types.ts) como,
+// más adelante, qué prompt usa HAKAI para generar rutinas.
+export const TRAINER_BRANCHES = [
+  {
+    key: "running",
+    label: "Running",
+    tagline: "Corre más rápido, corre más lejos.",
+    description: "Entrenadores de running: planes de ritmo, series, fondo y preparación para carreras.",
+  },
+  {
+    key: "crossfit",
+    label: "Crossfit",
+    tagline: "Más fuerte cada WOD.",
+    description: "Entrenadores/boxes de Crossfit: WODs, metcons y trabajo funcional de alta intensidad.",
+  },
+  {
+    key: "gym",
+    label: "Modo Gym",
+    tagline: "Entrena tu cuerpo, transforma tu vida.",
+    description: "Entrenamiento de fuerza y físico en gimnasio: hipertrofia, fuerza y composición corporal.",
+  },
+] as const;
+export type TrainerBranchKey = (typeof TRAINER_BRANCHES)[number]["key"];
+export function branchLabel(key: string | null): string {
+  return TRAINER_BRANCHES.find((b) => b.key === key)?.label ?? "Entrenamiento personal";
+}
+
 export const LANDING_TYPES = [
   { key: "plantilla", label: "Landing Plantilla" },
   { key: "personalizada", label: "Landing Personalizada" },
