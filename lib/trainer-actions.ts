@@ -45,7 +45,16 @@ export async function updateOwnContent(input: UpdateOwnContentInput): Promise<Ad
   const trainer = await assertEditable();
   const supabase = getSupabaseAdmin();
 
-  const update: Record<string, unknown> = {};
+  const update: {
+    tagline?: string | null;
+    biografia?: string | null;
+    whatsapp?: string | null;
+    ciudad?: string | null;
+    email_publico?: string | null;
+    instagram?: string | null;
+    facebook?: string | null;
+    servicios?: { titulo: string; descripcion: string; tipo: "directo" | "personalizado" }[] | null;
+  } = {};
   if (input.tagline !== undefined) update.tagline = input.tagline || null;
   if (input.biografia !== undefined) update.biografia = input.biografia || null;
   if (input.whatsapp !== undefined) update.whatsapp = input.whatsapp || null;
@@ -117,7 +126,10 @@ export interface UpdateOwnStatsInput {
 export async function updateOwnStats(input: UpdateOwnStatsInput): Promise<AdminActionResult> {
   const trainer = await assertEditable();
   const supabase = getSupabaseAdmin();
-  const update: Record<string, unknown> = {};
+  const update: {
+    estadisticas?: Estadistica[] | null;
+    testimonios?: Testimonio[] | null;
+  } = {};
   if (input.estadisticas !== undefined) update.estadisticas = input.estadisticas;
   if (input.testimonios !== undefined) update.testimonios = input.testimonios;
   if (Object.keys(update).length === 0) return { ok: true };
@@ -161,7 +173,16 @@ export async function uploadOwnPhoto(
 
   const { data } = supabase.storage.from("avatars").getPublicUrl(path);
 
-  const { error: dbError } = await supabase.from("trainers").update({ [slot]: data.publicUrl }).eq("id", trainer.id);
+  const photoUpdate: {
+    avatar_url?: string;
+    foto2_url?: string;
+    foto3_url?: string;
+    foto4_url?: string;
+    logo_url?: string;
+  } = {};
+  photoUpdate[slot] = data.publicUrl;
+
+  const { error: dbError } = await supabase.from("trainers").update(photoUpdate).eq("id", trainer.id);
   if (dbError) return { ok: false, error: dbError.message };
 
   await logOwnActivity(trainer.id, "informacion_actualizada", slot === "logo_url" ? "Logo actualizado" : "Foto actualizada");
