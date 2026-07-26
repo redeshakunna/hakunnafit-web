@@ -10,9 +10,9 @@
 // va a consumir más adelante.
 
 export const PLANS = [
-  { key: "starter", label: "Starter", priceCop: 120000 },
-  { key: "pro", label: "Pro", priceCop: 220000 },
-  { key: "elite", label: "Elite", priceCop: 390000 },
+  { key: "starter", label: "Starter", priceCop: 150000 },
+  { key: "pro", label: "Pro", priceCop: 250000 },
+  { key: "elite", label: "Elite", priceCop: 400000 },
 ] as const;
 export type PlanKey = (typeof PLANS)[number]["key"];
 export const PLAN_PRICE_COP: Record<PlanKey, number> = Object.fromEntries(
@@ -160,7 +160,7 @@ export type FeatureKey = (typeof FEATURES)[number];
 // "incluidas / no disponibles" del editor de entrenadores (sobre todo
 // Starter, que necesita mostrar el gancho de upgrade a Pro).
 export const PLAN_FEATURES: Record<PlanKey, FeatureKey[]> = {
-  starter: ["Landing", "Clientes", "Seguimiento", "Reportes Avanzados"],
+  starter: ["Landing", "Clientes", "Rutinas", "Agenda", "Seguimiento", "Reportes Avanzados"],
   pro: [
     "Landing",
     "Dashboard",

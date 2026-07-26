@@ -28,9 +28,9 @@ export type PlanPrices = Record<PlanKey, PlanPrice>;
 // Mismos valores que estaban fijos en pricing.tsx — ahora son solo el
 // respaldo por si la tabla no responde.
 const FALLBACK_PRICES: PlanPrices = {
-  starter: { monthlyCop: 120000, semesterCop: 648000, annualCop: 1224000 },
-  pro: { monthlyCop: 220000, semesterCop: 1188000, annualCop: 2244000 },
-  elite: { monthlyCop: 390000, semesterCop: 2106000, annualCop: 3978000 },
+  starter: { monthlyCop: 150000, semesterCop: 810000, annualCop: 1495000 },
+  pro: { monthlyCop: 250000, semesterCop: 1320000, annualCop: 2400000 },
+  elite: { monthlyCop: 400000, semesterCop: 2065000, annualCop: 3745000 },
 };
 
 export async function getPlanPrices(): Promise<PlanPrices> {

@@ -289,15 +289,59 @@ export interface Database {
           id: string;
           client_id: string;
           trainer_id: string;
+          dias_por_semana: number;
+          horario: string;
+          resumen_frecuencia: string | null;
+          nota_perfil: string | null;
+          dias: Json;
+          status: "pendiente" | "revisando" | "aprobado";
+          nota_aprobacion: string | null;
           created_at: string;
+          approved_at: string | null;
         };
         Insert: {
           id?: string;
           client_id: string;
           trainer_id: string;
+          dias_por_semana: number;
+          horario: string;
+          resumen_frecuencia?: string | null;
+          nota_perfil?: string | null;
+          dias: Json;
+          status?: "pendiente" | "revisando" | "aprobado";
+          nota_aprobacion?: string | null;
           created_at?: string;
+          approved_at?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["weekly_plans"]["Insert"]>;
+        Relationships: [];
+      };
+      exercises: {
+        Row: {
+          id: string;
+          name: string;
+          muscle_group: string;
+          equipment: string;
+          category: string;
+          description: string | null;
+          image_url: string | null;
+          source: string;
+          active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          muscle_group: string;
+          equipment?: string;
+          category?: string;
+          description?: string | null;
+          image_url?: string | null;
+          source?: string;
+          active?: boolean;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["exercises"]["Insert"]>;
         Relationships: [];
       };
       evaluations: {
