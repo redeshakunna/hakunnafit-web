@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 import { getSupabase } from "@/lib/supabase";
 import { BrandMark } from "@/components/hakunnafit/starter-templates/brand-mark";
 import { PublicClientIntakeForm } from "@/components/hakunnafit/public-client-intake-form";
+import type { PlanOfrecido } from "@/lib/admin-actions";
 
 export const revalidate = 0;
 
@@ -21,7 +22,7 @@ export default async function ClientRegistrationPage({
   const supabase = getSupabase();
   const { data: trainer } = await supabase
     .from("trainers")
-    .select("business_name, logo_url, color_primario, color_secundario")
+    .select("business_name, logo_url, color_primario, color_secundario, planes_ofrecidos")
     .eq("subdominio", params.subdominio)
     .maybeSingle();
 
@@ -53,7 +54,10 @@ export default async function ClientRegistrationPage({
           </div>
         </div>
 
-        <PublicClientIntakeForm subdominio={params.subdominio} />
+        <PublicClientIntakeForm
+          subdominio={params.subdominio}
+          planes={(trainer.planes_ofrecidos as unknown as PlanOfrecido[] | null) ?? []}
+        />
       </div>
     </main>
   );

@@ -15,6 +15,9 @@ import { useState } from "react";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { submitPublicClientIntake } from "@/lib/public-client-actions";
 import { calculateImc } from "@/lib/imc";
+import type { PlanOfrecido } from "@/lib/admin-actions";
+
+const cop = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
 
 const NIVELES = [
   { value: "", label: "Selecciona tu nivel" },
@@ -46,13 +49,20 @@ const IMC_CATEGORY_CLASS: Record<string, string> = {
   obesidad: "bg-red-500/10 text-red-400",
 };
 
-export function PublicClientIntakeForm({ subdominio }: { subdominio: string }) {
+export function PublicClientIntakeForm({
+  subdominio,
+  planes = [],
+}: {
+  subdominio: string;
+  planes?: PlanOfrecido[];
+}) {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [sexo, setSexo] = useState("");
   const [nivel, setNivel] = useState("");
   const [actividad, setActividad] = useState("");
+  const [planElegido, setPlanElegido] = useState("");
   const [objetivo, setObjetivo] = useState("");
   const [pesoActual, setPesoActual] = useState("");
   const [altura, setAltura] = useState("");
@@ -82,6 +92,7 @@ export function PublicClientIntakeForm({ subdominio }: { subdominio: string }) {
       nivel: nivel || null,
       actividad: actividad || null,
       objetivo: objetivo || null,
+      planElegido: planElegido || null,
       pesoActual: pesoActual ? Number(pesoActual) : null,
       altura: altura ? Number(altura) : null,
       diasPorSemana: diasPorSemana ? Number(diasPorSemana) : null,
@@ -227,6 +238,22 @@ export function PublicClientIntakeForm({ subdominio }: { subdominio: string }) {
       {imc && (
         <div className={`-mt-2 flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold ${IMC_CATEGORY_CLASS[imc.category]}`}>
           Tu IMC: {imc.value} — {imc.label}
+        </div>
+      )}
+
+      {planes.length > 0 && (
+        <div>
+          <label className={labelClass}>¿Qué plan te interesa?</label>
+          <select value={planElegido} onChange={(e) => setPlanElegido(e.target.value)} className={inputClass}>
+            <option value="" className="bg-hf-black">
+              Selecciona un plan
+            </option>
+            {planes.map((p) => (
+              <option key={p.nombre} value={p.nombre} className="bg-hf-black">
+                {p.nombre} — {p.precioCop != null ? cop.format(p.precioCop) : "Personalizado"}
+              </option>
+            ))}
+          </select>
         </div>
       )}
 

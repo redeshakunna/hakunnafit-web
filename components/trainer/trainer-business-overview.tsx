@@ -14,6 +14,7 @@ import {
 import type { TrainerRow } from "@/lib/admin-actions";
 import type { OwnClientStats } from "@/lib/trainer-actions";
 import type { PlanPrices } from "@/lib/plan-settings-actions";
+import { TrainerPlanesManager } from "@/components/trainer/trainer-planes-manager";
 import {
   planLabel,
   landingStatusLabel,
@@ -228,6 +229,8 @@ export function TrainerBusinessOverview({
         Planes disponibles: {PLANS.map((p) => p.label).join(" · ")}. Los cambios de plan y de ciclo de pago los
         procesa el equipo de Hakunna Fit.
       </p>
+
+      <TrainerPlanesManager initialPlanes={trainer.planes_ofrecidos} />
     </div>
   );
 }

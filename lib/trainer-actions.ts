@@ -3,7 +3,7 @@
 import { getSupabaseAdmin } from "./supabase-admin";
 import { requireTrainer } from "./trainer-auth";
 import { canEditLanding } from "./admin-helpers";
-import type { AdminActionResult, Estadistica, Testimonio, TransformacionPar } from "./admin-actions";
+import type { AdminActionResult, Estadistica, Testimonio, TransformacionPar, PlanOfrecido } from "./admin-actions";
 import type { StarterLandingTemplateKey } from "./catalog";
 import type { Json } from "./database.types";
 
@@ -117,6 +117,37 @@ export async function updateOwnColors(input: UpdateOwnColorsInput): Promise<Admi
   if (error) return { ok: false, error: error.message };
 
   await logOwnActivity(trainer.id, "informacion_actualizada", "Entrenador actualizó los colores de su landing");
+  return { ok: true };
+}
+
+/**
+ * Planes/paquetes que el entrenador ofrece a sus clientes (Mi Negocio →
+ * Operación) — a propósito NO pasa por assertEditable(): eso gatea contenido
+ * de la landing (bloqueado en Pro/Elite hasta publicar), pero esto es dato
+ * operativo que alimenta el selector de plan de los formularios de alta de
+ * cliente, no la landing pública. Se guarda al instante, sin ciclo de
+ * borrador/publicar (a diferencia de Mi Sitio Web) — el entrenador necesita
+ * que un cliente pueda elegir un plan recién creado sin tener que "publicar"
+ * nada primero.
+ */
+export async function updateOwnPlanesOfrecidos(planes: PlanOfrecido[]): Promise<AdminActionResult> {
+  const trainer = await requireTrainer();
+
+  for (const p of planes) {
+    if (!p.nombre?.trim()) return { ok: false, error: "Todos los planes necesitan un nombre." };
+    if (p.precioCop != null && (Number.isNaN(p.precioCop) || p.precioCop < 0)) {
+      return { ok: false, error: "El precio debe ser un número válido." };
+    }
+  }
+
+  const supabase = getSupabaseAdmin();
+  const { error } = await supabase
+    .from("trainers")
+    .update({ planes_ofrecidos: planes as unknown as Json })
+    .eq("id", trainer.id);
+  if (error) return { ok: false, error: error.message };
+
+  await logOwnActivity(trainer.id, "informacion_actualizada", "Entrenador actualizó sus planes ofrecidos");
   return { ok: true };
 }
 

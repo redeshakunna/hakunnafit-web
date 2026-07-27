@@ -26,6 +26,7 @@ export interface PublicClientIntakeInput {
   nivel?: string | null;
   actividad?: string | null;
   objetivo?: string | null;
+  planElegido?: string | null;
   pesoActual?: number | null;
   altura?: number | null;
   diasPorSemana?: number | null;
@@ -117,6 +118,7 @@ export async function submitPublicClientIntake(
         nivel: input.nivel || undefined,
         actividad: input.actividad || undefined,
         objetivo: input.objetivo || undefined,
+        plan_elegido: input.planElegido || undefined,
         peso_actual: pesoActual ?? undefined,
         altura: altura ?? undefined,
         dias_por_semana: diasPorSemana ?? undefined,
@@ -138,6 +140,7 @@ export async function submitPublicClientIntake(
     nivel: input.nivel || null,
     actividad: input.actividad || null,
     objetivo: input.objetivo || null,
+    plan_elegido: input.planElegido || null,
     peso_actual: pesoActual,
     altura,
     dias_por_semana: diasPorSemana,

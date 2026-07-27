@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { Plus, Search, Trash2, X, MessageCircle, TrendingUp, CalendarClock, Copy, Check, Link2 } from "lucide-react";
-import type { TrainerRow } from "@/lib/admin-actions";
+import type { TrainerRow, PlanOfrecido } from "@/lib/admin-actions";
 import { PLAN_CLIENT_CAP, planLabel } from "@/lib/catalog";
 import { calculateImc } from "@/lib/imc";
 import {
@@ -27,6 +27,8 @@ const STATUS_META: Record<ClientStatus, { label: string; className: string }> = 
   pausado: { label: "Pausado", className: "bg-white/10 text-white/60" },
   inactivo: { label: "Inactivo", className: "bg-red-500/10 text-red-400" },
 };
+
+const cop = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
 
 const IMC_CATEGORY_CLASS: Record<string, string> = {
   bajo_peso: "bg-sky-500/10 text-sky-400",
@@ -355,6 +357,7 @@ export function TrainerClientsManager({ trainer, initialClients }: { trainer: Tr
           onSubmit={submitForm}
           isPending={isPending}
           error={error}
+          planesOfrecidos={trainer.planes_ofrecidos}
         />
       )}
 
@@ -373,6 +376,7 @@ function ClientFormModal({
   onSubmit,
   isPending,
   error,
+  planesOfrecidos,
 }: {
   mode: "create" | "edit";
   form: FormState;
@@ -381,6 +385,7 @@ function ClientFormModal({
   onSubmit: () => void;
   isPending: boolean;
   error: string | null;
+  planesOfrecidos: PlanOfrecido[];
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onCancel}>
@@ -477,11 +482,27 @@ function ClientFormModal({
             />
           </Field>
           <Field label="Plan elegido">
-            <input
-              value={form.planElegido}
-              onChange={(e) => setForm({ ...form, planElegido: e.target.value })}
-              className="input"
-            />
+            {planesOfrecidos.length > 0 ? (
+              <select
+                value={form.planElegido}
+                onChange={(e) => setForm({ ...form, planElegido: e.target.value })}
+                className="input"
+              >
+                <option value="">—</option>
+                {planesOfrecidos.map((p) => (
+                  <option key={p.nombre} value={p.nombre}>
+                    {p.nombre} ({p.precioCop != null ? cop.format(p.precioCop) : "Personalizado"})
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                value={form.planElegido}
+                onChange={(e) => setForm({ ...form, planElegido: e.target.value })}
+                placeholder="Aún no tienes planes en Mi Negocio"
+                className="input"
+              />
+            )}
           </Field>
           <Field label="Días por semana">
             <input

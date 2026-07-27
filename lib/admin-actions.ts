@@ -103,6 +103,18 @@ export type Testimonio = {
   estrellas: number;
 };
 
+// Plan/paquete que el entrenador vende a SUS clientes (distinto de los
+// planes Starter/Pro/Elite de Hakunna Fit) — se define en Mi Negocio →
+// Operación y se guarda al instante (no tiene ciclo de borrador/publicar
+// como los "servicios" de Mi Sitio Web, porque esto alimenta el selector de
+// plan de los formularios de alta de cliente, no la landing). precioCop en
+// null significa "personalizado" (a cotizar directo con el entrenador).
+export type PlanOfrecido = {
+  nombre: string;
+  incluye: string;
+  precioCop: number | null;
+};
+
 export interface TrainerRow {
   id: string;
   business_name: string;
@@ -150,6 +162,7 @@ export interface TrainerRow {
   landing_draft: Record<string, unknown> | null;
   landing_draft_updated_at: string | null;
   landing_published_at: string | null;
+  planes_ofrecidos: PlanOfrecido[];
 }
 
 export interface TrainerActivityRow {

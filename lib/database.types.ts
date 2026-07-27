@@ -129,6 +129,7 @@ export interface Database {
           landing_draft: Json | null;
           landing_draft_updated_at: string | null;
           landing_published_at: string | null;
+          planes_ofrecidos: Json;
         };
         Insert: {
           id?: string;
@@ -174,6 +175,7 @@ export interface Database {
           landing_draft?: Json | null;
           landing_draft_updated_at?: string | null;
           landing_published_at?: string | null;
+          planes_ofrecidos?: Json;
         };
         Update: Partial<Database["public"]["Tables"]["trainers"]["Insert"]>;
         Relationships: [];
