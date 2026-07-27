@@ -3,12 +3,11 @@
 import { getSupabaseAdmin } from "./supabase-admin";
 import { requireTrainer } from "./trainer-auth";
 import { canEditLanding } from "./admin-helpers";
+import { validateImageFile, imageExtension } from "./image-validation";
 import type { AdminActionResult, Estadistica, Testimonio, TransformacionPar, PlanOfrecido } from "./admin-actions";
 import type { StarterLandingTemplateKey } from "./catalog";
 import type { Json } from "./database.types";
 
-const MAX_AVATAR_BYTES = 3 * 1024 * 1024; // 3 MB
-const ALLOWED_AVATAR_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const VALID_TEMPLATES: StarterLandingTemplateKey[] = ["impacto", "claro", "personal"];
 
 /**
@@ -271,13 +270,6 @@ export async function updateOwnStats(input: UpdateOwnStatsInput): Promise<AdminA
   return { ok: true };
 }
 
-function validateImageFile(file: FormDataEntryValue | null): { ok: true; file: File } | { ok: false; error: string } {
-  if (!(file instanceof File) || file.size === 0) return { ok: false, error: "No se recibió ninguna imagen." };
-  if (!ALLOWED_AVATAR_TYPES.has(file.type)) return { ok: false, error: "Formato no soportado. Usa JPG, PNG o WEBP." };
-  if (file.size > MAX_AVATAR_BYTES) return { ok: false, error: "La imagen pesa más de 3 MB." };
-  return { ok: true, file };
-}
-
 export type OwnPhotoSlot = "avatar_url" | "foto2_url" | "foto3_url" | "foto4_url" | "logo_url" | "banner_url";
 
 /**
@@ -295,7 +287,7 @@ export async function uploadOwnPhoto(
   if (!validated.ok) return { ok: false, error: validated.error };
 
   const supabase = getSupabaseAdmin();
-  const ext = validated.file.type === "image/png" ? "png" : validated.file.type === "image/webp" ? "webp" : "jpg";
+  const ext = imageExtension(validated.file);
   const path = `${trainer.id}/${slot}-${Date.now()}.${ext}`;
   const buffer = Buffer.from(await validated.file.arrayBuffer());
 
@@ -339,7 +331,7 @@ export async function uploadOwnTransformacionPhoto(
   if (!validated.ok) return { ok: false, error: validated.error };
 
   const supabase = getSupabaseAdmin();
-  const ext = validated.file.type === "image/png" ? "png" : validated.file.type === "image/webp" ? "webp" : "jpg";
+  const ext = imageExtension(validated.file);
   const path = `${trainer.id}/transformaciones/${Date.now()}.${ext}`;
   const buffer = Buffer.from(await validated.file.arrayBuffer());
 

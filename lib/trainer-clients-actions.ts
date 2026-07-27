@@ -12,6 +12,7 @@
 import { getSupabaseAdmin } from "./supabase-admin";
 import { requireTrainer } from "./trainer-auth";
 import { PLAN_CLIENT_CAP } from "./catalog";
+import { validateImageFile, imageExtension } from "./image-validation";
 import type { AdminActionResult } from "./admin-actions";
 
 export type ClientStatus = "pendiente_evaluacion" | "activo" | "pausado" | "inactivo";
@@ -279,6 +280,7 @@ export interface AddMeasurementInput {
   peso?: number | null;
   medidas?: Record<string, number> | null;
   notas?: string | null;
+  fotoUrl?: string | null;
 }
 
 export async function addOwnClientMeasurement(clientId: string, input: AddMeasurementInput): Promise<AdminActionResult> {
@@ -290,6 +292,7 @@ export async function addOwnClientMeasurement(clientId: string, input: AddMeasur
     peso: input.peso ?? null,
     medidas: input.medidas ?? null,
     notas: input.notas || null,
+    foto_url: input.fotoUrl || null,
   });
   if (error) return { ok: false, error: error.message };
 
@@ -298,6 +301,36 @@ export async function addOwnClientMeasurement(clientId: string, input: AddMeasur
     await supabase.from("clients").update({ peso_actual: input.peso }).eq("id", clientId);
   }
   return { ok: true };
+}
+
+/**
+ * Sube una foto de progreso para una medición — mismo bucket "avatars" que
+ * usan las fotos propias del entrenador, en su propia carpeta por cliente
+ * para no mezclarse. Solo sube el archivo y devuelve la URL pública; guardar
+ * esa URL en la medición es responsabilidad del caller (addOwnClientMeasurement
+ * recibe fotoUrl), así el flujo típico es: subir foto → crear medición.
+ */
+export async function uploadOwnClientMeasurementPhoto(
+  clientId: string,
+  formData: FormData
+): Promise<AdminActionResult & { url?: string }> {
+  const { trainerId } = await assertOwnClient(clientId);
+
+  const validated = validateImageFile(formData.get("foto"));
+  if (!validated.ok) return { ok: false, error: validated.error };
+
+  const supabase = getSupabaseAdmin();
+  const ext = imageExtension(validated.file);
+  const path = `${trainerId}/clientes/${clientId}/progreso-${Date.now()}.${ext}`;
+  const buffer = Buffer.from(await validated.file.arrayBuffer());
+
+  const { error: uploadError } = await supabase.storage
+    .from("avatars")
+    .upload(path, buffer, { contentType: validated.file.type, upsert: true });
+  if (uploadError) return { ok: false, error: uploadError.message };
+
+  const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+  return { ok: true, url: data.publicUrl };
 }
 
 // ---------------------------------------------------------------------------

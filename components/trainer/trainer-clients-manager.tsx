@@ -499,7 +499,7 @@ function ClientCard({
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition-colors hover:border-white/20">
       <div className="flex items-start justify-between gap-2">
-        <div className="flex items-start gap-3">
+        <Link href={`/panel/clientes/${c.id}`} className="flex items-start gap-3">
           <div className="relative shrink-0">
             <div className={`flex h-11 w-11 items-center justify-center rounded-full text-sm font-bold ${avatarColor(c.id)}`}>
               {initials(c.full_name)}
@@ -509,11 +509,11 @@ function ClientCard({
             />
           </div>
           <div>
-            <p className="text-sm font-semibold text-white">{c.full_name}</p>
+            <p className="text-sm font-semibold text-white hover:underline">{c.full_name}</p>
             <p className="mt-0.5 text-xs font-medium text-hf-blue">{c.objetivo || "Sin objetivo definido"}</p>
             <p className="mt-0.5 text-[11px] text-white/35">Cliente desde {since}</p>
           </div>
-        </div>
+        </Link>
         <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${meta.className}`}>{meta.label}</span>
       </div>
 

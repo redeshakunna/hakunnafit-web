@@ -12,7 +12,7 @@
 // real. Cuando se construya el check-off de rutinas y el tracking de grasa
 // corporal, esta pantalla es el lugar natural para sumarlas.
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -23,6 +23,8 @@ import {
   Dumbbell,
   Plus,
   Check,
+  Camera,
+  X,
 } from "lucide-react";
 import type { TrainerRow } from "@/lib/admin-actions";
 import { calculateImc } from "@/lib/imc";
@@ -31,6 +33,7 @@ import {
   updateOwnClient,
   getOwnClientMeasurements,
   addOwnClientMeasurement,
+  uploadOwnClientMeasurementPhoto,
   getOwnClientEvaluations,
   scheduleOwnEvaluation,
   updateOwnEvaluationStatus,
@@ -412,54 +415,158 @@ function ProgresoTab({
 }) {
   const [newWeight, setNewWeight] = useState("");
   const [newNotes, setNewNotes] = useState("");
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [uploadingPhoto, startPhotoUpload] = useTransition();
   const [isPending, startTransition] = useTransition();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const photos = measurements.filter((m) => m.foto_url);
+
+  function pickPhoto(file: File) {
+    setPhotoError(null);
+    setPhotoPreview(URL.createObjectURL(file));
+    const formData = new FormData();
+    formData.set("foto", file);
+    startPhotoUpload(async () => {
+      const res = await uploadOwnClientMeasurementPhoto(clientId, formData);
+      if (!res.ok || !res.url) {
+        setPhotoError(res.error || "No se pudo subir la foto.");
+        setPhotoPreview(null);
+        return;
+      }
+      setPhotoUrl(res.url);
+    });
+  }
+
+  function removePhoto() {
+    setPhotoUrl(null);
+    setPhotoPreview(null);
+    setPhotoError(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
 
   function addMeasurement() {
     const peso = newWeight ? parseFloat(newWeight) : null;
     startTransition(async () => {
-      await addOwnClientMeasurement(clientId, { peso, notas: newNotes || null });
+      await addOwnClientMeasurement(clientId, { peso, notas: newNotes || null, fotoUrl: photoUrl });
       setNewWeight("");
       setNewNotes("");
+      removePhoto();
       const rows = await getOwnClientMeasurements(clientId);
       setMeasurements(rows);
     });
   }
 
   return (
-    <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-      <div className="flex flex-wrap gap-2">
-        <input
-          type="number"
-          step="0.1"
-          placeholder="Peso (kg)"
-          value={newWeight}
-          onChange={(e) => setNewWeight(e.target.value)}
-          className="w-28 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white outline-none"
-        />
-        <input
-          placeholder="Nota (opcional)"
-          value={newNotes}
-          onChange={(e) => setNewNotes(e.target.value)}
-          className="flex-1 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white outline-none"
-        />
-        <button
-          onClick={addMeasurement}
-          disabled={isPending || !newWeight}
-          className="flex items-center gap-1 rounded-xl bg-hf-blue px-3 py-2 text-xs font-bold text-black disabled:opacity-40"
-        >
-          <Plus size={13} /> Agregar
-        </button>
+    <div className="mt-4 space-y-4">
+      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+        <p className="text-xs font-bold uppercase tracking-wide text-white/40">Nueva medición</p>
+        <div className="mt-3 flex flex-col gap-3 sm:flex-row">
+          <label
+            className={`flex h-28 w-full shrink-0 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed text-center transition-colors sm:w-28 ${
+              photoError ? "border-red-500/40 bg-red-500/5" : "border-white/15 bg-white/[0.02] hover:border-hf-blue/50"
+            }`}
+          >
+            {photoPreview ? (
+              <div className="relative h-full w-full">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={photoPreview} alt="Vista previa" className="h-full w-full rounded-xl object-cover" />
+                {uploadingPhoto && (
+                  <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/50 text-[10px] font-semibold text-white">
+                    Subiendo...
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    removePhoto();
+                  }}
+                  className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-black text-white/70 hover:text-white"
+                >
+                  <X size={11} />
+                </button>
+              </div>
+            ) : (
+              <>
+                <Camera size={18} className="text-white/30" />
+                <span className="text-[10px] font-medium text-white/40">Foto de progreso</span>
+              </>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) pickPhoto(file);
+              }}
+            />
+          </label>
+
+          <div className="flex flex-1 flex-col gap-2">
+            <div className="flex flex-wrap gap-2">
+              <input
+                type="number"
+                step="0.1"
+                placeholder="Peso (kg)"
+                value={newWeight}
+                onChange={(e) => setNewWeight(e.target.value)}
+                className="w-28 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white outline-none"
+              />
+              <input
+                placeholder="Nota (opcional)"
+                value={newNotes}
+                onChange={(e) => setNewNotes(e.target.value)}
+                className="flex-1 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white outline-none"
+              />
+            </div>
+            {photoError && <p className="text-[11px] text-red-400">{photoError}</p>}
+            <button
+              onClick={addMeasurement}
+              disabled={isPending || uploadingPhoto || !newWeight}
+              className="flex items-center justify-center gap-1 self-start rounded-xl bg-hf-blue px-4 py-2 text-xs font-bold text-black disabled:opacity-40"
+            >
+              <Plus size={13} /> Agregar medición
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div className="mt-4 space-y-2">
-        {measurements.length === 0 && <p className="text-xs text-white/40">Sin mediciones registradas.</p>}
-        {measurements.map((m) => (
-          <div key={m.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2">
-            <span className="text-xs text-white/70">{new Date(m.fecha).toLocaleDateString("es-CO")}</span>
-            <span className="text-xs font-semibold text-white">{m.peso != null ? `${m.peso} kg` : "—"}</span>
-            {m.notas && <span className="text-[11px] text-white/40">{m.notas}</span>}
+      {photos.length > 0 && (
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+          <p className="text-xs font-bold uppercase tracking-wide text-white/40">Fotos de progreso</p>
+          <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+            {photos.map((m) => (
+              <div key={m.id} className="shrink-0 text-center">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={m.foto_url!} alt={`Progreso ${m.fecha}`} className="h-24 w-24 rounded-xl object-cover" />
+                <p className="mt-1 text-[10px] text-white/35">{new Date(m.fecha).toLocaleDateString("es-CO")}</p>
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
+      )}
+
+      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+        <p className="text-xs font-bold uppercase tracking-wide text-white/40">Historial</p>
+        <div className="mt-3 space-y-2">
+          {measurements.length === 0 && <p className="text-xs text-white/40">Sin mediciones registradas.</p>}
+          {measurements.map((m) => (
+            <div key={m.id} className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2">
+              {m.foto_url && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={m.foto_url} alt="" className="h-8 w-8 shrink-0 rounded-lg object-cover" />
+              )}
+              <span className="text-xs text-white/70">{new Date(m.fecha).toLocaleDateString("es-CO")}</span>
+              <span className="text-xs font-semibold text-white">{m.peso != null ? `${m.peso} kg` : "—"}</span>
+              {m.notas && <span className="text-[11px] text-white/40">{m.notas}</span>}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
