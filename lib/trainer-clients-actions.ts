@@ -315,6 +315,29 @@ export async function getOwnClientEvaluations(clientId: string): Promise<Evaluat
   return data as EvaluationRow[];
 }
 
+/**
+ * Próxima evaluación pendiente por cliente, en un solo query — alimenta las
+ * tarjetas de /panel/clientes sin tener que pedir una evaluación por
+ * cliente por separado (evita N+1 queries en la pantalla).
+ */
+export async function getOwnNextEvaluationByClient(): Promise<Record<string, string>> {
+  const trainer = await requireTrainer();
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("evaluations")
+    .select("client_id, scheduled_at")
+    .eq("trainer_id", trainer.id)
+    .eq("status", "pendiente")
+    .gte("scheduled_at", new Date().toISOString())
+    .order("scheduled_at", { ascending: true });
+  if (error || !data) return {};
+  const map: Record<string, string> = {};
+  for (const row of data) {
+    if (row.client_id && row.scheduled_at && !map[row.client_id]) map[row.client_id] = row.scheduled_at;
+  }
+  return map;
+}
+
 export async function scheduleOwnEvaluation(clientId: string, scheduledAt: string): Promise<AdminActionResult> {
   const { trainerId } = await assertOwnClient(clientId);
   const supabase = getSupabaseAdmin();

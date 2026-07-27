@@ -77,6 +77,20 @@ export async function searchExercises(query?: string, muscleGroup?: string): Pro
   return data as ExerciseRow[];
 }
 
+/**
+ * IDs de clientes que ya tienen al menos una rutina — un solo query,
+ * alimenta el KPI "Con rutina asignada" y el indicador por tarjeta en
+ * /panel/clientes sin depender del campo rutina_actual (que existe en el
+ * esquema pero nunca se llegó a conectar a ninguna pantalla).
+ */
+export async function getOwnClientIdsWithRoutine(): Promise<string[]> {
+  const trainer = await requireTrainer();
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase.from("weekly_plans").select("client_id").eq("trainer_id", trainer.id);
+  if (error || !data) return [];
+  return Array.from(new Set(data.map((r) => r.client_id as string)));
+}
+
 export async function getOwnClientRoutines(clientId: string): Promise<RoutineRow[]> {
   await assertOwnClient(clientId);
   const supabase = getSupabaseAdmin();
