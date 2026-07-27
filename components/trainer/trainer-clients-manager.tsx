@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { Plus, Search, Trash2, X, MessageCircle, TrendingUp, CalendarClock, Copy, Check, Link2 } from "lucide-react";
 import type { TrainerRow } from "@/lib/admin-actions";
 import { PLAN_CLIENT_CAP, planLabel } from "@/lib/catalog";
+import { calculateImc } from "@/lib/imc";
 import {
   createOwnClient,
   updateOwnClient,
@@ -27,6 +28,25 @@ const STATUS_META: Record<ClientStatus, { label: string; className: string }> = 
   inactivo: { label: "Inactivo", className: "bg-red-500/10 text-red-400" },
 };
 
+const IMC_CATEGORY_CLASS: Record<string, string> = {
+  bajo_peso: "bg-sky-500/10 text-sky-400",
+  normal: "bg-emerald-500/10 text-emerald-400",
+  sobrepeso: "bg-amber-500/10 text-amber-400",
+  obesidad: "bg-red-500/10 text-red-400",
+};
+
+/** Se calcula con la fórmula estándar (peso/altura²), no con un modelo de
+ * IA — ver lib/imc.ts para la justificación completa. */
+function ImcPreview({ pesoKg, alturaCm }: { pesoKg: number | null; alturaCm: number | null }) {
+  const imc = calculateImc(pesoKg, alturaCm);
+  if (!imc) return null;
+  return (
+    <div className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold ${IMC_CATEGORY_CLASS[imc.category]}`}>
+      IMC {imc.value} — {imc.label}
+    </div>
+  );
+}
+
 type FormState = {
   fullName: string;
   email: string;
@@ -35,6 +55,8 @@ type FormState = {
   objetivo: string;
   nivel: string;
   actividad: string;
+  pesoActual: string;
+  altura: string;
   planElegido: string;
   diasPorSemana: string;
   horarioEntreno: string;
@@ -49,11 +71,24 @@ const EMPTY_FORM: FormState = {
   objetivo: "",
   nivel: "",
   actividad: "",
+  pesoActual: "",
+  altura: "",
   planElegido: "",
   diasPorSemana: "",
   horarioEntreno: "",
   status: "pendiente_evaluacion",
 };
+
+// Niveles estándar de actividad diaria (fuera del entreno con el
+// entrenador) — misma clasificación que se usa para calcular gasto
+// calórico, así queda lista para cuando HAKAI genere rutinas/nutrición.
+const ACTIVIDAD_OPTIONS = [
+  { value: "sedentario", label: "Sedentario (trabajo de oficina, poco movimiento)" },
+  { value: "ligero", label: "Ligero (1-3 días de actividad/semana)" },
+  { value: "moderado", label: "Moderado (3-5 días de actividad/semana)" },
+  { value: "activo", label: "Activo (6-7 días de actividad/semana)" },
+  { value: "muy_activo", label: "Muy activo (trabajo físico o 2 entrenos/día)" },
+];
 
 function clientToForm(c: ClientRow): FormState {
   return {
@@ -64,6 +99,8 @@ function clientToForm(c: ClientRow): FormState {
     objetivo: c.objetivo ?? "",
     nivel: c.nivel ?? "",
     actividad: c.actividad ?? "",
+    pesoActual: c.peso_actual != null ? String(c.peso_actual) : "",
+    altura: c.altura != null ? String(c.altura) : "",
     planElegido: c.plan_elegido ?? "",
     diasPorSemana: c.dias_por_semana != null ? String(c.dias_por_semana) : "",
     horarioEntreno: c.horario_entreno ?? "",
@@ -131,6 +168,8 @@ export function TrainerClientsManager({ trainer, initialClients }: { trainer: Tr
     setError(null);
     startTransition(async () => {
       const diasPorSemana = form.diasPorSemana ? parseInt(form.diasPorSemana, 10) : null;
+      const pesoActual = form.pesoActual ? parseFloat(form.pesoActual) : null;
+      const altura = form.altura ? parseFloat(form.altura) : null;
       if (modalMode === "create") {
         const res = await createOwnClient({
           fullName: form.fullName,
@@ -140,6 +179,8 @@ export function TrainerClientsManager({ trainer, initialClients }: { trainer: Tr
           objetivo: form.objetivo,
           nivel: form.nivel,
           actividad: form.actividad,
+          pesoActual,
+          altura,
           planElegido: form.planElegido,
           diasPorSemana,
           horarioEntreno: form.horarioEntreno,
@@ -155,6 +196,8 @@ export function TrainerClientsManager({ trainer, initialClients }: { trainer: Tr
           objetivo: form.objetivo,
           nivel: form.nivel,
           actividad: form.actividad,
+          pesoActual,
+          altura,
           planElegido: form.planElegido,
           diasPorSemana,
           horarioEntreno: form.horarioEntreno,
@@ -386,6 +429,45 @@ function ClientFormModal({
               <option value="avanzado">Avanzado</option>
             </select>
           </Field>
+          <Field label="Actividad diaria" span2>
+            <select
+              value={form.actividad}
+              onChange={(e) => setForm({ ...form, actividad: e.target.value })}
+              className="input"
+            >
+              <option value="">—</option>
+              {ACTIVIDAD_OPTIONS.map((a) => (
+                <option key={a.value} value={a.value}>
+                  {a.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Peso (kg)">
+            <input
+              type="number"
+              step="0.1"
+              min={0}
+              value={form.pesoActual}
+              onChange={(e) => setForm({ ...form, pesoActual: e.target.value })}
+              className="input"
+            />
+          </Field>
+          <Field label="Estatura (cm)">
+            <input
+              type="number"
+              step="0.1"
+              min={0}
+              value={form.altura}
+              onChange={(e) => setForm({ ...form, altura: e.target.value })}
+              className="input"
+            />
+          </Field>
+          {form.pesoActual && form.altura && (
+            <div className="col-span-full -mt-1">
+              <ImcPreview pesoKg={parseFloat(form.pesoActual)} alturaCm={parseFloat(form.altura)} />
+            </div>
+          )}
           <Field label="Objetivo" span2>
             <input
               value={form.objetivo}
@@ -480,6 +562,66 @@ function Field({ label, span2, children }: { label: string; span2?: boolean; chi
   );
 }
 
+const SEXO_LABELS: Record<string, string> = { femenino: "Femenino", masculino: "Masculino", otro: "Otro" };
+const NIVEL_LABELS: Record<string, string> = { principiante: "Principiante", intermedio: "Intermedio", avanzado: "Avanzado" };
+const ACTIVIDAD_LABELS: Record<string, string> = Object.fromEntries(
+  ACTIVIDAD_OPTIONS.map((a) => [a.value, a.label.split(" (")[0]])
+);
+
+/**
+ * "Hoja de vida" del cliente — resumen fijo al abrir su ficha, con todo lo
+ * que el entrenador necesita ver de un vistazo antes de armarle una rutina:
+ * datos físicos, nivel, actividad y objetivo. El IMC se calcula al vuelo
+ * con lib/imc.ts a partir de peso_actual/altura (ver ese archivo para por
+ * qué es una fórmula y no una llamada a un modelo de IA).
+ */
+function ClientHojaDeVida({ client }: { client: ClientRow }) {
+  const imc = calculateImc(client.peso_actual, client.altura);
+
+  const rows: { label: string; value: string }[] = [
+    { label: "Sexo", value: client.sexo ? SEXO_LABELS[client.sexo] ?? client.sexo : "—" },
+    { label: "Nivel", value: client.nivel ? NIVEL_LABELS[client.nivel] ?? client.nivel : "—" },
+    { label: "Actividad", value: client.actividad ? ACTIVIDAD_LABELS[client.actividad] ?? client.actividad : "—" },
+    { label: "Peso", value: client.peso_actual != null ? `${client.peso_actual} kg` : "—" },
+    { label: "Estatura", value: client.altura != null ? `${client.altura} cm` : "—" },
+    { label: "Plan elegido", value: client.plan_elegido || "—" },
+    { label: "Días/semana", value: client.dias_por_semana != null ? String(client.dias_por_semana) : "—" },
+    { label: "Horario", value: client.horario_entreno || "—" },
+  ];
+
+  return (
+    <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-bold uppercase tracking-wide text-white/40">Hoja de vida</p>
+        {imc && (
+          <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${IMC_CATEGORY_CLASS[imc.category]}`}>
+            IMC {imc.value} · {imc.label}
+          </span>
+        )}
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
+        {rows.map((r) => (
+          <div key={r.label}>
+            <p className="text-[10px] uppercase tracking-wide text-white/30">{r.label}</p>
+            <p className="text-xs font-medium text-white/80">{r.value}</p>
+          </div>
+        ))}
+      </div>
+      {client.objetivo && (
+        <div className="mt-3 border-t border-white/10 pt-3">
+          <p className="text-[10px] uppercase tracking-wide text-white/30">Objetivo</p>
+          <p className="mt-0.5 text-xs text-white/80">{client.objetivo}</p>
+        </div>
+      )}
+      {!imc && (client.peso_actual == null || client.altura == null) && (
+        <p className="mt-3 text-[11px] text-white/30">
+          Falta {client.peso_actual == null ? "peso" : "estatura"} para calcular el IMC — agrégalo editando al cliente.
+        </p>
+      )}
+    </div>
+  );
+}
+
 function ClientDetailModal({ client, onClose }: { client: ClientRow; onClose: () => void }) {
   const [tab, setTab] = useState<"progreso" | "evaluaciones">("progreso");
   const [measurements, setMeasurements] = useState<MeasurementRow[] | null>(null);
@@ -535,6 +677,8 @@ function ClientDetailModal({ client, onClose }: { client: ClientRow; onClose: ()
             <X size={18} />
           </button>
         </div>
+
+        <ClientHojaDeVida client={client} />
 
         <div className="mt-4 flex gap-2">
           <button

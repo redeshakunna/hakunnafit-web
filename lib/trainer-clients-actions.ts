@@ -110,6 +110,8 @@ export interface CreateOwnClientInput {
   objetivo?: string | null;
   nivel?: string | null;
   actividad?: string | null;
+  pesoActual?: number | null;
+  altura?: number | null;
   planElegido?: string | null;
   diasPorSemana?: number | null;
   horarioEntreno?: string | null;
@@ -150,6 +152,8 @@ export async function createOwnClient(input: CreateOwnClientInput): Promise<Admi
       objetivo: input.objetivo || null,
       nivel: input.nivel || null,
       actividad: input.actividad || null,
+      peso_actual: input.pesoActual ?? null,
+      altura: input.altura ?? null,
       plan_elegido: input.planElegido || null,
       dias_por_semana: input.diasPorSemana ?? null,
       horario_entreno: input.horarioEntreno || null,

@@ -14,6 +14,7 @@
 import { useState } from "react";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { submitPublicClientIntake } from "@/lib/public-client-actions";
+import { calculateImc } from "@/lib/imc";
 
 const NIVELES = [
   { value: "", label: "Selecciona tu nivel" },
@@ -29,19 +30,43 @@ const SEXOS = [
   { value: "otro", label: "Otro" },
 ];
 
+const ACTIVIDADES = [
+  { value: "", label: "Selecciona" },
+  { value: "sedentario", label: "Sedentario" },
+  { value: "ligero", label: "Ligero (1-3 días/semana)" },
+  { value: "moderado", label: "Moderado (3-5 días/semana)" },
+  { value: "activo", label: "Activo (6-7 días/semana)" },
+  { value: "muy_activo", label: "Muy activo" },
+];
+
+const IMC_CATEGORY_CLASS: Record<string, string> = {
+  bajo_peso: "bg-sky-500/10 text-sky-400",
+  normal: "bg-emerald-500/10 text-emerald-400",
+  sobrepeso: "bg-amber-500/10 text-amber-400",
+  obesidad: "bg-red-500/10 text-red-400",
+};
+
 export function PublicClientIntakeForm({ subdominio }: { subdominio: string }) {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [sexo, setSexo] = useState("");
   const [nivel, setNivel] = useState("");
+  const [actividad, setActividad] = useState("");
   const [objetivo, setObjetivo] = useState("");
+  const [pesoActual, setPesoActual] = useState("");
+  const [altura, setAltura] = useState("");
   const [diasPorSemana, setDiasPorSemana] = useState("");
   const [horarioEntreno, setHorarioEntreno] = useState("");
   const [honeypot, setHoneypot] = useState("");
 
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
+
+  // Se calcula al instante con una fórmula (peso/altura²), no con IA — ver
+  // lib/imc.ts. Nada más útil te dice el peso/altura por sí solos que verlo
+  // ya interpretado mientras llenas el formulario.
+  const imc = calculateImc(pesoActual ? Number(pesoActual) : null, altura ? Number(altura) : null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -55,7 +80,10 @@ export function PublicClientIntakeForm({ subdominio }: { subdominio: string }) {
       whatsapp,
       sexo: sexo || null,
       nivel: nivel || null,
+      actividad: actividad || null,
       objetivo: objetivo || null,
+      pesoActual: pesoActual ? Number(pesoActual) : null,
+      altura: altura ? Number(altura) : null,
       diasPorSemana: diasPorSemana ? Number(diasPorSemana) : null,
       horarioEntreno: horarioEntreno || null,
       honeypot,
@@ -158,6 +186,49 @@ export function PublicClientIntakeForm({ subdominio }: { subdominio: string }) {
           </select>
         </div>
       </div>
+
+      <div>
+        <label className={labelClass}>Actividad diaria (fuera del entreno)</label>
+        <select value={actividad} onChange={(e) => setActividad(e.target.value)} className={inputClass}>
+          {ACTIVIDADES.map((a) => (
+            <option key={a.value} value={a.value} className="bg-hf-black">
+              {a.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label className={labelClass}>Peso (kg)</label>
+          <input
+            type="number"
+            step="0.1"
+            min={0}
+            value={pesoActual}
+            onChange={(e) => setPesoActual(e.target.value)}
+            placeholder="Ej. 70"
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label className={labelClass}>Estatura (cm)</label>
+          <input
+            type="number"
+            step="0.1"
+            min={0}
+            value={altura}
+            onChange={(e) => setAltura(e.target.value)}
+            placeholder="Ej. 170"
+            className={inputClass}
+          />
+        </div>
+      </div>
+      {imc && (
+        <div className={`-mt-2 flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold ${IMC_CATEGORY_CLASS[imc.category]}`}>
+          Tu IMC: {imc.value} — {imc.label}
+        </div>
+      )}
 
       <div>
         <label className={labelClass}>¿Cuál es tu objetivo?</label>

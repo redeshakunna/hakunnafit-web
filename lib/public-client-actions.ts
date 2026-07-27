@@ -24,7 +24,10 @@ export interface PublicClientIntakeInput {
   whatsapp?: string | null;
   sexo?: string | null;
   nivel?: string | null;
+  actividad?: string | null;
   objetivo?: string | null;
+  pesoActual?: number | null;
+  altura?: number | null;
   diasPorSemana?: number | null;
   horarioEntreno?: string | null;
   // Campo trampa: invisible para una persona real, cualquier bot que llene
@@ -100,6 +103,8 @@ export async function submitPublicClientIntake(
 
   const diasPorSemana =
     typeof input.diasPorSemana === "number" && input.diasPorSemana > 0 ? input.diasPorSemana : null;
+  const pesoActual = typeof input.pesoActual === "number" && input.pesoActual > 0 ? input.pesoActual : null;
+  const altura = typeof input.altura === "number" && input.altura > 0 ? input.altura : null;
 
   if (existingId) {
     const { error } = await supabase
@@ -110,7 +115,10 @@ export async function submitPublicClientIntake(
         whatsapp: whatsapp ?? undefined,
         sexo: input.sexo || undefined,
         nivel: input.nivel || undefined,
+        actividad: input.actividad || undefined,
         objetivo: input.objetivo || undefined,
+        peso_actual: pesoActual ?? undefined,
+        altura: altura ?? undefined,
         dias_por_semana: diasPorSemana ?? undefined,
         horario_entreno: input.horarioEntreno || undefined,
       })
@@ -128,7 +136,10 @@ export async function submitPublicClientIntake(
     whatsapp,
     sexo: input.sexo || null,
     nivel: input.nivel || null,
+    actividad: input.actividad || null,
     objetivo: input.objetivo || null,
+    peso_actual: pesoActual,
+    altura,
     dias_por_semana: diasPorSemana,
     horario_entreno: input.horarioEntreno || null,
     status: "pendiente_evaluacion",
