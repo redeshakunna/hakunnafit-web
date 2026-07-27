@@ -55,9 +55,7 @@ export function TrainerPlanesManager({ initialPlanes }: { initialPlanes: PlanOfr
 
   return (
     <div className="mt-8">
-      <p className="text-xs font-bold uppercase tracking-wide text-white/40">Operación</p>
-
-      <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
         <div className="flex items-center gap-2 text-white/50">
           <ClipboardList size={16} />
           <p className="text-xs font-semibold uppercase tracking-wide">Planes ofrecidos</p>
