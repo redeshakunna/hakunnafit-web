@@ -92,6 +92,10 @@ const ACTIVIDAD_OPTIONS = [
   { value: "muy_activo", label: "Muy activo (trabajo físico o 2 entrenos/día)" },
 ];
 
+// Mismas franjas horarias que el formulario público de registro — evita
+// texto libre en este campo (antes se podía escribir cualquier cosa, ej. "6").
+const HORARIOS_ENTRENO = ["5:00 am", "6:00 am", "7:00 am", "12:00 pm", "4:00 pm", "6:00 pm", "7:00 pm"];
+
 function clientToForm(c: ClientRow): FormState {
   return {
     fullName: c.full_name,
@@ -515,11 +519,18 @@ function ClientFormModal({
             />
           </Field>
           <Field label="Horario de entreno" span2>
-            <input
+            <select
               value={form.horarioEntreno}
               onChange={(e) => setForm({ ...form, horarioEntreno: e.target.value })}
               className="input"
-            />
+            >
+              <option value="">Selecciona un horario</option>
+              {HORARIOS_ENTRENO.map((h) => (
+                <option key={h} value={h}>
+                  {h}
+                </option>
+              ))}
+            </select>
           </Field>
           <Field label="Estado" span2>
             <select

@@ -42,6 +42,11 @@ const ACTIVIDADES = [
   { value: "muy_activo", label: "Muy activo" },
 ];
 
+// Franjas horarias reales para elegir cuándo entrenar (mismo criterio que el
+// formulario principal de registro) — evita texto libre tipo "6" que no dice
+// nada, el cliente elige entre horas concretas.
+const HORARIOS_ENTRENO = ["5:00 am", "6:00 am", "7:00 am", "12:00 pm", "4:00 pm", "6:00 pm", "7:00 pm"];
+
 const IMC_CATEGORY_CLASS: Record<string, string> = {
   bajo_peso: "bg-sky-500/10 text-sky-400",
   normal: "bg-emerald-500/10 text-emerald-400",
@@ -283,12 +288,16 @@ export function PublicClientIntakeForm({
         </div>
         <div>
           <label className={labelClass}>Horario que prefieres</label>
-          <input
-            value={horarioEntreno}
-            onChange={(e) => setHorarioEntreno(e.target.value)}
-            placeholder="Ej. Mañanas"
-            className={inputClass}
-          />
+          <select value={horarioEntreno} onChange={(e) => setHorarioEntreno(e.target.value)} className={inputClass}>
+            <option value="" className="bg-hf-black">
+              Selecciona un horario
+            </option>
+            {HORARIOS_ENTRENO.map((h) => (
+              <option key={h} value={h} className="bg-hf-black">
+                {h}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
