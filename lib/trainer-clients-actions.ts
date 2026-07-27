@@ -59,6 +59,16 @@ export async function getOwnClients(): Promise<ClientRow[]> {
   return data as ClientRow[];
 }
 
+/** Cliente puntual por id, verificando que pertenezca al entrenador de la
+ * sesión — alimenta la página de perfil /panel/clientes/[id]. */
+export async function getOwnClient(clientId: string): Promise<ClientRow | null> {
+  const trainer = await requireTrainer();
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase.from("clients").select("*").eq("id", clientId).maybeSingle();
+  if (error || !data || data.trainer_id !== trainer.id) return null;
+  return data as ClientRow;
+}
+
 export async function getOwnRecentClients(limit = 5): Promise<ClientRow[]> {
   const trainer = await requireTrainer();
   const supabase = getSupabaseAdmin();

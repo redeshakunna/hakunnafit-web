@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 import {
   Plus,
   Search,
@@ -20,63 +21,16 @@ import type { TrainerRow, PlanOfrecido } from "@/lib/admin-actions";
 import { PLAN_CLIENT_CAP, planLabel } from "@/lib/catalog";
 import { calculateImc } from "@/lib/imc";
 import {
-  createOwnClient,
-  updateOwnClient,
-  deleteOwnClient,
-  getOwnClients,
-  getOwnClientMeasurements,
-  addOwnClientMeasurement,
-  getOwnClientEvaluations,
-  scheduleOwnEvaluation,
-  updateOwnEvaluationStatus,
-  type ClientRow,
-  type ClientStatus,
-  type MeasurementRow,
-  type EvaluationRow,
-} from "@/lib/trainer-clients-actions";
-
-const STATUS_META: Record<ClientStatus, { label: string; className: string }> = {
-  pendiente_evaluacion: { label: "Por evaluar", className: "bg-amber-500/10 text-amber-400" },
-  activo: { label: "Activo", className: "bg-emerald-500/10 text-emerald-400" },
-  pausado: { label: "Pausado", className: "bg-white/10 text-white/60" },
-  inactivo: { label: "Inactivo", className: "bg-red-500/10 text-red-400" },
-};
-
-const cop = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
-
-const IMC_CATEGORY_CLASS: Record<string, string> = {
-  bajo_peso: "bg-sky-500/10 text-sky-400",
-  normal: "bg-emerald-500/10 text-emerald-400",
-  sobrepeso: "bg-amber-500/10 text-amber-400",
-  obesidad: "bg-red-500/10 text-red-400",
-};
-
-const STATUS_DOT: Record<ClientStatus, string> = {
-  pendiente_evaluacion: "bg-amber-400",
-  activo: "bg-emerald-400",
-  pausado: "bg-white/40",
-  inactivo: "bg-red-400",
-};
-
-const AVATAR_COLORS = [
-  "bg-sky-500/15 text-sky-300",
-  "bg-violet-500/15 text-violet-300",
-  "bg-emerald-500/15 text-emerald-300",
-  "bg-amber-500/15 text-amber-300",
-  "bg-pink-500/15 text-pink-300",
-  "bg-hf-blue/15 text-hf-blue",
-];
-
-function initials(name: string) {
-  const parts = name.trim().split(/\s+/).slice(0, 2);
-  return parts.map((p) => p[0]?.toUpperCase() ?? "").join("") || "?";
-}
-
-function avatarColor(id: string) {
-  let sum = 0;
-  for (const ch of id) sum += ch.charCodeAt(0);
-  return AVATAR_COLORS[sum % AVATAR_COLORS.length];
-}
+  STATUS_META,
+  STATUS_DOT,
+  IMC_CATEGORY_CLASS,
+  initials,
+  avatarColor,
+  cop,
+  ACTIVIDAD_OPTIONS,
+  HORARIOS_ENTRENO,
+} from "@/lib/client-ui";
+import { createOwnClient, updateOwnClient, deleteOwnClient, getOwnClients, type ClientRow, type ClientStatus } from "@/lib/trainer-clients-actions";
 
 /** Se calcula con la fórmula estándar (peso/altura²), no con un modelo de
  * IA — ver lib/imc.ts para la justificación completa. */
@@ -90,7 +44,7 @@ function ImcPreview({ pesoKg, alturaCm }: { pesoKg: number | null; alturaCm: num
   );
 }
 
-type FormState = {
+export type FormState = {
   fullName: string;
   email: string;
   whatsapp: string;
@@ -106,7 +60,7 @@ type FormState = {
   status: ClientStatus;
 };
 
-const EMPTY_FORM: FormState = {
+export const EMPTY_FORM: FormState = {
   fullName: "",
   email: "",
   whatsapp: "",
@@ -122,22 +76,7 @@ const EMPTY_FORM: FormState = {
   status: "pendiente_evaluacion",
 };
 
-// Niveles estándar de actividad diaria (fuera del entreno con el
-// entrenador) — misma clasificación que se usa para calcular gasto
-// calórico, así queda lista para cuando HAKAI genere rutinas/nutrición.
-const ACTIVIDAD_OPTIONS = [
-  { value: "sedentario", label: "Sedentario (trabajo de oficina, poco movimiento)" },
-  { value: "ligero", label: "Ligero (1-3 días de actividad/semana)" },
-  { value: "moderado", label: "Moderado (3-5 días de actividad/semana)" },
-  { value: "activo", label: "Activo (6-7 días de actividad/semana)" },
-  { value: "muy_activo", label: "Muy activo (trabajo físico o 2 entrenos/día)" },
-];
-
-// Mismas franjas horarias que el formulario público de registro — evita
-// texto libre en este campo (antes se podía escribir cualquier cosa, ej. "6").
-const HORARIOS_ENTRENO = ["5:00 am", "6:00 am", "7:00 am", "12:00 pm", "4:00 pm", "6:00 pm", "7:00 pm"];
-
-function clientToForm(c: ClientRow): FormState {
+export function clientToForm(c: ClientRow): FormState {
   return {
     fullName: c.full_name,
     email: c.email ?? "",
@@ -176,7 +115,6 @@ export function TrainerClientsManager({
   const [modalMode, setModalMode] = useState<"create" | "edit" | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
-  const [detailClient, setDetailClient] = useState<ClientRow | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [linkCopied, setLinkCopied] = useState(false);
@@ -297,7 +235,6 @@ export function TrainerClientsManager({
     startTransition(async () => {
       await deleteOwnClient(c.id);
       await refresh();
-      if (detailClient?.id === c.id) setDetailClient(null);
     });
   }
 
@@ -449,7 +386,6 @@ export function TrainerClientsManager({
             client={c}
             hasRoutine={routineSet.has(c.id)}
             nextEvaluation={nextEvalByClient[c.id]}
-            onViewDetail={() => setDetailClient(c)}
             onEdit={() => openEdit(c)}
             onDelete={() => handleDelete(c)}
           />
@@ -477,10 +413,6 @@ export function TrainerClientsManager({
           error={error}
           planesOfrecidos={trainer.planes_ofrecidos}
         />
-      )}
-
-      {detailClient && (
-        <ClientDetailModal client={detailClient} onClose={() => setDetailClient(null)} />
       )}
     </div>
   );
@@ -551,14 +483,12 @@ function ClientCard({
   client: c,
   hasRoutine,
   nextEvaluation,
-  onViewDetail,
   onEdit,
   onDelete,
 }: {
   client: ClientRow;
   hasRoutine: boolean;
   nextEvaluation?: string;
-  onViewDetail: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -619,21 +549,21 @@ function ClientCard({
           Próxima evaluación: {new Date(nextEvaluation).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })}
         </div>
       ) : c.status === "pendiente_evaluacion" ? (
-        <button
-          onClick={onViewDetail}
+        <Link
+          href={`/panel/clientes/${c.id}?tab=evaluaciones`}
           className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl bg-hf-blue/15 px-3 py-2 text-center text-[11px] font-semibold text-hf-blue hover:bg-hf-blue/25"
         >
           <CalendarClock size={13} /> Agendar evaluación inicial
-        </button>
+        </Link>
       ) : null}
 
       <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/10 pt-3">
-        <button
-          onClick={onViewDetail}
+        <Link
+          href={`/panel/clientes/${c.id}`}
           className="flex items-center gap-1 rounded-full border border-white/15 px-2.5 py-1 text-[11px] font-semibold text-white/70 hover:border-white/30 hover:text-white"
         >
           <TrendingUp size={12} /> Ver perfil
-        </button>
+        </Link>
         <button
           onClick={onEdit}
           className="rounded-full border border-white/15 px-2.5 py-1 text-[11px] font-semibold text-white/70 hover:border-white/30 hover:text-white"
@@ -661,7 +591,7 @@ function ClientCard({
   );
 }
 
-function ClientFormModal({
+export function ClientFormModal({
   mode,
   form,
   setForm,
@@ -883,238 +813,3 @@ function Field({ label, span2, children }: { label: string; span2?: boolean; chi
   );
 }
 
-const SEXO_LABELS: Record<string, string> = { femenino: "Femenino", masculino: "Masculino", otro: "Otro" };
-const NIVEL_LABELS: Record<string, string> = { principiante: "Principiante", intermedio: "Intermedio", avanzado: "Avanzado" };
-const ACTIVIDAD_LABELS: Record<string, string> = Object.fromEntries(
-  ACTIVIDAD_OPTIONS.map((a) => [a.value, a.label.split(" (")[0]])
-);
-
-/**
- * "Hoja de vida" del cliente — resumen fijo al abrir su ficha, con todo lo
- * que el entrenador necesita ver de un vistazo antes de armarle una rutina:
- * datos físicos, nivel, actividad y objetivo. El IMC se calcula al vuelo
- * con lib/imc.ts a partir de peso_actual/altura (ver ese archivo para por
- * qué es una fórmula y no una llamada a un modelo de IA).
- */
-function ClientHojaDeVida({ client }: { client: ClientRow }) {
-  const imc = calculateImc(client.peso_actual, client.altura);
-
-  const rows: { label: string; value: string }[] = [
-    { label: "Sexo", value: client.sexo ? SEXO_LABELS[client.sexo] ?? client.sexo : "—" },
-    { label: "Nivel", value: client.nivel ? NIVEL_LABELS[client.nivel] ?? client.nivel : "—" },
-    { label: "Actividad", value: client.actividad ? ACTIVIDAD_LABELS[client.actividad] ?? client.actividad : "—" },
-    { label: "Peso", value: client.peso_actual != null ? `${client.peso_actual} kg` : "—" },
-    { label: "Estatura", value: client.altura != null ? `${client.altura} cm` : "—" },
-    { label: "Plan elegido", value: client.plan_elegido || "—" },
-    { label: "Días/semana", value: client.dias_por_semana != null ? String(client.dias_por_semana) : "—" },
-    { label: "Horario", value: client.horario_entreno || "—" },
-  ];
-
-  return (
-    <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-bold uppercase tracking-wide text-white/40">Hoja de vida</p>
-        {imc && (
-          <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${IMC_CATEGORY_CLASS[imc.category]}`}>
-            IMC {imc.value} · {imc.label}
-          </span>
-        )}
-      </div>
-      <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
-        {rows.map((r) => (
-          <div key={r.label}>
-            <p className="text-[10px] uppercase tracking-wide text-white/30">{r.label}</p>
-            <p className="text-xs font-medium text-white/80">{r.value}</p>
-          </div>
-        ))}
-      </div>
-      {client.objetivo && (
-        <div className="mt-3 border-t border-white/10 pt-3">
-          <p className="text-[10px] uppercase tracking-wide text-white/30">Objetivo</p>
-          <p className="mt-0.5 text-xs text-white/80">{client.objetivo}</p>
-        </div>
-      )}
-      {!imc && (client.peso_actual == null || client.altura == null) && (
-        <p className="mt-3 text-[11px] text-white/30">
-          Falta {client.peso_actual == null ? "peso" : "estatura"} para calcular el IMC — agrégalo editando al cliente.
-        </p>
-      )}
-    </div>
-  );
-}
-
-function ClientDetailModal({ client, onClose }: { client: ClientRow; onClose: () => void }) {
-  const [tab, setTab] = useState<"progreso" | "evaluaciones">("progreso");
-  const [measurements, setMeasurements] = useState<MeasurementRow[] | null>(null);
-  const [evaluations, setEvaluations] = useState<EvaluationRow[] | null>(null);
-  const [newWeight, setNewWeight] = useState("");
-  const [newNotes, setNewNotes] = useState("");
-  const [newEvalDate, setNewEvalDate] = useState("");
-  const [isPending, startTransition] = useTransition();
-
-  useMemo(() => {
-    getOwnClientMeasurements(client.id).then(setMeasurements);
-    getOwnClientEvaluations(client.id).then(setEvaluations);
-  }, [client.id]);
-
-  function addMeasurement() {
-    const peso = newWeight ? parseFloat(newWeight) : null;
-    startTransition(async () => {
-      await addOwnClientMeasurement(client.id, { peso, notas: newNotes || null });
-      setNewWeight("");
-      setNewNotes("");
-      const rows = await getOwnClientMeasurements(client.id);
-      setMeasurements(rows);
-    });
-  }
-
-  function addEvaluation() {
-    if (!newEvalDate) return;
-    startTransition(async () => {
-      await scheduleOwnEvaluation(client.id, new Date(newEvalDate).toISOString());
-      setNewEvalDate("");
-      const rows = await getOwnClientEvaluations(client.id);
-      setEvaluations(rows);
-    });
-  }
-
-  function markEvalDone(id: string) {
-    startTransition(async () => {
-      await updateOwnEvaluationStatus(id, "completada");
-      const rows = await getOwnClientEvaluations(client.id);
-      setEvaluations(rows);
-    });
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
-      <div
-        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-white/10 bg-[#0a0d16] p-6"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-bold text-white">{client.full_name}</h2>
-          <button onClick={onClose} className="text-white/40 hover:text-white">
-            <X size={18} />
-          </button>
-        </div>
-
-        <ClientHojaDeVida client={client} />
-
-        <div className="mt-4 flex gap-2">
-          <button
-            onClick={() => setTab("progreso")}
-            className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-              tab === "progreso" ? "bg-hf-blue text-black" : "border border-white/15 text-white/60"
-            }`}
-          >
-            Progreso
-          </button>
-          <button
-            onClick={() => setTab("evaluaciones")}
-            className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-              tab === "evaluaciones" ? "bg-hf-blue text-black" : "border border-white/15 text-white/60"
-            }`}
-          >
-            Evaluaciones
-          </button>
-        </div>
-
-        {tab === "progreso" && (
-          <div className="mt-4">
-            <div className="flex gap-2">
-              <input
-                type="number"
-                step="0.1"
-                placeholder="Peso (kg)"
-                value={newWeight}
-                onChange={(e) => setNewWeight(e.target.value)}
-                className="w-28 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white outline-none"
-              />
-              <input
-                placeholder="Nota (opcional)"
-                value={newNotes}
-                onChange={(e) => setNewNotes(e.target.value)}
-                className="flex-1 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white outline-none"
-              />
-              <button
-                onClick={addMeasurement}
-                disabled={isPending || !newWeight}
-                className="rounded-xl bg-hf-blue px-3 py-2 text-xs font-bold text-black disabled:opacity-40"
-              >
-                Agregar
-              </button>
-            </div>
-
-            <div className="mt-4 space-y-2">
-              {measurements === null && <p className="text-xs text-white/40">Cargando...</p>}
-              {measurements?.length === 0 && <p className="text-xs text-white/40">Sin mediciones registradas.</p>}
-              {measurements?.map((m) => (
-                <div
-                  key={m.id}
-                  className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2"
-                >
-                  <span className="text-xs text-white/70">{new Date(m.fecha).toLocaleDateString("es-CO")}</span>
-                  <span className="text-xs font-semibold text-white">{m.peso != null ? `${m.peso} kg` : "—"}</span>
-                  {m.notas && <span className="text-[11px] text-white/40">{m.notas}</span>}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {tab === "evaluaciones" && (
-          <div className="mt-4">
-            <div className="flex gap-2">
-              <input
-                type="datetime-local"
-                value={newEvalDate}
-                onChange={(e) => setNewEvalDate(e.target.value)}
-                className="flex-1 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white outline-none"
-              />
-              <button
-                onClick={addEvaluation}
-                disabled={isPending || !newEvalDate}
-                className="flex items-center gap-1 rounded-xl bg-hf-blue px-3 py-2 text-xs font-bold text-black disabled:opacity-40"
-              >
-                <CalendarClock size={13} /> Agendar
-              </button>
-            </div>
-
-            <div className="mt-4 space-y-2">
-              {evaluations === null && <p className="text-xs text-white/40">Cargando...</p>}
-              {evaluations?.length === 0 && <p className="text-xs text-white/40">Sin evaluaciones agendadas.</p>}
-              {evaluations?.map((ev) => (
-                <div
-                  key={ev.id}
-                  className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2"
-                >
-                  <span className="text-xs text-white/70">
-                    {new Date(ev.scheduled_at).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                        ev.status === "completada" ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"
-                      }`}
-                    >
-                      {ev.status === "completada" ? "Completada" : "Pendiente"}
-                    </span>
-                    {ev.status !== "completada" && (
-                      <button
-                        onClick={() => markEvalDone(ev.id)}
-                        className="text-[11px] font-semibold text-white/50 hover:text-white"
-                      >
-                        Marcar hecha
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
