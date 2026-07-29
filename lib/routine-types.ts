@@ -34,3 +34,31 @@ export function emptyRoutineDay(index: number): RoutineDay {
 export function emptyExerciseBlock(): RoutineExerciseBlock {
   return { ejercicioId: null, nombreLibre: "", series: 3, repeticiones: "8-12", descansoSegundos: 60, notas: null };
 }
+
+// Etiquetas en español para los valores crudos de la biblioteca de
+// ejercicios (exercises.muscle_group / exercises.equipment) — así el
+// entrenador ve "Máquina" en vez de "maquina" al elegir de la biblioteca,
+// sin tener que tocar los datos sembrados.
+export const MUSCLE_GROUP_LABELS: Record<string, string> = {
+  piernas: "Piernas",
+  brazos: "Brazos",
+  espalda: "Espalda",
+  pecho: "Pecho",
+  core: "Core",
+  hombros: "Hombros",
+  cardio: "Cardio",
+  gluteos: "Glúteos",
+};
+
+export const EQUIPMENT_LABELS: Record<string, string> = {
+  peso_corporal: "Peso corporal",
+  barra: "Barra",
+  mancuernas: "Mancuernas",
+  maquina: "Máquina",
+  cable: "Cable/Polea",
+  kettlebell: "Kettlebell",
+  banda: "Banda elástica",
+};
+
+export const MUSCLE_GROUP_OPTIONS = Object.entries(MUSCLE_GROUP_LABELS).map(([value, label]) => ({ value, label }));
+export const EQUIPMENT_OPTIONS = Object.entries(EQUIPMENT_LABELS).map(([value, label]) => ({ value, label }));

@@ -66,13 +66,33 @@ async function assertOwnRoutine(routineId: string): Promise<string> {
  * (scripts/import-wger-exercises.mjs) para ampliarla desde una fuente
  * pública cuando quieran correrlo desde una máquina con salida a internet.
  */
-export async function searchExercises(query?: string, muscleGroup?: string): Promise<ExerciseRow[]> {
+export async function searchExercises(query?: string, muscleGroup?: string, equipment?: string): Promise<ExerciseRow[]> {
   await requireTrainer();
   const supabase = getSupabaseAdmin();
   let q = supabase.from("exercises").select("id, name, muscle_group, equipment, category, image_url").eq("active", true);
   if (query?.trim()) q = q.ilike("name", `%${query.trim()}%`);
   if (muscleGroup) q = q.eq("muscle_group", muscleGroup);
-  const { data, error } = await q.order("muscle_group").order("name").limit(200);
+  if (equipment) q = q.eq("equipment", equipment);
+  // Sin filtros trae toda la biblioteca (~386 ejercicios hoy) para el
+  // picker visual — por eso el límite es más alto que una búsqueda típica.
+  const { data, error } = await q.order("muscle_group").order("name").limit(400);
+  if (error || !data) return [];
+  return data as ExerciseRow[];
+}
+
+/**
+ * Trae ejercicios puntuales por id — alimenta la insignia de "Grupo
+ * muscular / Equipo" que se muestra bajo un bloque ya elegido, sin tener
+ * que guardar esos datos duplicados dentro del jsonb de la rutina.
+ */
+export async function getExercisesByIds(ids: string[]): Promise<ExerciseRow[]> {
+  await requireTrainer();
+  if (ids.length === 0) return [];
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("exercises")
+    .select("id, name, muscle_group, equipment, category, image_url")
+    .in("id", ids);
   if (error || !data) return [];
   return data as ExerciseRow[];
 }

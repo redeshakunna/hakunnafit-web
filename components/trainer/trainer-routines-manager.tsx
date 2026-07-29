@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import Image from "next/image";
-import { Plus, Trash2, X, Dumbbell, Moon } from "lucide-react";
+import { Plus, Trash2, X, Dumbbell, Moon, Library } from "lucide-react";
 import type { TrainerRow } from "@/lib/admin-actions";
 import type { ClientRow } from "@/lib/trainer-clients-actions";
 import {
@@ -11,10 +11,21 @@ import {
   updateOwnRoutine,
   deleteOwnRoutine,
   searchExercises,
+  getExercisesByIds,
   type RoutineRow,
   type ExerciseRow,
 } from "@/lib/trainer-routines-actions";
-import { emptyRoutineDay, emptyExerciseBlock, type RoutineDias, type RoutineDay } from "@/lib/routine-types";
+import {
+  emptyRoutineDay,
+  emptyExerciseBlock,
+  MUSCLE_GROUP_LABELS,
+  EQUIPMENT_LABELS,
+  MUSCLE_GROUP_OPTIONS,
+  EQUIPMENT_OPTIONS,
+  type RoutineDias,
+  type RoutineDay,
+} from "@/lib/routine-types";
+import { HORARIOS_ENTRENO } from "@/lib/client-ui";
 
 export function TrainerRoutinesManager({ trainer, clients }: { trainer: TrainerRow; clients: ClientRow[] }) {
   const [selectedClientId, setSelectedClientId] = useState<string>(clients[0]?.id ?? "");
@@ -243,7 +254,14 @@ function RoutineEditorModal({
           </label>
           <label className="col-span-3 flex flex-col gap-1">
             <span className="text-[11px] font-semibold text-white/50">Horario habitual *</span>
-            <input value={horario} onChange={(e) => setHorario(e.target.value)} placeholder="Ej. Mañanas 6-7am" className="input" />
+            <select value={horario} onChange={(e) => setHorario(e.target.value)} className="input">
+              <option value="" className="bg-[#0a0d16]">Selecciona un horario</option>
+              {HORARIOS_ENTRENO.map((h) => (
+                <option key={h} value={h} className="bg-[#0a0d16]">
+                  {h}
+                </option>
+              ))}
+            </select>
           </label>
           <label className="col-span-4 flex flex-col gap-1">
             <span className="text-[11px] font-semibold text-white/50">Resumen de frecuencia (opcional)</span>
@@ -390,6 +408,8 @@ function ExerciseBlockEditor({
   const [query, setQuery] = useState(block.nombreLibre ?? "");
   const [results, setResults] = useState<ExerciseRow[]>([]);
   const [open, setOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [selectedExercise, setSelectedExercise] = useState<ExerciseRow | null>(null);
 
   useEffect(() => {
     if (!open || query.trim().length < 2) {
@@ -402,10 +422,30 @@ function ExerciseBlockEditor({
     return () => clearTimeout(t);
   }, [query, open]);
 
+  // Trae grupo muscular + equipo del ejercicio ya elegido (aunque venga de
+  // una rutina guardada antes, donde el bloque solo tiene el id) para poder
+  // mostrar la insignia "qué máquina necesita" sin duplicar esos datos
+  // dentro del jsonb de la rutina.
+  useEffect(() => {
+    if (!block.ejercicioId) {
+      setSelectedExercise(null);
+      return;
+    }
+    let cancelled = false;
+    getExercisesByIds([block.ejercicioId]).then((rows) => {
+      if (!cancelled) setSelectedExercise(rows[0] ?? null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [block.ejercicioId]);
+
   function selectExercise(ex: ExerciseRow) {
     setQuery(ex.name);
+    setSelectedExercise(ex);
     onChange({ ejercicioId: ex.id, nombreLibre: ex.name });
     setOpen(false);
+    setPickerOpen(false);
   }
 
   return (
@@ -418,6 +458,7 @@ function ExerciseBlockEditor({
             onChange={(e) => {
               setQuery(e.target.value);
               setOpen(true);
+              setSelectedExercise(null);
               onChange({ ejercicioId: null, nombreLibre: e.target.value });
             }}
             onFocus={() => setOpen(true)}
@@ -425,7 +466,7 @@ function ExerciseBlockEditor({
             className="input !py-1.5 !text-xs"
           />
           {open && results.length > 0 && (
-            <div className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-white/10 bg-[#12151f] shadow-lg">
+            <div className="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-white/10 bg-[#12151f] shadow-lg">
               {results.map((ex) => (
                 <button
                   key={ex.id}
@@ -446,17 +487,41 @@ function ExerciseBlockEditor({
                       <Dumbbell size={12} className="text-white/30" />
                     </span>
                   )}
-                  <span className="flex-1">{ex.name}</span>
-                  <span className="text-[10px] text-white/30">{ex.muscle_group}</span>
+                  <span className="min-w-0 flex-1 truncate">{ex.name}</span>
+                  <span className="shrink-0 text-[10px] text-white/30">
+                    {MUSCLE_GROUP_LABELS[ex.muscle_group] ?? ex.muscle_group}
+                  </span>
+                  <span className="shrink-0 rounded-full bg-hf-blue/10 px-1.5 py-0.5 text-[9px] font-semibold text-hf-blue">
+                    {EQUIPMENT_LABELS[ex.equipment] ?? ex.equipment}
+                  </span>
                 </button>
               ))}
             </div>
           )}
+          {selectedExercise && (
+            <div className="mt-1.5 flex flex-wrap gap-1">
+              <span className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] text-white/50">
+                {MUSCLE_GROUP_LABELS[selectedExercise.muscle_group] ?? selectedExercise.muscle_group}
+              </span>
+              <span className="rounded-full bg-hf-blue/10 px-2 py-0.5 text-[10px] font-semibold text-hf-blue">
+                {EQUIPMENT_LABELS[selectedExercise.equipment] ?? selectedExercise.equipment}
+              </span>
+            </div>
+          )}
         </div>
+        <button
+          type="button"
+          onClick={() => setPickerOpen(true)}
+          className="mt-1.5 flex shrink-0 items-center gap-1 rounded-full border border-white/15 px-2.5 py-1.5 text-[10px] font-semibold text-white/60 hover:border-white/30 hover:text-white"
+        >
+          <Library size={11} /> Ver biblioteca
+        </button>
         <button onClick={onRemove} className="mt-1.5 text-white/30 hover:text-red-400">
           <X size={14} />
         </button>
       </div>
+
+      {pickerOpen && <ExercisePickerModal onSelect={selectExercise} onClose={() => setPickerOpen(false)} />}
 
       <div className="mt-2 grid grid-cols-3 gap-2 pl-6">
         <label className="flex flex-col gap-0.5">
@@ -488,6 +553,135 @@ function ExerciseBlockEditor({
             className="input !py-1 !text-xs"
           />
         </label>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Biblioteca completa de ejercicios (~386 hoy) para elegir mirando qué
+ * grupo muscular trabaja y qué equipo/máquina necesita, en vez de tener que
+ * adivinar por el nombre en el buscador rápido. Trae toda la lista una sola
+ * vez al abrir y filtra en el cliente — con este tamaño de tabla es más
+ * ágil que pedir al servidor en cada tecla o cambio de filtro.
+ */
+function ExercisePickerModal({
+  onSelect,
+  onClose,
+}: {
+  onSelect: (ex: ExerciseRow) => void;
+  onClose: () => void;
+}) {
+  const [all, setAll] = useState<ExerciseRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState("");
+  const [muscleGroup, setMuscleGroup] = useState("");
+  const [equipment, setEquipment] = useState("");
+
+  useEffect(() => {
+    searchExercises().then((rows) => {
+      setAll(rows);
+      setLoading(false);
+    });
+  }, []);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return all.filter((ex) => {
+      if (q && !ex.name.toLowerCase().includes(q)) return false;
+      if (muscleGroup && ex.muscle_group !== muscleGroup) return false;
+      if (equipment && ex.equipment !== equipment) return false;
+      return true;
+    });
+  }, [all, query, muscleGroup, equipment]);
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
+      <div
+        className="flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0a0d16]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+          <h2 className="text-sm font-bold text-white">Biblioteca de ejercicios</h2>
+          <button onClick={onClose} className="text-white/40 hover:text-white">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="flex flex-wrap gap-2 border-b border-white/10 px-5 py-3">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Buscar por nombre..."
+            className="input min-w-[160px] flex-1 !py-1.5 !text-xs"
+          />
+          <select value={muscleGroup} onChange={(e) => setMuscleGroup(e.target.value)} className="input !w-auto !py-1.5 !text-xs">
+            <option value="" className="bg-[#0a0d16]">
+              Todos los grupos
+            </option>
+            {MUSCLE_GROUP_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value} className="bg-[#0a0d16]">
+                {o.label}
+              </option>
+            ))}
+          </select>
+          <select value={equipment} onChange={(e) => setEquipment(e.target.value)} className="input !w-auto !py-1.5 !text-xs">
+            <option value="" className="bg-[#0a0d16]">
+              Todo el equipo
+            </option>
+            {EQUIPMENT_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value} className="bg-[#0a0d16]">
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5">
+          {loading && <p className="text-xs text-white/40">Cargando biblioteca...</p>}
+          {!loading && filtered.length === 0 && (
+            <p className="text-xs text-white/40">Sin resultados con esos filtros.</p>
+          )}
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {filtered.map((ex) => (
+              <button
+                key={ex.id}
+                onClick={() => onSelect(ex)}
+                className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] p-2.5 text-left hover:border-hf-blue/40 hover:bg-white/5"
+              >
+                {ex.image_url ? (
+                  <Image
+                    src={ex.image_url}
+                    alt=""
+                    width={36}
+                    height={36}
+                    unoptimized
+                    className="h-9 w-9 shrink-0 rounded-lg object-cover"
+                  />
+                ) : (
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/5">
+                    <Dumbbell size={14} className="text-white/30" />
+                  </span>
+                )}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-xs font-semibold text-white">{ex.name}</span>
+                  <span className="mt-0.5 flex flex-wrap gap-1">
+                    <span className="rounded-full bg-white/5 px-1.5 py-0.5 text-[9px] text-white/50">
+                      {MUSCLE_GROUP_LABELS[ex.muscle_group] ?? ex.muscle_group}
+                    </span>
+                    <span className="rounded-full bg-hf-blue/10 px-1.5 py-0.5 text-[9px] font-semibold text-hf-blue">
+                      {EQUIPMENT_LABELS[ex.equipment] ?? ex.equipment}
+                    </span>
+                  </span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="border-t border-white/10 px-5 py-2.5 text-center text-[11px] text-white/30">
+          {filtered.length} de {all.length} ejercicios
+        </div>
       </div>
     </div>
   );
