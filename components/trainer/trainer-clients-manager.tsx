@@ -33,6 +33,19 @@ import {
   HORARIOS_ENTRENO,
 } from "@/lib/client-ui";
 import { createOwnClient, updateOwnClient, deleteOwnClient, getOwnClients, type ClientRow, type ClientStatus } from "@/lib/trainer-clients-actions";
+import {
+  ACCESO_EQUIPO,
+  EXPERIENCIA_CROSSFIT,
+  EXPERIENCIA_PESAS,
+  OBJETIVOS_CARRERA,
+  OBJETIVOS_CROSSFIT,
+  SUPERFICIES,
+  emptyPerfilCrossfit,
+  emptyPerfilRunning,
+  perfilShapeForBranch,
+  type PerfilCrossfit,
+  type PerfilRunning,
+} from "@/lib/client-profile-types";
 
 /** Se calcula con la fórmula estándar (peso/altura²), no con un modelo de
  * IA — ver lib/imc.ts para la justificación completa. */
@@ -61,6 +74,8 @@ export type FormState = {
   horarioEntreno: string;
   status: ClientStatus;
   pausadoMotivo: string;
+  perfilRunning: PerfilRunning;
+  perfilCrossfit: PerfilCrossfit;
 };
 
 export const EMPTY_FORM: FormState = {
@@ -78,9 +93,12 @@ export const EMPTY_FORM: FormState = {
   horarioEntreno: "",
   status: "pendiente_evaluacion",
   pausadoMotivo: "",
+  perfilRunning: emptyPerfilRunning(),
+  perfilCrossfit: emptyPerfilCrossfit(),
 };
 
 export function clientToForm(c: ClientRow): FormState {
+  const rama = c.perfil_deportivo && "objetivoCarrera" in c.perfil_deportivo ? "running" : c.perfil_deportivo && "experienciaCrossfit" in c.perfil_deportivo ? "crossfit" : null;
   return {
     fullName: c.full_name,
     email: c.email ?? "",
@@ -96,6 +114,8 @@ export function clientToForm(c: ClientRow): FormState {
     horarioEntreno: c.horario_entreno ?? "",
     status: c.status,
     pausadoMotivo: c.pausado_motivo ?? "",
+    perfilRunning: rama === "running" ? (c.perfil_deportivo as PerfilRunning) : emptyPerfilRunning(),
+    perfilCrossfit: rama === "crossfit" ? (c.perfil_deportivo as PerfilCrossfit) : emptyPerfilCrossfit(),
   };
 }
 
@@ -191,12 +211,15 @@ export function TrainerClientsManager({
     setError(null);
   }
 
+  const rama = perfilShapeForBranch(trainer.especialidad);
+
   function submitForm() {
     setError(null);
     startTransition(async () => {
       const diasPorSemana = form.diasPorSemana ? parseInt(form.diasPorSemana, 10) : null;
       const pesoActual = form.pesoActual ? parseFloat(form.pesoActual) : null;
       const altura = form.altura ? parseFloat(form.altura) : null;
+      const perfilDeportivo = rama === "running" ? form.perfilRunning : rama === "crossfit" ? form.perfilCrossfit : null;
       if (modalMode === "create") {
         const res = await createOwnClient({
           fullName: form.fullName,
@@ -212,6 +235,7 @@ export function TrainerClientsManager({
           diasPorSemana,
           horarioEntreno: form.horarioEntreno,
           status: form.status,
+          perfilDeportivo,
         });
         if (!res.ok) return setError(res.error ?? "No se pudo crear el cliente.");
       } else if (modalMode === "edit" && editingId) {
@@ -230,6 +254,7 @@ export function TrainerClientsManager({
           horarioEntreno: form.horarioEntreno,
           status: form.status,
           pausadoMotivo: form.pausadoMotivo,
+          perfilDeportivo,
         });
         if (!res.ok) return setError(res.error ?? "No se pudo guardar.");
       }
@@ -421,6 +446,7 @@ export function TrainerClientsManager({
           isPending={isPending}
           error={error}
           planesOfrecidos={trainer.planes_ofrecidos}
+          rama={rama}
         />
       )}
     </div>
@@ -625,6 +651,7 @@ export function ClientFormModal({
   isPending,
   error,
   planesOfrecidos,
+  rama = null,
 }: {
   mode: "create" | "edit";
   form: FormState;
@@ -634,6 +661,7 @@ export function ClientFormModal({
   isPending: boolean;
   error: string | null;
   planesOfrecidos: PlanOfrecido[];
+  rama?: "running" | "crossfit" | null;
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onCancel}>
@@ -798,6 +826,146 @@ export function ClientFormModal({
                 className="input"
               />
             </Field>
+          )}
+
+          {rama === "running" && (
+            <>
+              <p className="col-span-full mt-1 text-[11px] font-semibold uppercase tracking-wide text-white/40">Sobre su running</p>
+              <Field label="Objetivo de carrera">
+                <select
+                  value={form.perfilRunning.objetivoCarrera ?? ""}
+                  onChange={(e) => setForm({ ...form, perfilRunning: { ...form.perfilRunning, objetivoCarrera: e.target.value || null } })}
+                  className="input"
+                >
+                  <option value="">—</option>
+                  {OBJETIVOS_CARRERA.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Fecha de carrera objetivo">
+                <input
+                  type="date"
+                  value={form.perfilRunning.fechaCarreraObjetivo ?? ""}
+                  onChange={(e) => setForm({ ...form, perfilRunning: { ...form.perfilRunning, fechaCarreraObjetivo: e.target.value || null } })}
+                  className="input"
+                />
+              </Field>
+              <Field label="Mejor marca">
+                <input
+                  value={form.perfilRunning.mejorMarca ?? ""}
+                  onChange={(e) => setForm({ ...form, perfilRunning: { ...form.perfilRunning, mejorMarca: e.target.value || null } })}
+                  placeholder="Ej. 10K en 52:30"
+                  className="input"
+                />
+              </Field>
+              <Field label="Kilometraje semanal">
+                <input
+                  type="number"
+                  min={0}
+                  value={form.perfilRunning.kilometrajeSemanal ?? ""}
+                  onChange={(e) => setForm({ ...form, perfilRunning: { ...form.perfilRunning, kilometrajeSemanal: e.target.value ? Number(e.target.value) : null } })}
+                  className="input"
+                />
+              </Field>
+              <Field label="Superficie habitual">
+                <select
+                  value={form.perfilRunning.superficieHabitual ?? ""}
+                  onChange={(e) => setForm({ ...form, perfilRunning: { ...form.perfilRunning, superficieHabitual: e.target.value || null } })}
+                  className="input"
+                >
+                  <option value="">—</option>
+                  {SUPERFICIES.map((s) => (
+                    <option key={s.value} value={s.value}>{s.label}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Años corriendo">
+                <input
+                  type="number"
+                  min={0}
+                  value={form.perfilRunning.experienciaAnios ?? ""}
+                  onChange={(e) => setForm({ ...form, perfilRunning: { ...form.perfilRunning, experienciaAnios: e.target.value ? Number(e.target.value) : null } })}
+                  className="input"
+                />
+              </Field>
+              <Field label="Lesiones o molestias" span2>
+                <input
+                  value={form.perfilRunning.lesiones ?? ""}
+                  onChange={(e) => setForm({ ...form, perfilRunning: { ...form.perfilRunning, lesiones: e.target.value || null } })}
+                  className="input"
+                />
+              </Field>
+            </>
+          )}
+
+          {rama === "crossfit" && (
+            <>
+              <p className="col-span-full mt-1 text-[11px] font-semibold uppercase tracking-wide text-white/40">Sobre su crossfit</p>
+              <Field label="Experiencia en crossfit">
+                <select
+                  value={form.perfilCrossfit.experienciaCrossfit ?? ""}
+                  onChange={(e) => setForm({ ...form, perfilCrossfit: { ...form.perfilCrossfit, experienciaCrossfit: e.target.value || null } })}
+                  className="input"
+                >
+                  <option value="">—</option>
+                  {EXPERIENCIA_CROSSFIT.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Experiencia con pesas">
+                <select
+                  value={form.perfilCrossfit.experienciaPesas ?? ""}
+                  onChange={(e) => setForm({ ...form, perfilCrossfit: { ...form.perfilCrossfit, experienciaPesas: e.target.value || null } })}
+                  className="input"
+                >
+                  <option value="">—</option>
+                  {EXPERIENCIA_PESAS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Objetivo" span2>
+                <select
+                  value={form.perfilCrossfit.objetivoCrossfit ?? ""}
+                  onChange={(e) => setForm({ ...form, perfilCrossfit: { ...form.perfilCrossfit, objetivoCrossfit: e.target.value || null } })}
+                  className="input"
+                >
+                  <option value="">—</option>
+                  {OBJETIVOS_CROSSFIT.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Marcas actuales (benchmarks)" span2>
+                <input
+                  value={form.perfilCrossfit.benchmarks ?? ""}
+                  onChange={(e) => setForm({ ...form, perfilCrossfit: { ...form.perfilCrossfit, benchmarks: e.target.value || null } })}
+                  placeholder="Ej. Back Squat 80kg, Deadlift 100kg..."
+                  className="input"
+                />
+              </Field>
+              <Field label="Acceso a equipo">
+                <select
+                  value={form.perfilCrossfit.accesoEquipo ?? ""}
+                  onChange={(e) => setForm({ ...form, perfilCrossfit: { ...form.perfilCrossfit, accesoEquipo: e.target.value || null } })}
+                  className="input"
+                >
+                  <option value="">—</option>
+                  {ACCESO_EQUIPO.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Limitaciones de movilidad">
+                <input
+                  value={form.perfilCrossfit.limitaciones ?? ""}
+                  onChange={(e) => setForm({ ...form, perfilCrossfit: { ...form.perfilCrossfit, limitaciones: e.target.value || null } })}
+                  className="input"
+                />
+              </Field>
+            </>
           )}
         </div>
 

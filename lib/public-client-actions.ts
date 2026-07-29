@@ -16,6 +16,8 @@
 
 import { getSupabaseAdmin } from "./supabase-admin";
 import { sendLeadEmail, renderLeadEmail } from "./email";
+import type { PerfilCrossfit, PerfilRunning } from "./client-profile-types";
+import type { Json } from "./database.types";
 
 export interface PublicClientIntakeInput {
   subdominio: string;
@@ -31,6 +33,10 @@ export interface PublicClientIntakeInput {
   altura?: number | null;
   diasPorSemana?: number | null;
   horarioEntreno?: string | null;
+  // Solo tiene contenido si el entrenador es running o crossfit — el
+  // formulario público arma el shape correcto según la rama del entrenador
+  // (ver lib/client-profile-types.ts), acá solo se guarda tal cual llega.
+  perfilDeportivo?: (PerfilRunning | PerfilCrossfit) | null;
   // Campo trampa: invisible para una persona real, cualquier bot que llene
   // todos los inputs del formulario (incluido este) cae aquí. Si viene con
   // contenido, se descarta la solicitud en silencio (200 falso-positivo, no
@@ -123,6 +129,7 @@ export async function submitPublicClientIntake(
         altura: altura ?? undefined,
         dias_por_semana: diasPorSemana ?? undefined,
         horario_entreno: input.horarioEntreno || undefined,
+        perfil_deportivo: (input.perfilDeportivo as unknown as Json) ?? undefined,
       })
       .eq("id", existingId);
     if (error) return { ok: false, error: "No pudimos guardar tus datos. Intenta de nuevo." };
@@ -145,6 +152,7 @@ export async function submitPublicClientIntake(
     altura,
     dias_por_semana: diasPorSemana,
     horario_entreno: input.horarioEntreno || null,
+    perfil_deportivo: (input.perfilDeportivo as unknown as Json) ?? null,
     status: "pendiente_evaluacion",
   });
   if (error) return { ok: false, error: "No pudimos guardar tus datos. Intenta de nuevo." };

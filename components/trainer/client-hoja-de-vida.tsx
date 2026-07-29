@@ -1,6 +1,21 @@
 import { calculateImc } from "@/lib/imc";
 import { IMC_CATEGORY_CLASS, SEXO_LABELS, NIVEL_LABELS, ACTIVIDAD_LABELS } from "@/lib/client-ui";
 import type { ClientRow } from "@/lib/trainer-clients-actions";
+import {
+  ACCESO_EQUIPO,
+  EXPERIENCIA_CROSSFIT,
+  EXPERIENCIA_PESAS,
+  OBJETIVOS_CARRERA,
+  OBJETIVOS_CROSSFIT,
+  SUPERFICIES,
+  type PerfilCrossfit,
+  type PerfilRunning,
+} from "@/lib/client-profile-types";
+
+function labelFor(options: { value: string; label: string }[], value: string | null): string {
+  if (!value) return "—";
+  return options.find((o) => o.value === value)?.label ?? value;
+}
 
 /**
  * "Hoja de vida" del cliente — resumen fijo con todo lo que el entrenador
@@ -12,6 +27,9 @@ import type { ClientRow } from "@/lib/trainer-clients-actions";
  */
 export function ClientHojaDeVida({ client }: { client: ClientRow }) {
   const imc = calculateImc(client.peso_actual, client.altura);
+  const perfil = client.perfil_deportivo;
+  const esRunning = !!perfil && "objetivoCarrera" in perfil;
+  const esCrossfit = !!perfil && "experienciaCrossfit" in perfil;
 
   const rows: { label: string; value: string }[] = [
     { label: "Sexo", value: client.sexo ? SEXO_LABELS[client.sexo] ?? client.sexo : "—" },
@@ -48,6 +66,63 @@ export function ClientHojaDeVida({ client }: { client: ClientRow }) {
           <p className="mt-0.5 text-xs text-white/80">{client.objetivo}</p>
         </div>
       )}
+      {esRunning && (
+        <div className="mt-3 border-t border-white/10 pt-3">
+          <p className="text-[10px] uppercase tracking-wide text-white/30">Perfil de running</p>
+          <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
+            {(() => {
+              const p = perfil as PerfilRunning;
+              const rows = [
+                { label: "Objetivo de carrera", value: labelFor(OBJETIVOS_CARRERA, p.objetivoCarrera) },
+                { label: "Fecha de carrera", value: p.fechaCarreraObjetivo || "—" },
+                { label: "Mejor marca", value: p.mejorMarca || "—" },
+                { label: "Km/semana", value: p.kilometrajeSemanal != null ? String(p.kilometrajeSemanal) : "—" },
+                { label: "Superficie", value: labelFor(SUPERFICIES, p.superficieHabitual) },
+                { label: "Años corriendo", value: p.experienciaAnios != null ? String(p.experienciaAnios) : "—" },
+              ];
+              return rows.map((r) => (
+                <div key={r.label}>
+                  <p className="text-[10px] uppercase tracking-wide text-white/30">{r.label}</p>
+                  <p className="text-xs font-medium text-white/80">{r.value}</p>
+                </div>
+              ));
+            })()}
+          </div>
+          {(perfil as PerfilRunning).lesiones && (
+            <p className="mt-2 text-xs text-amber-400/90">⚠ {(perfil as PerfilRunning).lesiones}</p>
+          )}
+        </div>
+      )}
+
+      {esCrossfit && (
+        <div className="mt-3 border-t border-white/10 pt-3">
+          <p className="text-[10px] uppercase tracking-wide text-white/30">Perfil de crossfit</p>
+          <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
+            {(() => {
+              const p = perfil as PerfilCrossfit;
+              const rows = [
+                { label: "Experiencia crossfit", value: labelFor(EXPERIENCIA_CROSSFIT, p.experienciaCrossfit) },
+                { label: "Experiencia con pesas", value: labelFor(EXPERIENCIA_PESAS, p.experienciaPesas) },
+                { label: "Objetivo", value: labelFor(OBJETIVOS_CROSSFIT, p.objetivoCrossfit) },
+                { label: "Acceso a equipo", value: labelFor(ACCESO_EQUIPO, p.accesoEquipo) },
+              ];
+              return rows.map((r) => (
+                <div key={r.label}>
+                  <p className="text-[10px] uppercase tracking-wide text-white/30">{r.label}</p>
+                  <p className="text-xs font-medium text-white/80">{r.value}</p>
+                </div>
+              ));
+            })()}
+          </div>
+          {(perfil as PerfilCrossfit).benchmarks && (
+            <p className="mt-2 text-xs text-white/70">Marcas: {(perfil as PerfilCrossfit).benchmarks}</p>
+          )}
+          {(perfil as PerfilCrossfit).limitaciones && (
+            <p className="mt-1 text-xs text-amber-400/90">⚠ {(perfil as PerfilCrossfit).limitaciones}</p>
+          )}
+        </div>
+      )}
+
       {!imc && (client.peso_actual == null || client.altura == null) && (
         <p className="mt-3 text-[11px] text-white/30">
           Falta {client.peso_actual == null ? "peso" : "estatura"} para calcular el IMC — agrégalo editando al cliente.

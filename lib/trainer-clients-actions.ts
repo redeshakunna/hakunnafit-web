@@ -14,6 +14,8 @@ import { requireTrainer } from "./trainer-auth";
 import { PLAN_CLIENT_CAP } from "./catalog";
 import { validateImageFile, imageExtension } from "./image-validation";
 import type { AdminActionResult } from "./admin-actions";
+import type { PerfilCrossfit, PerfilRunning } from "./client-profile-types";
+import type { Json } from "./database.types";
 
 export type ClientStatus = "pendiente_evaluacion" | "activo" | "pausado" | "inactivo";
 
@@ -37,6 +39,10 @@ export interface ClientRow {
   status: ClientStatus;
   pausado_motivo: string | null;
   pausado_en: string | null;
+  // Solo tiene forma cuando el entrenador es running o crossfit (ver
+  // lib/client-profile-types.ts) — en gym se queda null, esos datos no
+  // aplican y los campos genéricos de arriba (objetivo, nivel, etc.) bastan.
+  perfil_deportivo: (PerfilRunning | PerfilCrossfit) | null;
   created_at: string;
 }
 
@@ -129,6 +135,7 @@ export interface CreateOwnClientInput {
   diasPorSemana?: number | null;
   horarioEntreno?: string | null;
   status?: ClientStatus;
+  perfilDeportivo?: (PerfilRunning | PerfilCrossfit) | null;
 }
 
 /**
@@ -171,6 +178,7 @@ export async function createOwnClient(input: CreateOwnClientInput): Promise<Admi
       dias_por_semana: input.diasPorSemana ?? null,
       horario_entreno: input.horarioEntreno || null,
       status: input.status ?? "pendiente_evaluacion",
+      perfil_deportivo: (input.perfilDeportivo as unknown as Json) ?? null,
     })
     .select("id")
     .single();
@@ -199,6 +207,7 @@ export interface UpdateOwnClientInput {
   horarioEntreno?: string | null;
   status?: ClientStatus;
   pausadoMotivo?: string | null;
+  perfilDeportivo?: (PerfilRunning | PerfilCrossfit) | null;
 }
 
 export async function updateOwnClient(clientId: string, input: UpdateOwnClientInput): Promise<AdminActionResult> {
@@ -222,6 +231,7 @@ export async function updateOwnClient(clientId: string, input: UpdateOwnClientIn
     status?: ClientStatus;
     pausado_motivo?: string | null;
     pausado_en?: string | null;
+    perfil_deportivo?: Json | null;
   } = {};
   if (input.fullName !== undefined) update.full_name = input.fullName.trim();
   if (input.email !== undefined) update.email = input.email || null;
@@ -249,6 +259,7 @@ export async function updateOwnClient(clientId: string, input: UpdateOwnClientIn
     }
   }
   if (input.pausadoMotivo !== undefined) update.pausado_motivo = input.pausadoMotivo || null;
+  if (input.perfilDeportivo !== undefined) update.perfil_deportivo = input.perfilDeportivo as unknown as Json | null;
 
   if (Object.keys(update).length === 0) return { ok: true };
 

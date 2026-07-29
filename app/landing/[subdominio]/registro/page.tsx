@@ -22,7 +22,7 @@ export default async function ClientRegistrationPage({
   const supabase = getSupabase();
   const { data: trainer } = await supabase
     .from("trainers")
-    .select("business_name, logo_url, color_primario, color_secundario, planes_ofrecidos")
+    .select("business_name, logo_url, color_primario, color_secundario, planes_ofrecidos, especialidad")
     .eq("subdominio", params.subdominio)
     .maybeSingle();
 
@@ -57,6 +57,7 @@ export default async function ClientRegistrationPage({
         <PublicClientIntakeForm
           subdominio={params.subdominio}
           planes={(trainer.planes_ofrecidos as unknown as PlanOfrecido[] | null) ?? []}
+          especialidad={trainer.especialidad}
         />
       </div>
     </main>

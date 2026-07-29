@@ -16,6 +16,19 @@ import { CheckCircle2, Loader2 } from "lucide-react";
 import { submitPublicClientIntake } from "@/lib/public-client-actions";
 import { calculateImc } from "@/lib/imc";
 import type { PlanOfrecido } from "@/lib/admin-actions";
+import {
+  ACCESO_EQUIPO,
+  EXPERIENCIA_CROSSFIT,
+  EXPERIENCIA_PESAS,
+  OBJETIVOS_CARRERA,
+  OBJETIVOS_CROSSFIT,
+  SUPERFICIES,
+  emptyPerfilCrossfit,
+  emptyPerfilRunning,
+  perfilShapeForBranch,
+  type PerfilCrossfit,
+  type PerfilRunning,
+} from "@/lib/client-profile-types";
 
 const cop = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
 
@@ -57,10 +70,14 @@ const IMC_CATEGORY_CLASS: Record<string, string> = {
 export function PublicClientIntakeForm({
   subdominio,
   planes = [],
+  especialidad = null,
 }: {
   subdominio: string;
   planes?: PlanOfrecido[];
+  especialidad?: string | null;
 }) {
+  const rama = perfilShapeForBranch(especialidad);
+
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
@@ -74,6 +91,8 @@ export function PublicClientIntakeForm({
   const [diasPorSemana, setDiasPorSemana] = useState("");
   const [horarioEntreno, setHorarioEntreno] = useState("");
   const [honeypot, setHoneypot] = useState("");
+  const [perfilRunning, setPerfilRunning] = useState<PerfilRunning>(emptyPerfilRunning());
+  const [perfilCrossfit, setPerfilCrossfit] = useState<PerfilCrossfit>(emptyPerfilCrossfit());
 
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
@@ -102,6 +121,7 @@ export function PublicClientIntakeForm({
       altura: altura ? Number(altura) : null,
       diasPorSemana: diasPorSemana ? Number(diasPorSemana) : null,
       horarioEntreno: horarioEntreno || null,
+      perfilDeportivo: rama === "running" ? perfilRunning : rama === "crossfit" ? perfilCrossfit : null,
       honeypot,
     });
 
@@ -272,6 +292,168 @@ export function PublicClientIntakeForm({
           className="w-full resize-none rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/30 focus:border-hf-blue focus:outline-none"
         />
       </div>
+
+      {rama === "running" && (
+        <div className="flex flex-col gap-4 rounded-xl border border-white/10 bg-white/[0.02] p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-white/50">Sobre tu running</p>
+          <div>
+            <label className={labelClass}>¿Cuál es tu objetivo de carrera?</label>
+            <select
+              value={perfilRunning.objetivoCarrera ?? ""}
+              onChange={(e) => setPerfilRunning((p) => ({ ...p, objetivoCarrera: e.target.value || null }))}
+              className={inputClass}
+            >
+              <option value="" className="bg-hf-black">Selecciona</option>
+              {OBJETIVOS_CARRERA.map((o) => (
+                <option key={o.value} value={o.value} className="bg-hf-black">{o.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className={labelClass}>Fecha de tu carrera (si tienes una)</label>
+              <input
+                type="date"
+                value={perfilRunning.fechaCarreraObjetivo ?? ""}
+                onChange={(e) => setPerfilRunning((p) => ({ ...p, fechaCarreraObjetivo: e.target.value || null }))}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Kilometraje semanal actual</label>
+              <input
+                type="number"
+                min={0}
+                value={perfilRunning.kilometrajeSemanal ?? ""}
+                onChange={(e) => setPerfilRunning((p) => ({ ...p, kilometrajeSemanal: e.target.value ? Number(e.target.value) : null }))}
+                placeholder="Ej. 15 km/semana"
+                className={inputClass}
+              />
+            </div>
+          </div>
+          <div>
+            <label className={labelClass}>Tu mejor marca (si tienes una)</label>
+            <input
+              value={perfilRunning.mejorMarca ?? ""}
+              onChange={(e) => setPerfilRunning((p) => ({ ...p, mejorMarca: e.target.value || null }))}
+              placeholder="Ej. 10K en 52:30, o 'aún no he corrido una carrera'"
+              className={inputClass}
+            />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className={labelClass}>Superficie donde entrenas</label>
+              <select
+                value={perfilRunning.superficieHabitual ?? ""}
+                onChange={(e) => setPerfilRunning((p) => ({ ...p, superficieHabitual: e.target.value || null }))}
+                className={inputClass}
+              >
+                <option value="" className="bg-hf-black">Selecciona</option>
+                {SUPERFICIES.map((s) => (
+                  <option key={s.value} value={s.value} className="bg-hf-black">{s.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={labelClass}>Años corriendo</label>
+              <input
+                type="number"
+                min={0}
+                value={perfilRunning.experienciaAnios ?? ""}
+                onChange={(e) => setPerfilRunning((p) => ({ ...p, experienciaAnios: e.target.value ? Number(e.target.value) : null }))}
+                className={inputClass}
+              />
+            </div>
+          </div>
+          <div>
+            <label className={labelClass}>¿Tienes alguna lesión o molestia actual?</label>
+            <input
+              value={perfilRunning.lesiones ?? ""}
+              onChange={(e) => setPerfilRunning((p) => ({ ...p, lesiones: e.target.value || null }))}
+              placeholder="Ej. molestia en la rodilla derecha, o 'ninguna'"
+              className={inputClass}
+            />
+          </div>
+        </div>
+      )}
+
+      {rama === "crossfit" && (
+        <div className="flex flex-col gap-4 rounded-xl border border-white/10 bg-white/[0.02] p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-white/50">Sobre tu crossfit</p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className={labelClass}>Experiencia en crossfit</label>
+              <select
+                value={perfilCrossfit.experienciaCrossfit ?? ""}
+                onChange={(e) => setPerfilCrossfit((p) => ({ ...p, experienciaCrossfit: e.target.value || null }))}
+                className={inputClass}
+              >
+                <option value="" className="bg-hf-black">Selecciona</option>
+                {EXPERIENCIA_CROSSFIT.map((o) => (
+                  <option key={o.value} value={o.value} className="bg-hf-black">{o.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={labelClass}>Experiencia previa con pesas</label>
+              <select
+                value={perfilCrossfit.experienciaPesas ?? ""}
+                onChange={(e) => setPerfilCrossfit((p) => ({ ...p, experienciaPesas: e.target.value || null }))}
+                className={inputClass}
+              >
+                <option value="" className="bg-hf-black">Selecciona</option>
+                {EXPERIENCIA_PESAS.map((o) => (
+                  <option key={o.value} value={o.value} className="bg-hf-black">{o.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className={labelClass}>¿Cuál es tu objetivo?</label>
+            <select
+              value={perfilCrossfit.objetivoCrossfit ?? ""}
+              onChange={(e) => setPerfilCrossfit((p) => ({ ...p, objetivoCrossfit: e.target.value || null }))}
+              className={inputClass}
+            >
+              <option value="" className="bg-hf-black">Selecciona</option>
+              {OBJETIVOS_CROSSFIT.map((o) => (
+                <option key={o.value} value={o.value} className="bg-hf-black">{o.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={labelClass}>Marcas actuales (si las conoces)</label>
+            <input
+              value={perfilCrossfit.benchmarks ?? ""}
+              onChange={(e) => setPerfilCrossfit((p) => ({ ...p, benchmarks: e.target.value || null }))}
+              placeholder="Ej. Back Squat 80kg, Deadlift 100kg, aún no hago snatch"
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Acceso a equipo</label>
+            <select
+              value={perfilCrossfit.accesoEquipo ?? ""}
+              onChange={(e) => setPerfilCrossfit((p) => ({ ...p, accesoEquipo: e.target.value || null }))}
+              className={inputClass}
+            >
+              <option value="" className="bg-hf-black">Selecciona</option>
+              {ACCESO_EQUIPO.map((o) => (
+                <option key={o.value} value={o.value} className="bg-hf-black">{o.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={labelClass}>¿Alguna molestia o limitación de movilidad?</label>
+            <input
+              value={perfilCrossfit.limitaciones ?? ""}
+              onChange={(e) => setPerfilCrossfit((p) => ({ ...p, limitaciones: e.target.value || null }))}
+              placeholder="Ej. molestia en el hombro, o 'ninguna'"
+              className={inputClass}
+            />
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>

@@ -243,6 +243,7 @@ export interface Database {
           status: "pendiente_evaluacion" | "activo" | "pausado" | "inactivo";
           pausado_motivo: string | null;
           pausado_en: string | null;
+          perfil_deportivo: Json | null;
           created_at: string;
         };
         Insert: {
@@ -265,6 +266,7 @@ export interface Database {
           status?: "pendiente_evaluacion" | "activo" | "pausado" | "inactivo";
           pausado_motivo?: string | null;
           pausado_en?: string | null;
+          perfil_deportivo?: Json | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["clients"]["Insert"]>;
