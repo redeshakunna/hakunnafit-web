@@ -2,12 +2,13 @@
 
 import { useRef, useState, useTransition } from "react";
 import Image from "next/image";
-import { Plus, Trash2, Upload, ExternalLink, Save, UploadCloud } from "lucide-react";
+import { Plus, Trash2, Upload, ExternalLink, Save, UploadCloud, MessageCircle, Check, Loader2 } from "lucide-react";
 import {
   saveOwnSitioWebDraft,
   publishOwnSitioWeb,
   uploadOwnPhoto,
   uploadOwnTransformacionPhoto,
+  updateOwnWhatsappPublico,
   type SitioWebDraftShape,
 } from "@/lib/trainer-actions";
 import type { TrainerRow, PlanOfrecido } from "@/lib/admin-actions";
@@ -249,6 +250,9 @@ export function TrainerSitioWebForm({ trainer }: { trainer: TrainerRow }) {
         </div>
       </div>
 
+      {/* WhatsApp de atención a clientes */}
+      <WhatsappPublicoBlock initialValue={trainer.whatsapp_publico} businessWhatsapp={trainer.whatsapp} />
+
       {/* Servicios */}
       <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
         <div className="mb-4 flex items-center justify-between">
@@ -455,6 +459,81 @@ export function TrainerSitioWebForm({ trainer }: { trainer: TrainerRow }) {
           {isPending ? "Procesando..." : "Publicar cambios"}
         </button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Número que ven tus clientes en los botones de WhatsApp de la landing —
+ * separado a propósito del WhatsApp de Mi Marca (ese es con el que hablas
+ * con Nando por cobros/soporte). Mientras no llenes este campo, la landing
+ * sigue usando el de Mi Marca como respaldo, así que nunca queda un botón
+ * sin número.
+ */
+function WhatsappPublicoBlock({
+  initialValue,
+  businessWhatsapp,
+}: {
+  initialValue: string | null;
+  businessWhatsapp: string | null;
+}) {
+  const { patchDraft } = useLivePreview();
+  const [value, setValue] = useState(initialValue ?? "");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function handleChange(v: string) {
+    setValue(v);
+    setSaved(false);
+    patchDraft({ whatsappPublico: v || null });
+  }
+
+  function save() {
+    setError(null);
+    setSaving(true);
+    updateOwnWhatsappPublico(value || null).then((res) => {
+      setSaving(false);
+      if (!res.ok) {
+        setError(res.error || "No se pudo guardar.");
+        return;
+      }
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    });
+  }
+
+  return (
+    <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+      <div className="flex items-center gap-2 text-white/50">
+        <MessageCircle size={16} />
+        <p className="text-xs font-semibold uppercase tracking-wide">WhatsApp de atención a clientes</p>
+      </div>
+      <p className="mt-1 text-xs text-white/40">
+        El número que ven tus clientes en los botones de WhatsApp de tu landing. Puede ser distinto del WhatsApp de
+        Mi Marca (ese es el que usas para hablar con Hakunna Fit).
+        {!initialValue && businessWhatsapp && (
+          <> Por ahora se está usando tu número de Mi Marca ({businessWhatsapp}) como respaldo.</>
+        )}
+      </p>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <input
+          value={value}
+          onChange={(e) => handleChange(e.target.value)}
+          placeholder="Ej. 3001234567"
+          className="h-10 flex-1 min-w-[200px] rounded-xl border border-white/10 bg-white/[0.03] px-3 text-sm text-white outline-none focus:border-hf-blue"
+        />
+        <button
+          type="button"
+          onClick={save}
+          disabled={saving}
+          className="flex items-center gap-1.5 rounded-full bg-hf-blue px-4 py-2 text-xs font-bold text-black disabled:opacity-50"
+        >
+          {saving ? <Loader2 size={13} className="animate-spin" /> : saved ? <Check size={13} /> : null}
+          {saving ? "Guardando..." : saved ? "Guardado" : "Guardar"}
+        </button>
+      </div>
+      {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
     </div>
   );
 }

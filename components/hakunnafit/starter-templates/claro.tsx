@@ -1,9 +1,11 @@
 import Image from "next/image";
+import Link from "next/link";
 import {
   Award,
   Dumbbell,
   Facebook,
   Instagram,
+  LogIn,
   Mail,
   MapPin,
   MessageCircle,
@@ -25,6 +27,7 @@ import {
   resolveEstadisticas,
   resolveFaqs,
   resolvePlanes,
+  resolvePublicWhatsapp,
   resolveServicios,
   resolveTagline,
   resolveTestimonios,
@@ -46,11 +49,12 @@ const DEFAULT_ICON_LABELS = ["Motivación y disciplina", "Resultados garantizado
 // sobre mí, cifras, transformaciones, testimonios, contacto), distribuida de
 // forma editorial y minimalista.
 export function ClaroTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
-  const wa = whatsappHref(trainer.whatsapp, heroWhatsappMessage(trainer.businessName));
+  const publicWhatsapp = resolvePublicWhatsapp(trainer);
+  const wa = whatsappHref(publicWhatsapp, heroWhatsappMessage(trainer.businessName));
   const ig = instagramHref(trainer.instagram);
   const fb = facebookHref(trainer.facebook);
   const transformaciones = resolveTransformaciones(trainer);
-  const waTransformaciones = whatsappHref(trainer.whatsapp, transformacionesWhatsappMessage());
+  const waTransformaciones = whatsappHref(publicWhatsapp, transformacionesWhatsappMessage());
   const servicios = resolveServicios(trainer);
   const planes = resolvePlanes(trainer);
   const galeria = galleryPhotos(trainer);
@@ -79,16 +83,25 @@ export function ClaroTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
             <a href="#resultados" className="hover:text-gray-900">Resultados</a>
             <a href="#contacto" className="hover:text-gray-900">Contacto</a>
           </nav>
-          {wa && (
-            <a
-              href={wa}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-full border-2 border-[var(--hf-primary)] px-4 py-1.5 text-xs font-semibold text-[var(--hf-secondary)] hover:bg-[var(--hf-primary)] hover:text-white"
+          <div className="flex items-center gap-2">
+            <Link
+              href={`/landing/${trainer.subdominio}/registro`}
+              className="flex items-center gap-1.5 rounded-full border-2 border-gray-300 px-4 py-1.5 text-xs font-semibold text-gray-600 hover:border-gray-400 hover:text-gray-900"
             >
-              WhatsApp
-            </a>
-          )}
+              <LogIn size={14} />
+              Ingresar
+            </Link>
+            {wa && (
+              <a
+                href={wa}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-full border-2 border-[var(--hf-primary)] px-4 py-1.5 text-xs font-semibold text-[var(--hf-secondary)] hover:bg-[var(--hf-primary)] hover:text-white"
+              >
+                WhatsApp
+              </a>
+            )}
+          </div>
         </div>
       </header>
 
@@ -256,7 +269,7 @@ export function ClaroTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
           </h2>
           <div className="mt-8 divide-y divide-gray-200">
             {servicios.map((s, i) => {
-              const waPlan = whatsappHref(trainer.whatsapp, planWhatsappMessage(s.titulo));
+              const waPlan = whatsappHref(publicWhatsapp, planWhatsappMessage(s.titulo));
               return (
                 <div key={s.titulo} className="flex items-start gap-5 py-5">
                   <span className="font-[family-name:var(--font-hf-heading)] text-2xl font-bold text-gray-200">
@@ -292,7 +305,7 @@ export function ClaroTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
           <h2 className="mt-2 font-[family-name:var(--font-hf-heading)] text-2xl font-bold text-gray-900">Elige tu plan</h2>
           <div className="mt-8 grid gap-4 sm:grid-cols-3">
             {planes.map((p) => {
-              const waPlan = whatsappHref(trainer.whatsapp, planWhatsappMessage(p.nombre));
+              const waPlan = whatsappHref(publicWhatsapp, planWhatsappMessage(p.nombre));
               return (
                 <div key={p.nombre} className="flex flex-col rounded-2xl border border-gray-200 p-5">
                   <h3 className="font-semibold text-gray-900">{p.nombre}</h3>
@@ -472,7 +485,7 @@ export function ClaroTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
             )}
           </div>
           <div className="w-full max-w-xs rounded-2xl bg-white p-5 shadow-sm">
-            <WhatsappContactForm whatsapp={trainer.whatsapp} subdominio={trainer.subdominio} theme="light" />
+            <WhatsappContactForm whatsapp={publicWhatsapp} subdominio={trainer.subdominio} theme="light" />
             {trainer.emailPublico && (
               <p className="mt-4 flex items-center justify-center gap-1.5 text-xs text-gray-500">
                 <Mail size={13} />

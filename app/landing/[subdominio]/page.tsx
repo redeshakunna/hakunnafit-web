@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
 import { TrainerComingSoon } from "@/components/hakunnafit/trainer-coming-soon";
 import { resolveStarterTemplate } from "@/components/hakunnafit/starter-templates";
+import { ProTemplate } from "@/components/hakunnafit/starter-templates/pro";
 import { WhatsappChatWidget } from "@/components/hakunnafit/starter-templates/whatsapp-chat-widget";
 import type {
   StarterServicio,
@@ -19,8 +20,10 @@ export const revalidate = 0;
 // (y también accesible directamente por path, útil para probar antes de que
 // exista el DNS wildcard). Starter ya tiene sus 3 modelos estandarizados
 // (ver components/hakunnafit/starter-templates/) elegidos por el propio
-// entrenador al registrarse; Pro/Elite todavía no tienen plantilla real, así
-// que siguen mostrando el placeholder "en construcción".
+// entrenador al registrarse; Pro tiene su propia plantilla real (pro.tsx),
+// más completa, que destaca las funciones exclusivas del plan (Nutrición IA,
+// HakAI, App Cliente, fotos de progreso). Elite todavía no tiene plantilla
+// propia, así que sigue mostrando el placeholder "en construcción".
 export default async function TrainerLandingPage({
   params,
 }: {
@@ -30,15 +33,22 @@ export default async function TrainerLandingPage({
   const { data: trainer } = await supabase
     .from("trainers")
     .select(
-      "business_name, plan, landing_template, especialidad, ciudad, whatsapp, email_publico, biografia, avatar_url, foto2_url, foto3_url, foto4_url, instagram, facebook, mostrar_transformaciones, transformaciones, servicios, planes_ofrecidos, estadisticas, testimonios, tagline, logo_url, banner_url, color_primario, color_secundario, color_terciario, preguntas_frecuentes, secciones_activas"
+      "business_name, plan, landing_template, especialidad, ciudad, whatsapp, whatsapp_publico, email_publico, biografia, avatar_url, foto2_url, foto3_url, foto4_url, instagram, facebook, mostrar_transformaciones, transformaciones, servicios, planes_ofrecidos, estadisticas, testimonios, tagline, logo_url, banner_url, color_primario, color_secundario, color_terciario, preguntas_frecuentes, secciones_activas"
     )
     .eq("subdominio", params.subdominio)
     .maybeSingle();
 
   if (!trainer) notFound();
 
-  if (trainer.plan === "starter") {
-    const Template = resolveStarterTemplate(trainer.landing_template);
+  // El WhatsApp que ve el cliente en la landing: el de atención a clientes
+  // si el entrenador lo configuró en Mi Sitio Web, si no el mismo con el
+  // que contacta a Nando (ver resolvePublicWhatsapp en starter-templates/types.ts,
+  // misma regla, pero acá no hay StarterTrainerProfile todavía para el
+  // widget de chat que aplica a cualquier plan, no solo Starter).
+  const publicWhatsapp = trainer.whatsapp_publico?.trim() || trainer.whatsapp;
+
+  if (trainer.plan === "starter" || trainer.plan === "pro") {
+    const Template = trainer.plan === "pro" ? ProTemplate : resolveStarterTemplate(trainer.landing_template);
     return (
       <>
         <Template
@@ -48,6 +58,7 @@ export default async function TrainerLandingPage({
             especialidad: trainer.especialidad,
             ciudad: trainer.ciudad,
             whatsapp: trainer.whatsapp,
+            whatsappPublico: trainer.whatsapp_publico,
             emailPublico: trainer.email_publico,
             biografia: trainer.biografia,
             avatarUrl: trainer.avatar_url,
@@ -76,7 +87,7 @@ export default async function TrainerLandingPage({
           }}
         />
         <WhatsappChatWidget
-          whatsapp={trainer.whatsapp}
+          whatsapp={publicWhatsapp}
           businessName={trainer.business_name}
           avatarUrl={trainer.avatar_url}
         />

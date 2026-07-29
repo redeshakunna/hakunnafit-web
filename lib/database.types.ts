@@ -89,6 +89,7 @@ export interface Database {
           id: string;
           business_name: string;
           whatsapp: string | null;
+          whatsapp_publico: string | null;
           plan: "starter" | "pro" | "elite" | null;
           landing_status: "pendiente" | "en_diseno" | "en_revision" | "publicada" | "suspendida";
           dashboard_access: "sin_acceso" | "activo" | "suspendido" | "bloqueado";
@@ -135,6 +136,7 @@ export interface Database {
           id?: string;
           business_name?: string;
           whatsapp?: string | null;
+          whatsapp_publico?: string | null;
           plan?: "starter" | "pro" | "elite" | null;
           landing_status?: "pendiente" | "en_diseno" | "en_revision" | "publicada" | "suspendida";
           dashboard_access?: "sin_acceso" | "activo" | "suspendido" | "bloqueado";

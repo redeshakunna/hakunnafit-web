@@ -22,6 +22,7 @@ function trainerRowToStarterProfile(trainer: TrainerRow): StarterTrainerProfile 
     especialidad: trainer.especialidad,
     ciudad: trainer.ciudad,
     whatsapp: trainer.whatsapp,
+    whatsappPublico: trainer.whatsapp_publico,
     emailPublico: trainer.email_publico,
     biografia: trainer.biografia,
     avatarUrl: trainer.avatar_url,

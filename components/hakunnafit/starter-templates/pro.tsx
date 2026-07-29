@@ -2,6 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowRight,
+  Bot,
+  Camera,
   ClipboardCheck,
   Dumbbell,
   Facebook,
@@ -12,6 +14,7 @@ import {
   MessageCircle,
   Quote,
   ShieldCheck,
+  Smartphone,
   Sparkles,
   Star,
   TrendingUp,
@@ -50,11 +53,41 @@ const statIcons = [User, Users, ClipboardCheck, ShieldCheck];
 const GREEN = "linear-gradient(90deg,var(--hf-primary),var(--hf-secondary))";
 const GREEN_DIAG = "linear-gradient(135deg,var(--hf-primary),var(--hf-secondary))";
 
-// Modelo "Impacto" — fondo oscuro, franja diagonal verde y foto grande,
-// pensado para transmitir energía. Estructura de landing completa: nav,
-// hero, sobre mí + cifras, servicios, transformaciones, testimonios,
-// contacto, footer.
-export function ImpactoTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
+// Ventajas exclusivas del plan Pro — son funciones reales de la plataforma
+// (no contenido editable por el entrenador), así que van fijas acá. La copia
+// vive también en lib/catalog.ts (FEATURE_DESCRIPTIONS); se repite aquí en
+// tono comercial (para el cliente final) en vez de tono de producto (para el
+// entrenador en el panel).
+const PRO_FEATURES = [
+  {
+    icon: Utensils,
+    titulo: "Nutrición con IA",
+    descripcion: "Plan de alimentación generado y ajustado a tu objetivo, sin plantillas genéricas.",
+  },
+  {
+    icon: Bot,
+    titulo: "HakAI, tu asistente",
+    descripcion: "Resuelve dudas, ajusta tu rutina y te motiva las 24 horas, todos los días.",
+  },
+  {
+    icon: Smartphone,
+    titulo: "App para tu progreso",
+    descripcion: "Tu rutina, tu nutrición y tu seguimiento, siempre a la mano desde tu celular.",
+  },
+  {
+    icon: Camera,
+    titulo: "Seguimiento con fotos",
+    descripcion: "Registra tu evolución con fotos y medidas — resultados que se ven, no solo se sienten.",
+  },
+];
+
+// Modelo "Pro" — la landing real del plan Pro (antes mostraba un placeholder
+// "en construcción"). Misma base visual que "Impacto" (fondo oscuro, franja
+// diagonal, foto grande) pero con una sección adicional que destaca las
+// funciones exclusivas de Pro frente a Starter: Nutrición IA, HakAI, App
+// Cliente y fotos de progreso — el gancho comercial de por qué este
+// entrenador ofrece algo más completo que uno en plan Starter.
+export function ProTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
   const publicWhatsapp = resolvePublicWhatsapp(trainer);
   const wa = whatsappHref(publicWhatsapp, heroWhatsappMessage(trainer.businessName));
   const ig = instagramHref(trainer.instagram);
@@ -76,15 +109,24 @@ export function ImpactoTemplate({ trainer }: { trainer: StarterTrainerProfile })
       {/* Nav */}
       <header className="sticky top-0 z-30 border-b border-white/10 bg-hf-black/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <BrandMark
-            logoUrl={trainer.logoUrl}
-            businessName={trainer.businessName}
-            className="h-9 w-36"
-            textClassName="font-[family-name:var(--font-hf-heading)] text-sm font-bold uppercase tracking-wide"
-          />
-          <nav className="hidden items-center gap-7 text-sm font-medium text-white/60 sm:flex">
+          <div className="flex items-center gap-2.5">
+            <BrandMark
+              logoUrl={trainer.logoUrl}
+              businessName={trainer.businessName}
+              className="h-9 w-36"
+              textClassName="font-[family-name:var(--font-hf-heading)] text-sm font-bold uppercase tracking-wide"
+            />
+            <span
+              className="hidden rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-black sm:inline-block"
+              style={{ background: GREEN }}
+            >
+              Pro
+            </span>
+          </div>
+          <nav className="hidden items-center gap-7 text-sm font-medium text-white/60 lg:flex">
             <a href="#inicio" className="border-b-2 border-[var(--hf-primary)] pb-1 text-white">Inicio</a>
             <a href="#sobre-mi" className="hover:text-white">Sobre mí</a>
+            <a href="#ventajas" className="hover:text-white">Ventajas</a>
             <a href="#servicios" className="hover:text-white">Servicios</a>
             <a href="#resultados" className="hover:text-white">Resultados</a>
             <a href="#contacto" className="hover:text-white">Contacto</a>
@@ -143,8 +185,9 @@ export function ImpactoTemplate({ trainer }: { trainer: StarterTrainerProfile })
         />
         <div className="relative mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2">
           <div>
-            <span className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--hf-primary)]">
-              {trainer.especialidad || "Entrenador Personal"}
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--hf-primary)]/40 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--hf-primary)]">
+              <Sparkles size={11} />
+              Entrenamiento Pro con IA
             </span>
             <h1 className="mt-4 font-[family-name:var(--font-hf-heading)] text-5xl font-black uppercase leading-[0.95] sm:text-6xl">
               <span className="block text-white">{nombrePila}</span>
@@ -176,10 +219,10 @@ export function ImpactoTemplate({ trainer }: { trainer: StarterTrainerProfile })
                 </a>
               )}
               <a
-                href="#contacto"
+                href="#ventajas"
                 className="rounded-full border border-white/20 px-7 py-3.5 text-sm font-semibold text-white/80 hover:border-white/40"
               >
-                Agenda tu valoración
+                Ver ventajas Pro
               </a>
             </div>
             {(ig || fb || trainer.emailPublico) && (
@@ -212,6 +255,14 @@ export function ImpactoTemplate({ trainer }: { trainer: StarterTrainerProfile })
               className="object-cover"
               priority
             />
+            <div
+              className="absolute bottom-4 left-4 right-4 flex items-center gap-2 rounded-2xl border border-white/10 bg-black/60 px-4 py-3 backdrop-blur"
+            >
+              <Bot size={18} className="shrink-0 text-[var(--hf-primary)]" />
+              <p className="text-xs leading-tight text-white/80">
+                Con <span className="font-bold text-white">HakAI</span>, IA que ajusta tu plan cada semana.
+              </p>
+            </div>
           </div>
         </div>
       </section>
@@ -240,7 +291,7 @@ export function ImpactoTemplate({ trainer }: { trainer: StarterTrainerProfile })
             </h2>
             <p className="mt-4 max-w-xl text-base leading-relaxed text-white/65">
               {trainer.biografia ||
-                `Soy ${trainer.businessName}${trainer.especialidad ? `, especialista en ${trainer.especialidad.toLowerCase()}` : ""}. Mi enfoque es 100% personalizado, adaptado a tu objetivo, tu estilo de vida y tus necesidades.`}
+                `Soy ${trainer.businessName}${trainer.especialidad ? `, especialista en ${trainer.especialidad.toLowerCase()}` : ""}. Mi enfoque es 100% personalizado, adaptado a tu objetivo, tu estilo de vida y tus necesidades — con tecnología que hace el seguimiento aún más preciso.`}
             </p>
             <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
               {estadisticas.map((stat, i) => {
@@ -265,12 +316,46 @@ export function ImpactoTemplate({ trainer }: { trainer: StarterTrainerProfile })
         </div>
       </section>
 
+      {/* Ventajas Pro — lo que distingue a este entrenador de uno en plan Starter */}
+      <section id="ventajas" className="relative overflow-hidden bg-hf-black px-6 py-20">
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 h-px"
+          style={{ background: GREEN }}
+        />
+        <div className="mx-auto max-w-5xl text-center">
+          <span className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--hf-primary)]">Ventajas Pro</span>
+          <h2 className="mt-2 font-[family-name:var(--font-hf-heading)] text-3xl font-bold">
+            Entrenamiento potenciado con tecnología
+          </h2>
+          <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-white/55">
+            Además del acompañamiento personal, tienes acceso a herramientas exclusivas para llevar tu progreso al siguiente nivel.
+          </p>
+          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {PRO_FEATURES.map((f) => (
+              <div
+                key={f.titulo}
+                className="flex flex-col items-center rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center transition-colors hover:border-[var(--hf-primary)]/40"
+              >
+                <div
+                  className="flex h-12 w-12 items-center justify-center rounded-full text-[var(--hf-primary)]"
+                  style={{ backgroundColor: "color-mix(in srgb, var(--hf-primary) 15%, transparent)" }}
+                >
+                  <f.icon size={21} />
+                </div>
+                <h3 className="mt-4 text-sm font-semibold text-white">{f.titulo}</h3>
+                <p className="mt-1.5 text-xs leading-relaxed text-white/55">{f.descripcion}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Servicios */}
       {seccionActiva(trainer, "servicios") && (
-      <section id="servicios" className="bg-hf-black px-6 py-20">
+      <section id="servicios" className="bg-[#0b0f1a] px-6 py-20">
         <div className="mx-auto max-w-5xl text-center">
           <span className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--hf-primary)]">Servicios</span>
-          <h2 className="mt-2 font-[family-name:var(--font-hf-heading)] text-3xl font-bold">¿Cómo puedo ayudarte?</h2>
+          <h2 className="mt-2 font-[family-name:var(--font-hf-heading)] text-3xl font-bold text-white">¿Cómo puedo ayudarte?</h2>
           <div className="mt-10 grid gap-5 sm:grid-cols-3">
             {servicios.map((s, i) => {
               const Icon = servicioIcons[i % servicioIcons.length];
@@ -310,7 +395,7 @@ export function ImpactoTemplate({ trainer }: { trainer: StarterTrainerProfile })
 
       {/* Planes */}
       {seccionActiva(trainer, "planes") && planes.length > 0 && (
-      <section id="planes" className="bg-[#0b0f1a] px-6 py-20">
+      <section id="planes" className="bg-hf-black px-6 py-20">
         <div className="mx-auto max-w-5xl text-center">
           <span className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--hf-primary)]">Planes</span>
           <h2 className="mt-2 font-[family-name:var(--font-hf-heading)] text-3xl font-bold text-white">Elige tu plan</h2>

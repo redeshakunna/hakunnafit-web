@@ -1,5 +1,6 @@
 import Image from "next/image";
-import { ChevronDown, Facebook, Instagram, Mail, MapPin, MessageCircle, Star } from "lucide-react";
+import Link from "next/link";
+import { ChevronDown, Facebook, Instagram, LogIn, Mail, MapPin, MessageCircle, Star } from "lucide-react";
 import {
   facebookHref,
   formatPlanPrice,
@@ -11,6 +12,7 @@ import {
   resolveEstadisticas,
   resolveFaqs,
   resolvePlanes,
+  resolvePublicWhatsapp,
   resolveServicios,
   resolveTagline,
   resolveTestimonios,
@@ -29,11 +31,12 @@ import { BrandMark } from "./brand-mark";
 // este formato: acordeón para servicios y un carrusel angosto de
 // transformaciones en vez de grillas o listas tradicionales.
 export function PersonalTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
-  const wa = whatsappHref(trainer.whatsapp, heroWhatsappMessage(trainer.businessName));
+  const publicWhatsapp = resolvePublicWhatsapp(trainer);
+  const wa = whatsappHref(publicWhatsapp, heroWhatsappMessage(trainer.businessName));
   const ig = instagramHref(trainer.instagram);
   const fb = facebookHref(trainer.facebook);
   const transformaciones = resolveTransformaciones(trainer);
-  const waTransformaciones = whatsappHref(trainer.whatsapp, transformacionesWhatsappMessage());
+  const waTransformaciones = whatsappHref(publicWhatsapp, transformacionesWhatsappMessage());
   const servicios = resolveServicios(trainer);
   const planes = resolvePlanes(trainer);
   const galeria = galleryPhotos(trainer);
@@ -125,13 +128,20 @@ export function PersonalTemplate({ trainer }: { trainer: StarterTrainerProfile }
               Facebook
             </a>
           )}
+          <Link
+            href={`/landing/${trainer.subdominio}/registro`}
+            className="flex items-center justify-center gap-2 rounded-full border border-white/30 px-6 py-2.5 text-xs font-semibold text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+          >
+            <LogIn size={14} />
+            Ingresar como cliente
+          </Link>
         </div>
 
         {/* Servicios/planes — acordeón */}
         {seccionActiva(trainer, "servicios") && (
         <div className="mt-8 rounded-2xl border border-white/20 bg-white/5 p-1.5 text-left">
           {servicios.map((s) => {
-            const waPlan = whatsappHref(trainer.whatsapp, planWhatsappMessage(s.titulo));
+            const waPlan = whatsappHref(publicWhatsapp, planWhatsappMessage(s.titulo));
             return (
               <details key={s.titulo} className="group border-b border-white/10 px-3 py-2.5 last:border-0">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-sm font-semibold text-white">
@@ -161,7 +171,7 @@ export function PersonalTemplate({ trainer }: { trainer: StarterTrainerProfile }
           <p className="mb-2.5 text-xs font-semibold uppercase tracking-[0.2em] text-white/60">Planes</p>
           <div className="space-y-2.5">
             {planes.map((p) => {
-              const waPlan = whatsappHref(trainer.whatsapp, planWhatsappMessage(p.nombre));
+              const waPlan = whatsappHref(publicWhatsapp, planWhatsappMessage(p.nombre));
               return (
                 <div key={p.nombre} className="rounded-xl border border-white/20 bg-white/5 p-3.5">
                   <div className="flex items-baseline justify-between gap-2">
@@ -292,7 +302,7 @@ export function PersonalTemplate({ trainer }: { trainer: StarterTrainerProfile }
         {/* Formulario de contacto */}
         <div className="mt-8 text-left">
           <p className="mb-2.5 text-xs font-semibold uppercase tracking-[0.2em] text-white/60">¿Hablamos?</p>
-          <WhatsappContactForm whatsapp={trainer.whatsapp} subdominio={trainer.subdominio} theme="glass" />
+          <WhatsappContactForm whatsapp={publicWhatsapp} subdominio={trainer.subdominio} theme="glass" />
         </div>
 
         <p className="mt-8 text-[10px] uppercase tracking-[0.3em] text-white/50">Impulsado por HakunnaFit</p>

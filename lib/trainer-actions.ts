@@ -151,6 +151,26 @@ export async function updateOwnPlanesOfrecidos(planes: PlanOfrecido[]): Promise<
 }
 
 /**
+ * WhatsApp de atención a clientes (Mi Sitio Web) — separado a propósito del
+ * WhatsApp de Mi Marca, que es el número con el que el entrenador contacta
+ * a Nando por cobros/soporte. Antes había un solo campo para ambas cosas;
+ * el número de negocio del entrenador puede no ser el mismo que quiere dar
+ * a sus clientes en la landing. Igual que Planes, se guarda al instante:
+ * es un dato de contacto, no contenido que valga la pena dejar a medias en
+ * un borrador.
+ */
+export async function updateOwnWhatsappPublico(whatsapp: string | null): Promise<AdminActionResult> {
+  const trainer = await requireTrainer();
+  const supabase = getSupabaseAdmin();
+  const { error } = await supabase
+    .from("trainers")
+    .update({ whatsapp_publico: whatsapp?.trim() || null })
+    .eq("id", trainer.id);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/**
  * Cambia el modelo de landing Starter (Impacto/Claro/Personal) que se
  * publica en el subdominio del entrenador. Separado de updateOwnColors
  * porque es un cambio estructural (layout completo), no solo estético — se

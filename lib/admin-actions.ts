@@ -119,6 +119,7 @@ export interface TrainerRow {
   id: string;
   business_name: string;
   whatsapp: string | null;
+  whatsapp_publico: string | null;
   plan: PlanKey | null;
   landing_status: LandingStatus;
   dashboard_access: DashboardAccess;

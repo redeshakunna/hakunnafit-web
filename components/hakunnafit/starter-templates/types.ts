@@ -76,6 +76,7 @@ export interface StarterTrainerProfile {
   especialidad: string | null;
   ciudad: string | null;
   whatsapp: string | null;
+  whatsappPublico: string | null;
   emailPublico: string | null;
   biografia: string | null;
   avatarUrl: string | null;
@@ -118,6 +119,15 @@ export function brandColorVars(trainer: StarterTrainerProfile): CSSProperties {
 // online, así que cada botón de contacto de la landing termina en WhatsApp
 // con un mensaje distinto según de qué sección viene (hero, un plan puntual,
 // el formulario de contacto), en vez de un solo botón genérico repetido.
+// El WhatsApp de la landing (el que ven los clientes) puede ser distinto
+// del WhatsApp con el que el entrenador habla con Nando por cobros/soporte
+// (ese vive en Mi Marca). Mientras el entrenador no configure uno de
+// atención a clientes en Mi Sitio Web, se sigue usando el de Mi Marca como
+// respaldo para no dejar los botones de la landing sin número.
+export function resolvePublicWhatsapp(trainer: StarterTrainerProfile): string | null {
+  return trainer.whatsappPublico?.trim() || trainer.whatsapp;
+}
+
 export function whatsappHref(whatsapp: string | null, presetMessage?: string): string | null {
   if (!whatsapp) return null;
   const digits = whatsapp.replace(/[^\d]/g, "");
