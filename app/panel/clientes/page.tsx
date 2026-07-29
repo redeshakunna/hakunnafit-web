@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentTrainer } from "@/lib/trainer-auth";
 import { getOwnClients, getOwnNextEvaluationByClient } from "@/lib/trainer-clients-actions";
 import { getOwnClientIdsWithRoutine } from "@/lib/trainer-routines-actions";
+import { getOwnLastTrainingByClient } from "@/lib/trainer-training-actions";
 import { hasFeature, minPlanForFeature } from "@/lib/admin-helpers";
 import { planLabel } from "@/lib/catalog";
 import { TrainerShell } from "@/components/trainer/trainer-shell";
@@ -12,9 +13,14 @@ export default async function TrainerClientesPage() {
   if (!trainer) redirect("/panel/login");
 
   const unlocked = hasFeature(trainer.plan, "Clientes");
-  const [clients, nextEvalByClient, clientIdsWithRoutine] = unlocked
-    ? await Promise.all([getOwnClients(), getOwnNextEvaluationByClient(), getOwnClientIdsWithRoutine()])
-    : [[], {}, []];
+  const [clients, nextEvalByClient, clientIdsWithRoutine, lastTrainingByClient] = unlocked
+    ? await Promise.all([
+        getOwnClients(),
+        getOwnNextEvaluationByClient(),
+        getOwnClientIdsWithRoutine(),
+        getOwnLastTrainingByClient(),
+      ])
+    : [[], {}, [], {}];
 
   return (
     <TrainerShell active="clientes" trainer={trainer}>
@@ -24,6 +30,7 @@ export default async function TrainerClientesPage() {
           initialClients={clients}
           nextEvalByClient={nextEvalByClient}
           clientIdsWithRoutine={clientIdsWithRoutine}
+          lastTrainingByClient={lastTrainingByClient}
         />
       ) : (
         <div className="mx-auto max-w-md rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center">

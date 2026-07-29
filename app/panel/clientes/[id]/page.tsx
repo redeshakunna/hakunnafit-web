@@ -6,6 +6,7 @@ import {
   getOwnClientEvaluations,
 } from "@/lib/trainer-clients-actions";
 import { getOwnClientRoutines } from "@/lib/trainer-routines-actions";
+import { getOwnClientTrainingLogs } from "@/lib/trainer-training-actions";
 import { hasFeature } from "@/lib/admin-helpers";
 import { TrainerShell } from "@/components/trainer/trainer-shell";
 import { TrainerClientDetail } from "@/components/trainer/trainer-client-detail";
@@ -18,10 +19,11 @@ export default async function ClienteDetailPage({ params }: { params: { id: stri
   const client = await getOwnClient(params.id);
   if (!client) notFound();
 
-  const [measurements, evaluations, routines] = await Promise.all([
+  const [measurements, evaluations, routines, trainingLogs] = await Promise.all([
     getOwnClientMeasurements(client.id),
     getOwnClientEvaluations(client.id),
     getOwnClientRoutines(client.id),
+    getOwnClientTrainingLogs(client.id),
   ]);
 
   return (
@@ -32,6 +34,7 @@ export default async function ClienteDetailPage({ params }: { params: { id: stri
         initialMeasurements={measurements}
         initialEvaluations={evaluations}
         routines={routines}
+        initialTrainingLogs={trainingLogs}
       />
     </TrainerShell>
   );

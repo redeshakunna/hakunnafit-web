@@ -16,10 +16,12 @@ import {
   Users,
   Dumbbell,
   PauseCircle,
+  AlertTriangle,
 } from "lucide-react";
 import type { TrainerRow, PlanOfrecido } from "@/lib/admin-actions";
 import { PLAN_CLIENT_CAP, planLabel } from "@/lib/catalog";
 import { calculateImc } from "@/lib/imc";
+import { daysSinceLastTraining, isInactivityAlert } from "@/lib/training-stats";
 import {
   STATUS_META,
   STATUS_DOT,
@@ -58,6 +60,7 @@ export type FormState = {
   diasPorSemana: string;
   horarioEntreno: string;
   status: ClientStatus;
+  pausadoMotivo: string;
 };
 
 export const EMPTY_FORM: FormState = {
@@ -74,6 +77,7 @@ export const EMPTY_FORM: FormState = {
   diasPorSemana: "",
   horarioEntreno: "",
   status: "pendiente_evaluacion",
+  pausadoMotivo: "",
 };
 
 export function clientToForm(c: ClientRow): FormState {
@@ -91,6 +95,7 @@ export function clientToForm(c: ClientRow): FormState {
     diasPorSemana: c.dias_por_semana != null ? String(c.dias_por_semana) : "",
     horarioEntreno: c.horario_entreno ?? "",
     status: c.status,
+    pausadoMotivo: c.pausado_motivo ?? "",
   };
 }
 
@@ -102,11 +107,13 @@ export function TrainerClientsManager({
   initialClients,
   nextEvalByClient = {},
   clientIdsWithRoutine = [],
+  lastTrainingByClient = {},
 }: {
   trainer: TrainerRow;
   initialClients: ClientRow[];
   nextEvalByClient?: Record<string, string>;
   clientIdsWithRoutine?: string[];
+  lastTrainingByClient?: Record<string, string>;
 }) {
   const [clients, setClients] = useState<ClientRow[]>(initialClients);
   const [search, setSearch] = useState("");
@@ -222,6 +229,7 @@ export function TrainerClientsManager({
           diasPorSemana,
           horarioEntreno: form.horarioEntreno,
           status: form.status,
+          pausadoMotivo: form.pausadoMotivo,
         });
         if (!res.ok) return setError(res.error ?? "No se pudo guardar.");
       }
@@ -386,6 +394,7 @@ export function TrainerClientsManager({
             client={c}
             hasRoutine={routineSet.has(c.id)}
             nextEvaluation={nextEvalByClient[c.id]}
+            lastTraining={lastTrainingByClient[c.id]}
             onEdit={() => openEdit(c)}
             onDelete={() => handleDelete(c)}
           />
@@ -483,17 +492,21 @@ function ClientCard({
   client: c,
   hasRoutine,
   nextEvaluation,
+  lastTraining,
   onEdit,
   onDelete,
 }: {
   client: ClientRow;
   hasRoutine: boolean;
   nextEvaluation?: string;
+  lastTraining?: string;
   onEdit: () => void;
   onDelete: () => void;
 }) {
   const meta = STATUS_META[c.status];
   const imc = calculateImc(c.peso_actual, c.altura);
+  const daysSinceTraining = daysSinceLastTraining(lastTraining ? [lastTraining] : []);
+  const inactivityAlert = c.status === "activo" && isInactivityAlert(daysSinceTraining, c.dias_por_semana);
   const since = new Date(c.created_at).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" });
 
   return (
@@ -543,7 +556,19 @@ function ClientCard({
         </span>
       </div>
 
-      {nextEvaluation ? (
+      {c.status === "pausado" ? (
+        <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 text-[11px]">
+          <p className="font-semibold text-white/70">
+            En pausa{c.pausado_en ? ` desde ${new Date(c.pausado_en).toLocaleDateString("es-CO")}` : ""}
+          </p>
+          {c.pausado_motivo && <p className="mt-0.5 text-white/40">{c.pausado_motivo}</p>}
+        </div>
+      ) : inactivityAlert ? (
+        <div className="mt-3 flex items-center gap-1.5 rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2 text-[11px] font-semibold text-red-400">
+          <AlertTriangle size={12} className="shrink-0" />
+          No entrena hace {daysSinceTraining} días
+        </div>
+      ) : nextEvaluation ? (
         <div className="mt-3 flex items-center gap-1.5 text-[11px] text-white/50">
           <CalendarClock size={12} className="shrink-0" />
           Próxima evaluación: {new Date(nextEvaluation).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })}
@@ -764,6 +789,16 @@ export function ClientFormModal({
               ))}
             </select>
           </Field>
+          {form.status === "pausado" && (
+            <Field label="Motivo de la pausa" span2>
+              <input
+                value={form.pausadoMotivo}
+                onChange={(e) => setForm({ ...form, pausadoMotivo: e.target.value })}
+                placeholder="Ej. Vacaciones, lesión, viaje..."
+                className="input"
+              />
+            </Field>
+          )}
         </div>
 
         {error && <p className="mt-3 text-xs text-red-400">{error}</p>}

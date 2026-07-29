@@ -23,11 +23,13 @@ import {
   Dumbbell,
   Plus,
   Check,
+  CheckCircle2,
   Camera,
   X,
 } from "lucide-react";
 import type { TrainerRow } from "@/lib/admin-actions";
 import { calculateImc } from "@/lib/imc";
+import { daysSinceLastTraining, weeklyTrainingStreak } from "@/lib/training-stats";
 import { IMC_CATEGORY_CLASS, STATUS_META, STATUS_DOT, initials, avatarColor } from "@/lib/client-ui";
 import {
   updateOwnClient,
@@ -42,6 +44,7 @@ import {
   type EvaluationRow,
 } from "@/lib/trainer-clients-actions";
 import type { RoutineRow } from "@/lib/trainer-routines-actions";
+import { registerOwnTrainingLog, getOwnClientTrainingLogs, type TrainingLogRow } from "@/lib/trainer-training-actions";
 import { ClientHojaDeVida } from "@/components/trainer/client-hoja-de-vida";
 import { ClientFormModal, clientToForm, type FormState } from "@/components/trainer/trainer-clients-manager";
 
@@ -53,12 +56,14 @@ export function TrainerClientDetail({
   initialMeasurements,
   initialEvaluations,
   routines,
+  initialTrainingLogs,
 }: {
   trainer: TrainerRow;
   client: ClientRow;
   initialMeasurements: MeasurementRow[];
   initialEvaluations: EvaluationRow[];
   routines: RoutineRow[];
+  initialTrainingLogs: TrainingLogRow[];
 }) {
   const searchParams = useSearchParams();
   const initialTab = (searchParams.get("tab") as Tab | null) ?? "resumen";
@@ -67,10 +72,12 @@ export function TrainerClientDetail({
   const [tab, setTab] = useState<Tab>(initialTab);
   const [measurements, setMeasurements] = useState<MeasurementRow[]>(initialMeasurements);
   const [evaluations, setEvaluations] = useState<EvaluationRow[]>(initialEvaluations);
+  const [trainingLogs, setTrainingLogs] = useState<TrainingLogRow[]>(initialTrainingLogs);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<FormState>(clientToForm(initialClient));
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [isLoggingTraining, startTrainingLog] = useTransition();
 
   const meta = STATUS_META[client.status];
   const imc = calculateImc(client.peso_actual, client.altura);
@@ -88,6 +95,19 @@ export function TrainerClientDetail({
   const nextEvaluation = evaluations
     .filter((e) => e.status === "pendiente" && new Date(e.scheduled_at) >= new Date())
     .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())[0];
+
+  const trainingFechas = useMemo(() => trainingLogs.map((l) => l.fecha), [trainingLogs]);
+  const daysSinceTraining = daysSinceLastTraining(trainingFechas);
+  const streak = weeklyTrainingStreak(trainingFechas, client.dias_por_semana);
+  const trainedToday = trainingFechas.includes(new Date().toISOString().slice(0, 10));
+
+  function registerToday() {
+    startTrainingLog(async () => {
+      await registerOwnTrainingLog(client.id);
+      const rows = await getOwnClientTrainingLogs(client.id);
+      setTrainingLogs(rows);
+    });
+  }
 
   function openEdit() {
     setForm(clientToForm(client));
@@ -115,6 +135,7 @@ export function TrainerClientDetail({
         diasPorSemana,
         horarioEntreno: form.horarioEntreno,
         status: form.status,
+        pausadoMotivo: form.pausadoMotivo,
       });
       if (!res.ok) return setError(res.error ?? "No se pudo guardar.");
       setClient({
@@ -132,6 +153,8 @@ export function TrainerClientDetail({
         dias_por_semana: diasPorSemana,
         horario_entreno: form.horarioEntreno || null,
         status: form.status,
+        pausado_motivo: form.status === "pausado" ? form.pausadoMotivo || null : null,
+        pausado_en: form.status === "pausado" ? new Date().toISOString().slice(0, 10) : null,
       });
       setEditing(false);
     });
@@ -186,8 +209,24 @@ export function TrainerClientDetail({
           >
             <CalendarClock size={13} /> Agendar evaluación
           </button>
+          <button
+            onClick={registerToday}
+            disabled={isLoggingTraining || trainedToday}
+            className="flex items-center gap-1.5 rounded-full bg-emerald-500 px-3 py-2 text-xs font-bold text-black disabled:opacity-50"
+          >
+            <CheckCircle2 size={13} /> {trainedToday ? "Entrenó hoy" : "Registrar entrenamiento"}
+          </button>
         </div>
       </div>
+
+      {client.status === "pausado" && (
+        <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.02] px-4 py-2.5 text-xs">
+          <p className="font-semibold text-white/70">
+            En pausa{client.pausado_en ? ` desde ${new Date(client.pausado_en).toLocaleDateString("es-CO")}` : ""}
+          </p>
+          {client.pausado_motivo && <p className="mt-0.5 text-white/40">{client.pausado_motivo}</p>}
+        </div>
+      )}
 
       {nextEvaluation && (
         <div className="mt-4 flex items-center gap-2 rounded-xl border border-hf-blue/30 bg-hf-blue/10 px-4 py-2.5 text-xs font-semibold text-hf-blue">
@@ -199,7 +238,7 @@ export function TrainerClientDetail({
 
       <ClientHojaDeVida client={client} />
 
-      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         <MiniKpi
           label="Peso actual"
           value={client.peso_actual != null ? `${client.peso_actual} kg` : "—"}
@@ -210,6 +249,11 @@ export function TrainerClientDetail({
           <p className="mt-1.5 text-xl font-bold text-white">{imc ? imc.value : "—"}</p>
           {imc && <p className="mt-0.5 text-[11px] text-white/60">{imc.label}</p>}
         </div>
+        <MiniKpi
+          label="Último entreno"
+          value={daysSinceTraining == null ? "—" : daysSinceTraining === 0 ? "Hoy" : daysSinceTraining === 1 ? "Ayer" : `Hace ${daysSinceTraining} días`}
+        />
+        <MiniKpi label="Racha" value={`${streak}`} hint={streak === 1 ? "semana cumplida" : "semanas cumplidas"} />
         <MiniKpi label="Mediciones" value={String(measurements.length)} hint="registradas" />
         <MiniKpi label="Evaluaciones" value={`${evaluacionesCompletadas} / ${evaluations.length}`} hint="completadas" />
         <MiniKpi label="Rutinas" value={String(routines.length)} hint="asignadas" />
@@ -223,7 +267,13 @@ export function TrainerClientDetail({
       </div>
 
       {tab === "resumen" && (
-        <ResumenTab client={client} measurements={measurements} evaluations={evaluations} routines={routines} />
+        <ResumenTab
+          client={client}
+          measurements={measurements}
+          evaluations={evaluations}
+          routines={routines}
+          trainingLogs={trainingLogs}
+        />
       )}
 
       {tab === "progreso" && (
@@ -339,11 +389,13 @@ function ResumenTab({
   measurements,
   evaluations,
   routines,
+  trainingLogs,
 }: {
   client: ClientRow;
   measurements: MeasurementRow[];
   evaluations: EvaluationRow[];
   routines: RoutineRow[];
+  trainingLogs: TrainingLogRow[];
 }) {
   const activity: ActivityItem[] = useMemo(() => {
     const items: ActivityItem[] = [];
@@ -366,8 +418,15 @@ function ResumenTab({
     for (const r of routines) {
       items.push({ date: r.created_at, label: `Rutina creada — ${r.dias_por_semana}x/semana` });
     }
+    for (const t of trainingLogs) {
+      items.push({
+        date: t.created_at,
+        label: `Entrenó — ${new Date(t.fecha).toLocaleDateString("es-CO")}`,
+        detail: t.notas ?? undefined,
+      });
+    }
     return items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 8);
-  }, [measurements, evaluations, routines]);
+  }, [measurements, evaluations, routines, trainingLogs]);
 
   return (
     <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -414,6 +473,7 @@ function ProgresoTab({
   setMeasurements: (m: MeasurementRow[]) => void;
 }) {
   const [newWeight, setNewWeight] = useState("");
+  const [newFat, setNewFat] = useState("");
   const [newNotes, setNewNotes] = useState("");
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -449,9 +509,16 @@ function ProgresoTab({
 
   function addMeasurement() {
     const peso = newWeight ? parseFloat(newWeight) : null;
+    const grasaCorporal = newFat ? parseFloat(newFat) : null;
     startTransition(async () => {
-      await addOwnClientMeasurement(clientId, { peso, notas: newNotes || null, fotoUrl: photoUrl });
+      await addOwnClientMeasurement(clientId, {
+        peso,
+        notas: newNotes || null,
+        fotoUrl: photoUrl,
+        medidas: grasaCorporal != null ? { grasa_corporal: grasaCorporal } : null,
+      });
       setNewWeight("");
+      setNewFat("");
       setNewNotes("");
       removePhoto();
       const rows = await getOwnClientMeasurements(clientId);
@@ -518,6 +585,14 @@ function ProgresoTab({
                 className="w-28 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white outline-none"
               />
               <input
+                type="number"
+                step="0.1"
+                placeholder="Grasa (%)"
+                value={newFat}
+                onChange={(e) => setNewFat(e.target.value)}
+                className="w-28 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white outline-none"
+              />
+              <input
                 placeholder="Nota (opcional)"
                 value={newNotes}
                 onChange={(e) => setNewNotes(e.target.value)}
@@ -563,6 +638,9 @@ function ProgresoTab({
               )}
               <span className="text-xs text-white/70">{new Date(m.fecha).toLocaleDateString("es-CO")}</span>
               <span className="text-xs font-semibold text-white">{m.peso != null ? `${m.peso} kg` : "—"}</span>
+              {m.medidas?.grasa_corporal != null && (
+                <span className="text-xs font-semibold text-amber-400">{m.medidas.grasa_corporal}% grasa</span>
+              )}
               {m.notas && <span className="text-[11px] text-white/40">{m.notas}</span>}
             </div>
           ))}

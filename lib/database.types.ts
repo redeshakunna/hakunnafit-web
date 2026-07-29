@@ -205,6 +205,7 @@ export interface Database {
           type: string;
           title: string;
           description: string | null;
+          leida: boolean;
           created_at: string;
         };
         Insert: {
@@ -213,6 +214,7 @@ export interface Database {
           type: string;
           title: string;
           description?: string | null;
+          leida?: boolean;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["trainer_activity"]["Insert"]>;
@@ -237,6 +239,8 @@ export interface Database {
           dias_por_semana: number | null;
           horario_entreno: string | null;
           status: "pendiente_evaluacion" | "activo" | "pausado" | "inactivo";
+          pausado_motivo: string | null;
+          pausado_en: string | null;
           created_at: string;
         };
         Insert: {
@@ -257,9 +261,31 @@ export interface Database {
           dias_por_semana?: number | null;
           horario_entreno?: string | null;
           status?: "pendiente_evaluacion" | "activo" | "pausado" | "inactivo";
+          pausado_motivo?: string | null;
+          pausado_en?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["clients"]["Insert"]>;
+        Relationships: [];
+      };
+      training_logs: {
+        Row: {
+          id: string;
+          client_id: string;
+          trainer_id: string;
+          fecha: string;
+          notas: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          client_id: string;
+          trainer_id: string;
+          fecha?: string;
+          notas?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["training_logs"]["Insert"]>;
         Relationships: [];
       };
       measurements: {

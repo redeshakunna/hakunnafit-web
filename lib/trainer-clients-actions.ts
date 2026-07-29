@@ -35,6 +35,8 @@ export interface ClientRow {
   dias_por_semana: number | null;
   horario_entreno: string | null;
   status: ClientStatus;
+  pausado_motivo: string | null;
+  pausado_en: string | null;
   created_at: string;
 }
 
@@ -196,6 +198,7 @@ export interface UpdateOwnClientInput {
   diasPorSemana?: number | null;
   horarioEntreno?: string | null;
   status?: ClientStatus;
+  pausadoMotivo?: string | null;
 }
 
 export async function updateOwnClient(clientId: string, input: UpdateOwnClientInput): Promise<AdminActionResult> {
@@ -217,6 +220,8 @@ export async function updateOwnClient(clientId: string, input: UpdateOwnClientIn
     dias_por_semana?: number | null;
     horario_entreno?: string | null;
     status?: ClientStatus;
+    pausado_motivo?: string | null;
+    pausado_en?: string | null;
   } = {};
   if (input.fullName !== undefined) update.full_name = input.fullName.trim();
   if (input.email !== undefined) update.email = input.email || null;
@@ -231,7 +236,19 @@ export async function updateOwnClient(clientId: string, input: UpdateOwnClientIn
   if (input.planElegido !== undefined) update.plan_elegido = input.planElegido || null;
   if (input.diasPorSemana !== undefined) update.dias_por_semana = input.diasPorSemana;
   if (input.horarioEntreno !== undefined) update.horario_entreno = input.horarioEntreno || null;
-  if (input.status !== undefined) update.status = input.status;
+  // Al pausar se sella la fecha automáticamente; al salir de pausado se
+  // limpian motivo y fecha para que no quede un "pausado desde" viejo
+  // colgando en un cliente activo de nuevo.
+  if (input.status !== undefined) {
+    update.status = input.status;
+    if (input.status === "pausado") {
+      update.pausado_en = new Date().toISOString().slice(0, 10);
+    } else {
+      update.pausado_motivo = null;
+      update.pausado_en = null;
+    }
+  }
+  if (input.pausadoMotivo !== undefined) update.pausado_motivo = input.pausadoMotivo || null;
 
   if (Object.keys(update).length === 0) return { ok: true };
 
