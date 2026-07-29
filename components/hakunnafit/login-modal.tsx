@@ -11,7 +11,8 @@
 // No hay "detectar automáticamente quién eres": la persona elige la pestaña
 // porque son dos mecanismos de autenticación distintos, no la misma tabla.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import { loginTrainer } from "@/lib/trainer-auth";
@@ -25,7 +26,15 @@ export function HakunnaFitLoginModal({ open, onClose }: { open: boolean; onClose
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (!open) return null;
+  // El header (donde se monta este modal) tiene backdrop-blur-xl — un
+  // backdrop-filter crea un "containing block" para los descendientes
+  // position:fixed, así que sin el portal el modal quedaba encajonado
+  // dentro del alto del header (~160px) en vez de cubrir toda la pantalla.
+  // Con createPortal se monta directo en <body>, fuera de ese contexto.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  if (!open || !mounted) return null;
 
   function switchTab(next: Tab) {
     setTab(next);
@@ -64,7 +73,7 @@ export function HakunnaFitLoginModal({ open, onClose }: { open: boolean; onClose
     "h-11 w-full rounded-xl border border-white/15 bg-white/5 px-4 text-sm text-white placeholder:text-white/30 focus:border-hf-blue focus:outline-none";
   const labelClass = "mb-1.5 block text-xs font-semibold text-white/70";
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
       <div
         className="w-full max-w-sm rounded-2xl border border-white/10 bg-hf-black p-6"
@@ -139,6 +148,7 @@ export function HakunnaFitLoginModal({ open, onClose }: { open: boolean; onClose
           </form>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
