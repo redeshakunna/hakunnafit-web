@@ -48,6 +48,10 @@ export const MUSCLE_GROUP_LABELS: Record<string, string> = {
   hombros: "Hombros",
   cardio: "Cardio",
   gluteos: "Glúteos",
+  // Movimientos olímpicos/gimnásticos de crossfit que trabajan todo el
+  // cuerpo en un solo gesto (arranque, cargada, thruster...) — no tiene
+  // sentido forzarlos dentro de un solo grupo muscular tradicional.
+  cuerpo_completo: "Cuerpo completo",
 };
 
 export const EQUIPMENT_LABELS: Record<string, string> = {
@@ -58,6 +62,13 @@ export const EQUIPMENT_LABELS: Record<string, string> = {
   cable: "Cable/Polea",
   kettlebell: "Kettlebell",
   banda: "Banda elástica",
+  // Implementos típicos de crossfit, agregados junto con la biblioteca de
+  // ejercicios de esa rama (ver migración seed_exercises_crossfit_running).
+  anillas: "Anillas",
+  caja: "Caja (box)",
+  cuerda: "Cuerda",
+  balon_medicinal: "Balón medicinal",
+  trineo: "Trineo (sled)",
 };
 
 export const MUSCLE_GROUP_OPTIONS = Object.entries(MUSCLE_GROUP_LABELS).map(([value, label]) => ({ value, label }));
