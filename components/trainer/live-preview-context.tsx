@@ -31,6 +31,7 @@ function trainerRowToStarterProfile(trainer: TrainerRow): StarterTrainerProfile 
     instagram: trainer.instagram,
     facebook: trainer.facebook,
     servicios: trainer.servicios,
+    planesOfrecidos: trainer.planes_ofrecidos,
     mostrarTransformaciones: trainer.mostrar_transformaciones,
     transformaciones: trainer.transformaciones,
     estadisticas: trainer.estadisticas,

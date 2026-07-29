@@ -2,6 +2,7 @@ import Image from "next/image";
 import { ChevronDown, Facebook, Instagram, Mail, MapPin, MessageCircle, Star } from "lucide-react";
 import {
   facebookHref,
+  formatPlanPrice,
   galleryPhotos,
   heroWhatsappMessage,
   initialsOf,
@@ -9,6 +10,7 @@ import {
   planWhatsappMessage,
   resolveEstadisticas,
   resolveFaqs,
+  resolvePlanes,
   resolveServicios,
   resolveTagline,
   resolveTestimonios,
@@ -33,6 +35,7 @@ export function PersonalTemplate({ trainer }: { trainer: StarterTrainerProfile }
   const transformaciones = resolveTransformaciones(trainer);
   const waTransformaciones = whatsappHref(trainer.whatsapp, transformacionesWhatsappMessage());
   const servicios = resolveServicios(trainer);
+  const planes = resolvePlanes(trainer);
   const galeria = galleryPhotos(trainer);
   const estadisticas = resolveEstadisticas(trainer);
   const testimonios = resolveTestimonios(trainer);
@@ -149,6 +152,35 @@ export function PersonalTemplate({ trainer }: { trainer: StarterTrainerProfile }
               </details>
             );
           })}
+        </div>
+        )}
+
+        {/* Planes — tarjetas de precio */}
+        {seccionActiva(trainer, "planes") && planes.length > 0 && (
+        <div className="mt-8 text-left">
+          <p className="mb-2.5 text-xs font-semibold uppercase tracking-[0.2em] text-white/60">Planes</p>
+          <div className="space-y-2.5">
+            {planes.map((p) => {
+              const waPlan = whatsappHref(trainer.whatsapp, planWhatsappMessage(p.nombre));
+              return (
+                <div key={p.nombre} className="rounded-xl border border-white/20 bg-white/5 p-3.5">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <h3 className="text-sm font-semibold text-white">{p.nombre}</h3>
+                    <p className="shrink-0 text-sm font-bold text-white">
+                      {formatPlanPrice(p.precioCop)}
+                      {p.precioCop != null && <span className="text-[10px] font-normal text-white/60"> /mes</span>}
+                    </p>
+                  </div>
+                  {p.incluye && <p className="mt-1 whitespace-pre-line text-xs leading-relaxed text-white/70">{p.incluye}</p>}
+                  {waPlan && (
+                    <a href={waPlan} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-xs font-semibold text-white underline underline-offset-2">
+                      Quiero este plan
+                    </a>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
         )}
 

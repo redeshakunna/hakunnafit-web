@@ -1,13 +1,16 @@
 "use client";
 
-// Operación → Planes ofrecidos (Mi Negocio). A diferencia de "servicios" en
-// Mi Sitio Web (contenido de marketing con ciclo de borrador/publicar),
-// esto es el catálogo operativo de planes que el entrenador vende a sus
-// propios clientes — con precio real — y se guarda al instante porque
-// alimenta el selector de plan que ve el cliente final tanto en el
-// formulario público de /registro como en el modal "Nuevo cliente" del
-// propio entrenador. Un plan sin precio se trata como "Personalizado" (a
-// cotizar directo).
+// Mi Sitio Web → Planes / Paquetes. Vivía antes en Mi Negocio (Operación),
+// pero eso mezclaba "estado de mi cuenta" con "contenido de mi landing" —
+// estos planes con precio real son justamente lo que se muestra en la
+// sección "Planes" de la página pública (ver starter-templates), además de
+// seguir alimentando el selector de plan que ve el cliente final en el
+// formulario público de /registro y en el modal "Nuevo cliente". Por eso,
+// a diferencia de "servicios" (que sí pasa por el ciclo de
+// borrador/publicar de Mi Sitio Web), esto se sigue guardando al instante:
+// es el mismo dato operativo de siempre, solo que editado desde el lugar
+// correcto. Un plan sin precio se trata como "Personalizado" (a cotizar
+// directo).
 
 import { useState } from "react";
 import { Plus, Trash2, Check, Loader2, ClipboardList } from "lucide-react";
@@ -17,7 +20,13 @@ import { updateOwnPlanesOfrecidos } from "@/lib/trainer-actions";
 const EMPTY_PLAN: PlanOfrecido = { nombre: "", incluye: "", precioCop: null };
 const cop = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
 
-export function TrainerPlanesManager({ initialPlanes }: { initialPlanes: PlanOfrecido[] }) {
+export function TrainerPlanesManager({
+  initialPlanes,
+  onChange,
+}: {
+  initialPlanes: PlanOfrecido[];
+  onChange?: (planes: PlanOfrecido[]) => void;
+}) {
   const [planes, setPlanes] = useState<PlanOfrecido[]>(initialPlanes.length ? initialPlanes : [{ ...EMPTY_PLAN }]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -25,17 +34,29 @@ export function TrainerPlanesManager({ initialPlanes }: { initialPlanes: PlanOfr
 
   function updatePlan(index: number, patch: Partial<PlanOfrecido>) {
     setSaved(false);
-    setPlanes((prev) => prev.map((p, i) => (i === index ? { ...p, ...patch } : p)));
+    setPlanes((prev) => {
+      const next = prev.map((p, i) => (i === index ? { ...p, ...patch } : p));
+      onChange?.(next);
+      return next;
+    });
   }
 
   function addPlan() {
     setSaved(false);
-    setPlanes((prev) => [...prev, { ...EMPTY_PLAN }]);
+    setPlanes((prev) => {
+      const next = [...prev, { ...EMPTY_PLAN }];
+      onChange?.(next);
+      return next;
+    });
   }
 
   function removePlan(index: number) {
     setSaved(false);
-    setPlanes((prev) => prev.filter((_, i) => i !== index));
+    setPlanes((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      onChange?.(next);
+      return next;
+    });
   }
 
   async function handleSave() {
@@ -49,6 +70,7 @@ export function TrainerPlanesManager({ initialPlanes }: { initialPlanes: PlanOfr
       return;
     }
     setPlanes(clean.length ? clean : [{ ...EMPTY_PLAN }]);
+    onChange?.(clean);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
   }
@@ -58,11 +80,12 @@ export function TrainerPlanesManager({ initialPlanes }: { initialPlanes: PlanOfr
       <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
         <div className="flex items-center gap-2 text-white/50">
           <ClipboardList size={16} />
-          <p className="text-xs font-semibold uppercase tracking-wide">Planes ofrecidos</p>
+          <p className="text-xs font-semibold uppercase tracking-wide">Planes / Paquetes</p>
         </div>
         <p className="mt-1 text-xs text-white/40">
           Los planes que le vendes a tus clientes — nombre, qué incluye y precio. Déjalo sin precio para que quede
-          como &quot;Personalizado&quot;. Tus clientes eligen entre estos al registrarse.
+          como &quot;Personalizado&quot;. Se muestran como tarjetas de precio en tu landing (sección &quot;Planes&quot;,
+          activable arriba) y tus clientes también eligen entre estos al registrarse.
         </p>
 
         <div className="mt-4 space-y-3">

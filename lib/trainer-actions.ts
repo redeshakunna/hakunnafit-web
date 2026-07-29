@@ -183,7 +183,7 @@ export async function updateOwnTemplate(landingTemplate: StarterLandingTemplateK
 
 export interface SitioWebDraftShape {
   servicios: { titulo: string; descripcion: string; tipo: "directo" | "personalizado" }[];
-  seccionesActivas: { servicios: boolean; transformaciones: boolean; galeria: boolean; faq: boolean };
+  seccionesActivas: { servicios: boolean; planes: boolean; transformaciones: boolean; galeria: boolean; faq: boolean };
   faqs: { pregunta: string; respuesta: string }[];
   mostrarTransformaciones: boolean;
   transformaciones: TransformacionPar[] | null;

@@ -10,15 +10,16 @@ import {
   uploadOwnTransformacionPhoto,
   type SitioWebDraftShape,
 } from "@/lib/trainer-actions";
-import type { TrainerRow } from "@/lib/admin-actions";
+import type { TrainerRow, PlanOfrecido } from "@/lib/admin-actions";
 import type { TransformacionPar } from "@/lib/admin-actions";
 import { useLivePreview } from "./live-preview-context";
+import { TrainerPlanesManager } from "./trainer-planes-manager";
 
 type Servicio = { titulo: string; descripcion: string; tipo: "directo" | "personalizado" };
 type Faq = { pregunta: string; respuesta: string };
-type Secciones = { servicios: boolean; transformaciones: boolean; galeria: boolean; faq: boolean };
+type Secciones = { servicios: boolean; planes: boolean; transformaciones: boolean; galeria: boolean; faq: boolean };
 
-const DEFAULT_SECCIONES: Secciones = { servicios: true, transformaciones: true, galeria: true, faq: true };
+const DEFAULT_SECCIONES: Secciones = { servicios: true, planes: true, transformaciones: true, galeria: true, faq: true };
 
 function draftFromTrainer(trainer: TrainerRow): SitioWebDraftShape {
   // Si hay un borrador guardado, retomamos exactamente ahí; si no, partimos
@@ -72,6 +73,10 @@ export function TrainerSitioWebForm({ trainer }: { trainer: TrainerRow }) {
       transformaciones: patch.transformaciones,
       seccionesActivas: patch.seccionesActivas,
     });
+  }
+
+  function handlePlanesChange(planes: PlanOfrecido[]) {
+    patchDraft({ planesOfrecidos: planes });
   }
 
   function toggleSeccion(key: keyof Secciones) {
@@ -233,6 +238,7 @@ export function TrainerSitioWebForm({ trainer }: { trainer: TrainerRow }) {
         </p>
         <div className="flex flex-col divide-y divide-white/5">
           <SeccionToggle label="Servicios" checked={seccionesActivas.servicios} onChange={() => toggleSeccion("servicios")} />
+          <SeccionToggle label="Planes / Paquetes" checked={seccionesActivas.planes} onChange={() => toggleSeccion("planes")} />
           <SeccionToggle
             label="Transformaciones"
             checked={seccionesActivas.transformaciones}
@@ -302,6 +308,9 @@ export function TrainerSitioWebForm({ trainer }: { trainer: TrainerRow }) {
           <p className="mt-3 text-[11px] text-white/30">Reordenar servicios está disponible desde plan Pro.</p>
         )}
       </div>
+
+      {/* Planes / Paquetes */}
+      <TrainerPlanesManager initialPlanes={trainer.planes_ofrecidos} onChange={handlePlanesChange} />
 
       {/* Transformaciones */}
       <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.03] p-5">

@@ -11,6 +11,7 @@ import type {
   StarterFaq,
 } from "@/components/hakunnafit/starter-templates/types";
 import { DEFAULT_SECCIONES_ACTIVAS } from "@/components/hakunnafit/starter-templates/types";
+import type { PlanOfrecido } from "@/lib/admin-actions";
 
 export const revalidate = 0;
 
@@ -29,7 +30,7 @@ export default async function TrainerLandingPage({
   const { data: trainer } = await supabase
     .from("trainers")
     .select(
-      "business_name, plan, landing_template, especialidad, ciudad, whatsapp, email_publico, biografia, avatar_url, foto2_url, foto3_url, foto4_url, instagram, facebook, mostrar_transformaciones, transformaciones, servicios, estadisticas, testimonios, tagline, logo_url, banner_url, color_primario, color_secundario, color_terciario, preguntas_frecuentes, secciones_activas"
+      "business_name, plan, landing_template, especialidad, ciudad, whatsapp, email_publico, biografia, avatar_url, foto2_url, foto3_url, foto4_url, instagram, facebook, mostrar_transformaciones, transformaciones, servicios, planes_ofrecidos, estadisticas, testimonios, tagline, logo_url, banner_url, color_primario, color_secundario, color_terciario, preguntas_frecuentes, secciones_activas"
     )
     .eq("subdominio", params.subdominio)
     .maybeSingle();
@@ -56,6 +57,7 @@ export default async function TrainerLandingPage({
             instagram: trainer.instagram,
             facebook: trainer.facebook,
             servicios: trainer.servicios as StarterServicio[] | null,
+            planesOfrecidos: trainer.planes_ofrecidos as PlanOfrecido[] | null,
             mostrarTransformaciones: trainer.mostrar_transformaciones,
             transformaciones: trainer.transformaciones as StarterTransformacion[] | null,
             estadisticas: trainer.estadisticas as StarterEstadistica[] | null,

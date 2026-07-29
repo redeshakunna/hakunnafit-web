@@ -20,6 +20,7 @@ import {
 import {
   brandColorVars,
   facebookHref,
+  formatPlanPrice,
   galleryPhotos,
   heroWhatsappMessage,
   initialsOf,
@@ -27,6 +28,7 @@ import {
   planWhatsappMessage,
   resolveEstadisticas,
   resolveFaqs,
+  resolvePlanes,
   resolveServicios,
   resolveTagline,
   resolveTestimonios,
@@ -56,6 +58,7 @@ export function ImpactoTemplate({ trainer }: { trainer: StarterTrainerProfile })
   const transformaciones = resolveTransformaciones(trainer);
   const waTransformaciones = whatsappHref(trainer.whatsapp, transformacionesWhatsappMessage());
   const servicios = resolveServicios(trainer);
+  const planes = resolvePlanes(trainer);
   const galeria = galleryPhotos(trainer);
   const estadisticas = resolveEstadisticas(trainer);
   const testimonios = resolveTestimonios(trainer);
@@ -282,6 +285,42 @@ export function ImpactoTemplate({ trainer }: { trainer: StarterTrainerProfile })
                       className="mt-4 text-xs font-semibold text-[var(--hf-primary)] hover:text-white"
                     >
                       Quiero este plan →
+                    </a>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+      )}
+
+      {/* Planes */}
+      {seccionActiva(trainer, "planes") && planes.length > 0 && (
+      <section id="planes" className="bg-[#0b0f1a] px-6 py-20">
+        <div className="mx-auto max-w-5xl text-center">
+          <span className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--hf-primary)]">Planes</span>
+          <h2 className="mt-2 font-[family-name:var(--font-hf-heading)] text-3xl font-bold text-white">Elige tu plan</h2>
+          <div className="mt-10 grid gap-5 sm:grid-cols-3">
+            {planes.map((p) => {
+              const waPlan = whatsappHref(trainer.whatsapp, planWhatsappMessage(p.nombre));
+              return (
+                <div key={p.nombre} className="flex flex-col rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-left">
+                  <h3 className="font-semibold text-white">{p.nombre}</h3>
+                  <p className="mt-3 text-2xl font-bold text-[var(--hf-primary)]">
+                    {formatPlanPrice(p.precioCop)}
+                    {p.precioCop != null && <span className="text-xs font-normal text-white/40"> / mes</span>}
+                  </p>
+                  {p.incluye && <p className="mt-3 flex-1 whitespace-pre-line text-sm leading-relaxed text-white/55">{p.incluye}</p>}
+                  {waPlan && (
+                    <a
+                      href={waPlan}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-5 inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold text-black"
+                      style={{ background: GREEN }}
+                    >
+                      Quiero este plan <ArrowRight size={13} />
                     </a>
                   )}
                 </div>

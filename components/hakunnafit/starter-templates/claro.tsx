@@ -16,6 +16,7 @@ import {
 import {
   brandColorVars,
   facebookHref,
+  formatPlanPrice,
   galleryPhotos,
   heroWhatsappMessage,
   initialsOf,
@@ -23,6 +24,7 @@ import {
   planWhatsappMessage,
   resolveEstadisticas,
   resolveFaqs,
+  resolvePlanes,
   resolveServicios,
   resolveTagline,
   resolveTestimonios,
@@ -50,6 +52,7 @@ export function ClaroTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
   const transformaciones = resolveTransformaciones(trainer);
   const waTransformaciones = whatsappHref(trainer.whatsapp, transformacionesWhatsappMessage());
   const servicios = resolveServicios(trainer);
+  const planes = resolvePlanes(trainer);
   const galeria = galleryPhotos(trainer);
   const estadisticas = resolveEstadisticas(trainer);
   const testimonios = resolveTestimonios(trainer);
@@ -273,6 +276,41 @@ export function ClaroTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
                       </a>
                     )}
                   </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+      )}
+
+      {/* Planes */}
+      {seccionActiva(trainer, "planes") && planes.length > 0 && (
+      <section id="planes" className="border-t border-gray-200/70 px-6 py-20">
+        <div className="mx-auto max-w-2xl">
+          <span className="text-xs font-semibold uppercase tracking-[0.3em] text-gray-400">Planes</span>
+          <h2 className="mt-2 font-[family-name:var(--font-hf-heading)] text-2xl font-bold text-gray-900">Elige tu plan</h2>
+          <div className="mt-8 grid gap-4 sm:grid-cols-3">
+            {planes.map((p) => {
+              const waPlan = whatsappHref(trainer.whatsapp, planWhatsappMessage(p.nombre));
+              return (
+                <div key={p.nombre} className="flex flex-col rounded-2xl border border-gray-200 p-5">
+                  <h3 className="font-semibold text-gray-900">{p.nombre}</h3>
+                  <p className="mt-2 text-xl font-bold text-[var(--hf-secondary)]">
+                    {formatPlanPrice(p.precioCop)}
+                    {p.precioCop != null && <span className="text-xs font-normal text-gray-400"> / mes</span>}
+                  </p>
+                  {p.incluye && <p className="mt-2 flex-1 whitespace-pre-line text-sm leading-relaxed text-gray-500">{p.incluye}</p>}
+                  {waPlan && (
+                    <a
+                      href={waPlan}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-4 inline-block text-xs font-semibold text-gray-900 underline underline-offset-2"
+                    >
+                      Quiero este plan
+                    </a>
+                  )}
                 </div>
               );
             })}

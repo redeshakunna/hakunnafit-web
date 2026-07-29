@@ -8,6 +8,7 @@
 // mostrarla, no los datos.
 import type { CSSProperties } from "react";
 import { TRAINER_BRANCHES } from "@/lib/catalog";
+import type { PlanOfrecido } from "@/lib/admin-actions";
 
 export interface StarterServicio {
   titulo: string;
@@ -55,6 +56,7 @@ export interface StarterFaq {
 // quedar sin ellas). Lo que sí se puede activar/desactivar es lo demás.
 export interface StarterSeccionesActivas {
   servicios: boolean;
+  planes: boolean;
   transformaciones: boolean;
   galeria: boolean;
   faq: boolean;
@@ -62,6 +64,7 @@ export interface StarterSeccionesActivas {
 
 export const DEFAULT_SECCIONES_ACTIVAS: StarterSeccionesActivas = {
   servicios: true,
+  planes: true,
   transformaciones: true,
   galeria: true,
   faq: true,
@@ -82,6 +85,7 @@ export interface StarterTrainerProfile {
   instagram: string | null;
   facebook: string | null;
   servicios: StarterServicio[] | null;
+  planesOfrecidos: PlanOfrecido[] | null;
   mostrarTransformaciones: boolean;
   transformaciones: StarterTransformacion[] | null;
   estadisticas: StarterEstadistica[] | null;
@@ -210,6 +214,20 @@ const SERVICIOS_BY_BRANCH: Record<string, StarterServicio[]> = {
 export function resolveServicios(trainer: StarterTrainerProfile): StarterServicio[] {
   if (trainer.servicios?.length) return trainer.servicios;
   return (trainer.especialidad && SERVICIOS_BY_BRANCH[trainer.especialidad]) || DEFAULT_SERVICIOS;
+}
+
+// Planes ofrecidos (Mi Sitio Web) — a diferencia de servicios/estadísticas/
+// testimonios no hay un set genérico de relleno: son precios reales del
+// entrenador, así que si todavía no cargó ninguno la sección simplemente no
+// se muestra (mismo criterio que FAQ, ver resolveFaqs).
+const copFormatter = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
+
+export function formatPlanPrice(precioCop: number | null): string {
+  return precioCop != null ? copFormatter.format(precioCop) : "Personalizado";
+}
+
+export function resolvePlanes(trainer: StarterTrainerProfile): PlanOfrecido[] {
+  return trainer.planesOfrecidos?.filter((p) => p.nombre.trim()) ?? [];
 }
 
 // Fotos de stock (Unsplash, ya autorizado en next.config.mjs) que se usan
