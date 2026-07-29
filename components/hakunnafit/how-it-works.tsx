@@ -46,7 +46,7 @@ const stats = [
 
 export function HakunnaFitHowItWorks() {
   return (
-    <section className="relative w-full py-20 sm:py-24">
+    <section id="como-funciona" className="relative w-full py-20 sm:py-24">
       <div className="relative mx-auto max-w-7xl px-6">
         {/* Título */}
         <motion.h2

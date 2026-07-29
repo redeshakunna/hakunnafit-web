@@ -9,8 +9,11 @@ import { useLeadModal } from "./lead-modal-context";
 
 // Navegación reducida a lo que existe de verdad en la página (nada de
 // secciones placeholder sin contenido, para que el menú no se vea apilonado).
+// Sigue el mismo orden en que aparecen las secciones en app/page.tsx.
 const nav = [
   { label: "Producto", href: "#producto" },
+  { label: "Cómo funciona", href: "#como-funciona" },
+  { label: "Ejemplos", href: "#ejemplos" },
   { label: "Funciones", href: "#pilares" },
   { label: "Precios", href: "#precios" },
   { label: "Tienda", href: "/tienda" },
