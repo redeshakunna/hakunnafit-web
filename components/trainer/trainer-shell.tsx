@@ -24,6 +24,7 @@ import { logoutTrainer } from "@/lib/trainer-auth";
 import type { TrainerRow } from "@/lib/admin-actions";
 import { hasFeature, minPlanForFeature } from "@/lib/admin-helpers";
 import { planLabel, type FeatureKey } from "@/lib/catalog";
+import { TrainerNotificationsBell } from "@/components/trainer/trainer-notifications-bell";
 
 export type TrainerSection =
   | "resumen"
@@ -187,8 +188,10 @@ export function TrainerShell({
               className="h-auto w-full"
             />
           </div>
+          <TrainerNotificationsBell />
         </header>
         <div className="hidden items-center justify-end gap-4 border-b border-white/10 px-6 py-4 lg:flex">
+          <TrainerNotificationsBell />
           <button
             disabled={isPending}
             onClick={() =>

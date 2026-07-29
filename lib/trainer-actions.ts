@@ -379,6 +379,7 @@ export interface OwnActivityRow {
   title: string;
   description: string | null;
   created_at: string;
+  leida: boolean;
 }
 
 /**
@@ -391,10 +392,64 @@ export async function getOwnRecentActivity(limit = 6): Promise<OwnActivityRow[]>
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("trainer_activity")
-    .select("id, type, title, description, created_at")
+    .select("id, type, title, description, created_at, leida")
     .eq("trainer_id", trainer.id)
     .order("created_at", { ascending: false })
     .limit(limit);
   if (error || !data) return [];
   return data as OwnActivityRow[];
+}
+
+export interface OwnActivityInbox {
+  items: OwnActivityRow[];
+  unreadCount: number;
+}
+
+/**
+ * Alimenta la campanita de notificaciones del panel del entrenador —
+ * mismo trainer_activity de siempre (cliente nuevo desde el link público,
+ * cambios que hace Nando en tu cuenta, etc.), con el estado leída/no leída
+ * que hoy solo existía en el panel-hakunna de Nando.
+ */
+export async function getOwnActivityInbox(limit = 15): Promise<OwnActivityInbox> {
+  const trainer = await requireTrainer();
+  const supabase = getSupabaseAdmin();
+  const [{ data }, { count }] = await Promise.all([
+    supabase
+      .from("trainer_activity")
+      .select("id, type, title, description, created_at, leida")
+      .eq("trainer_id", trainer.id)
+      .order("created_at", { ascending: false })
+      .limit(limit),
+    supabase
+      .from("trainer_activity")
+      .select("id", { count: "exact", head: true })
+      .eq("trainer_id", trainer.id)
+      .eq("leida", false),
+  ]);
+  return { items: (data as OwnActivityRow[]) ?? [], unreadCount: count ?? 0 };
+}
+
+export async function markOwnActivityRead(id: string): Promise<AdminActionResult> {
+  const trainer = await requireTrainer();
+  const supabase = getSupabaseAdmin();
+  const { error } = await supabase
+    .from("trainer_activity")
+    .update({ leida: true })
+    .eq("id", id)
+    .eq("trainer_id", trainer.id);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+export async function markAllOwnActivityRead(): Promise<AdminActionResult> {
+  const trainer = await requireTrainer();
+  const supabase = getSupabaseAdmin();
+  const { error } = await supabase
+    .from("trainer_activity")
+    .update({ leida: true })
+    .eq("trainer_id", trainer.id)
+    .eq("leida", false);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
 }
