@@ -20,7 +20,10 @@ function generateConnectToken(): string {
   return randomBytes(18).toString("base64url").slice(0, 24);
 }
 
-export { isGoogleCalendarConfigured };
+// isGoogleCalendarConfigured() es una función síncrona (no async) — no puede
+// re-exportarse desde este archivo "use server" (Next.js exige que todo
+// export de un archivo "use server" sea una función async). Quien la
+// necesite debe importarla directo de ./google-calendar.
 
 // ---------------------------------------------------------------------------
 // Entrenador

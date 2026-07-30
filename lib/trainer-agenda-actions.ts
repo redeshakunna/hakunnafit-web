@@ -15,6 +15,15 @@ import { requireTrainer } from "./trainer-auth";
 import type { AdminActionResult } from "./admin-actions";
 import { getConnection, createCalendarEvent, updateCalendarEvent, deleteCalendarEvent, type GoogleConnectionRow } from "./google-calendar";
 import type { RoutineDias } from "./routine-types";
+import { daysSinceLastTraining, isInactivityAlert } from "./training-stats";
+import { AGENDA_WORKING_HOURS, type AppointmentStatus, type AppointmentModalidad } from "./agenda-constants";
+
+// AGENDA_WORKING_HOURS, AppointmentStatus, AppointmentModalidad y
+// APPOINTMENT_STATUS_LABELS viven en ./agenda-constants (no son server
+// actions, no pueden ir en un archivo "use server") — se re-exportan los
+// tipos aquí (borrados en runtime, no rompen la regla) para no tener que
+// tocar cada archivo que ya los importaba de aquí como tipo.
+export type { AppointmentStatus, AppointmentModalidad };
 
 export interface AgendaEventRow {
   id: string;
@@ -25,7 +34,9 @@ export interface AgendaEventRow {
   durationMin: number;
   titulo: string | null;
   notas: string | null;
-  status: string;
+  status: AppointmentStatus;
+  modalidad: AppointmentModalidad;
+  sessionNumber: number;
   syncedToTrainerGoogle: boolean;
   syncedToClientGoogle: boolean;
 }
@@ -66,7 +77,8 @@ export async function getOwnAgendaEvents(rangeStartIso: string, rangeEndIso: str
     duracion_min: number;
     titulo: string | null;
     notas: string | null;
-    status: string;
+    status: AppointmentStatus;
+    modalidad: AppointmentModalidad;
     clients: { full_name: string; whatsapp: string | null } | null;
   }
   const rows = data as unknown as EvaluationJoinRow[];
@@ -91,6 +103,26 @@ export async function getOwnAgendaEvents(rangeStartIso: string, rangeEndIso: str
     if (ownerType === "client") clientSynced.add(link.evaluation_id);
   }
 
+  // Numeración de sesión (#N) por cliente — cuenta todas las citas que ese
+  // cliente ha tenido con este entrenador hasta la fecha, no solo las del
+  // rango visible, para que "Sesión #12" sea real y no reinicie cada mes.
+  const clientIds = Array.from(new Set(rows.map((row) => row.client_id)));
+  const { data: allEvals } = await supabase
+    .from("evaluations")
+    .select("id, client_id, scheduled_at")
+    .eq("trainer_id", trainer.id)
+    .neq("status", "cancelada")
+    .in("client_id", clientIds.length ? clientIds : [""])
+    .order("scheduled_at", { ascending: true });
+
+  const sessionNumberByEvalId = new Map<string, number>();
+  const counters = new Map<string, number>();
+  for (const row of (allEvals ?? []) as { id: string; client_id: string }[]) {
+    const n = (counters.get(row.client_id) ?? 0) + 1;
+    counters.set(row.client_id, n);
+    sessionNumberByEvalId.set(row.id, n);
+  }
+
   return rows.map((row) => {
     const { clients, ...rest } = row;
     return {
@@ -103,6 +135,8 @@ export async function getOwnAgendaEvents(rangeStartIso: string, rangeEndIso: str
       titulo: rest.titulo,
       notas: rest.notas,
       status: rest.status,
+      modalidad: rest.modalidad,
+      sessionNumber: sessionNumberByEvalId.get(rest.id) ?? 1,
       syncedToTrainerGoogle: trainerSynced.has(rest.id),
       syncedToClientGoogle: clientSynced.has(rest.id),
     };
@@ -186,6 +220,7 @@ export interface CreateAppointmentInput {
   durationMin: number;
   titulo?: string | null;
   notas?: string | null;
+  modalidad?: AppointmentModalidad;
 }
 
 export async function createOwnAppointment(input: CreateAppointmentInput): Promise<AdminActionResult & { id?: string }> {
@@ -200,6 +235,7 @@ export async function createOwnAppointment(input: CreateAppointmentInput): Promi
       duracion_min: input.durationMin,
       titulo: input.titulo || null,
       notas: input.notas || null,
+      modalidad: input.modalidad ?? "presencial",
       status: "pendiente",
     })
     .select("id")
@@ -226,7 +262,8 @@ export interface UpdateAppointmentInput {
   durationMin?: number;
   titulo?: string | null;
   notas?: string | null;
-  status?: string;
+  status?: AppointmentStatus;
+  modalidad?: AppointmentModalidad;
 }
 
 export async function updateOwnAppointment(evaluationId: string, input: UpdateAppointmentInput): Promise<AdminActionResult> {
@@ -244,7 +281,8 @@ export async function updateOwnAppointment(evaluationId: string, input: UpdateAp
     duracion_min?: number;
     titulo?: string | null;
     notas?: string | null;
-    status?: string;
+    status?: AppointmentStatus;
+    modalidad?: AppointmentModalidad;
     updated_at: string;
   } = { updated_at: new Date().toISOString() };
   if (input.scheduledAt !== undefined) update.scheduled_at = input.scheduledAt;
@@ -252,6 +290,7 @@ export async function updateOwnAppointment(evaluationId: string, input: UpdateAp
   if (input.titulo !== undefined) update.titulo = input.titulo || null;
   if (input.notas !== undefined) update.notas = input.notas || null;
   if (input.status !== undefined) update.status = input.status;
+  if (input.modalidad !== undefined) update.modalidad = input.modalidad;
 
   const { error } = await supabase.from("evaluations").update(update).eq("id", evaluationId);
   if (error) return { ok: false, error: error.message };
@@ -291,22 +330,131 @@ export async function cancelOwnAppointment(evaluationId: string): Promise<AdminA
 }
 
 /**
- * Link de WhatsApp con recordatorio prellenado — el entrenador confirma el
- * envío manual (mismo patrón que el resto de links de WhatsApp del
- * proyecto), no se manda nada automático.
+ * Botón "Sincronizar" de la Agenda — reempuja todas las citas del rango
+ * visible a Google (útil si el entrenador o un cliente conectó su Google
+ * después de que la cita ya existía; syncAppointmentToGoogle es idempotente,
+ * así que esto nunca duplica eventos).
  */
-export function buildAppointmentWhatsappReminder(input: {
-  clientFullName: string;
-  clientWhatsapp: string;
-  scheduledAt: string;
-  titulo: string | null;
-}): string {
-  const fecha = new Date(input.scheduledAt).toLocaleString("es-CO", { dateStyle: "full", timeStyle: "short" });
-  const digits = input.clientWhatsapp.replace(/\D/g, "");
-  const texto = `Hola ${input.clientFullName}! Te recuerdo tu cita${
-    input.titulo ? ` de ${input.titulo}` : ""
-  } el ${fecha}. ¡Nos vemos! 💪`;
-  return `https://wa.me/${digits}?text=${encodeURIComponent(texto)}`;
+export async function resyncOwnAgendaToGoogle(rangeStartIso: string, rangeEndIso: string): Promise<AdminActionResult> {
+  const trainer = await requireTrainer();
+  const supabase = getSupabaseAdmin();
+  const events = await getOwnAgendaEvents(rangeStartIso, rangeEndIso);
+
+  for (const ev of events) {
+    const { data: client } = await supabase.from("clients").select("email").eq("id", ev.clientId).maybeSingle();
+    const start = new Date(ev.scheduledAt);
+    const end = new Date(start.getTime() + ev.durationMin * 60_000);
+    await syncAppointmentToGoogle(ev.id, ev.clientId, trainer.id, {
+      summary: ev.titulo || "Cita HakunnaFit",
+      description: ev.notas || undefined,
+      startIso: start.toISOString(),
+      endIso: end.toISOString(),
+      clientEmail: client?.email ?? null,
+    });
+  }
+  return { ok: true };
+}
+
+// (buildAppointmentWhatsappReminder se movió a lib/agenda-whatsapp.ts — este
+// archivo tiene "use server" y Next.js exige que todos sus exports sean
+// funciones async; esa era una función pura de construcción de string.)
+
+// ---------------------------------------------------------------------------
+// Tips estilo HakAI — reglas simples sobre datos reales, no IA todavía. El
+// día que exista el asistente HakAI de verdad, este es el único lugar a
+// reemplazar (la UI ya está armada para mostrar una lista de tips).
+// ---------------------------------------------------------------------------
+
+export interface AgendaTip {
+  id: string;
+  message: string;
+  tone: "warning" | "info";
+}
+
+function formatHour(d: Date): string {
+  return d.toLocaleTimeString("es-CO", { hour: "numeric", minute: "2-digit" });
+}
+
+/** Primer hueco libre de al menos 60 min dentro del horario de trabajo del
+ * día — usado tanto para el tip como, potencialmente, para sugerir horarios
+ * al agendar. */
+function findFirstFreeGap(events: AgendaEventRow[], dayDate: Date): { startLabel: string; endLabel: string } | null {
+  const windowStart = new Date(dayDate);
+  windowStart.setHours(AGENDA_WORKING_HOURS.start, 0, 0, 0);
+  const windowEnd = new Date(dayDate);
+  windowEnd.setHours(AGENDA_WORKING_HOURS.end, 0, 0, 0);
+
+  const busy = events
+    .map((e) => ({ start: new Date(e.scheduledAt), end: new Date(new Date(e.scheduledAt).getTime() + e.durationMin * 60_000) }))
+    .sort((a, b) => a.start.getTime() - b.start.getTime());
+
+  let cursor = windowStart;
+  for (const b of busy) {
+    if (b.start.getTime() - cursor.getTime() >= 60 * 60_000) {
+      return { startLabel: formatHour(cursor), endLabel: formatHour(b.start) };
+    }
+    if (b.end.getTime() > cursor.getTime()) cursor = b.end;
+  }
+  if (windowEnd.getTime() - cursor.getTime() >= 60 * 60_000) {
+    return { startLabel: formatHour(cursor), endLabel: formatHour(windowEnd) };
+  }
+  return null;
+}
+
+/**
+ * Tips del día: clientes activos inactivos (mismo criterio que la alerta de
+ * /panel/clientes), citas de hoy sin confirmar, y el primer hueco libre del
+ * día — máximo 4, para que el banner no crezca sin control.
+ */
+export async function getOwnAgendaTips(dateIso: string): Promise<AgendaTip[]> {
+  const trainer = await requireTrainer();
+  const supabase = getSupabaseAdmin();
+  const tips: AgendaTip[] = [];
+
+  const { data: clients } = await supabase
+    .from("clients")
+    .select("id, full_name, dias_por_semana")
+    .eq("trainer_id", trainer.id)
+    .eq("status", "activo");
+
+  if (clients?.length) {
+    const clientIds = clients.map((c) => c.id);
+    const { data: logs } = await supabase.from("training_logs").select("client_id, fecha").in("client_id", clientIds);
+    const lastByClient = new Map<string, string>();
+    for (const log of logs ?? []) {
+      const prev = lastByClient.get(log.client_id);
+      if (!prev || log.fecha > prev) lastByClient.set(log.client_id, log.fecha);
+    }
+    for (const c of clients) {
+      const last = lastByClient.get(c.id);
+      const daysSince = daysSinceLastTraining(last ? [last] : []);
+      if (isInactivityAlert(daysSince, c.dias_por_semana)) {
+        tips.push({
+          id: `inactivo-${c.id}`,
+          tone: "warning",
+          message: `${c.full_name} lleva ${daysSince} día${daysSince === 1 ? "" : "s"} sin entrenar.`,
+        });
+      }
+    }
+  }
+
+  const dayDate = new Date(dateIso);
+  const dayStart = new Date(dayDate);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(dayDate);
+  dayEnd.setHours(23, 59, 59, 999);
+  const events = await getOwnAgendaEvents(dayStart.toISOString(), dayEnd.toISOString());
+
+  for (const ev of events.filter((e) => e.status === "pendiente")) {
+    tips.push({ id: `pendiente-${ev.id}`, tone: "info", message: `${ev.clientFullName} aún no confirma su cita de hoy.` });
+  }
+
+  const gap = findFirstFreeGap(events, dayDate);
+  if (gap) {
+    tips.push({ id: "hueco-libre", tone: "info", message: `Tienes un espacio libre de ${gap.startLabel} a ${gap.endLabel}.` });
+  }
+
+  return tips.slice(0, 4);
 }
 
 // ---------------------------------------------------------------------------

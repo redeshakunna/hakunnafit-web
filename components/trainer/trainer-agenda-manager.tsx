@@ -31,14 +31,13 @@ import {
   updateOwnAppointment,
   cancelOwnAppointment,
   resyncOwnAgendaToGoogle,
-  AGENDA_WORKING_HOURS,
-  APPOINTMENT_STATUS_LABELS,
   type AgendaEventRow,
   type AgendaTip,
   type WeeklyTrainingOverlayRow,
   type AppointmentStatus,
   type AppointmentModalidad,
 } from "@/lib/trainer-agenda-actions";
+import { AGENDA_WORKING_HOURS, APPOINTMENT_STATUS_LABELS } from "@/lib/agenda-constants";
 import { TrainerAgendaDetailPanel } from "@/components/trainer/trainer-agenda-detail-panel";
 import { TrainerAgendaSettingsMenu } from "@/components/trainer/trainer-agenda-settings-menu";
 

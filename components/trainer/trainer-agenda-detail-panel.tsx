@@ -11,13 +11,9 @@ import { X, CheckCircle2, XCircle, CalendarClock, MessageCircle, UserRound, Stic
 import { initials, avatarColor } from "@/lib/client-ui";
 import { calculateImc } from "@/lib/imc";
 import { getOwnClient, getOwnClientMeasurements, type ClientRow, type MeasurementRow } from "@/lib/trainer-clients-actions";
-import {
-  updateOwnAppointment,
-  buildAppointmentWhatsappReminder,
-  APPOINTMENT_STATUS_LABELS,
-  type AgendaEventRow,
-  type AppointmentStatus,
-} from "@/lib/trainer-agenda-actions";
+import { updateOwnAppointment, type AgendaEventRow, type AppointmentStatus } from "@/lib/trainer-agenda-actions";
+import { APPOINTMENT_STATUS_LABELS } from "@/lib/agenda-constants";
+import { buildAppointmentWhatsappReminder } from "@/lib/agenda-whatsapp";
 
 const STATUS_BADGE_CLASS: Record<AppointmentStatus, string> = {
   pendiente: "bg-amber-500/10 text-amber-400",
