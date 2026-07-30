@@ -1,16 +1,28 @@
 import Link from "next/link";
-import { Users, Globe, CreditCard, Sparkles, Clock, CalendarClock, ArrowRight } from "lucide-react";
+import { Users, Globe, CreditCard, Sparkles, Clock, CalendarClock, ArrowRight, Activity, Flame, Dumbbell } from "lucide-react";
 import type { TrainerRow } from "@/lib/admin-actions";
 import type { OwnClientStats, OwnActivityRow } from "@/lib/trainer-actions";
 import type { ClientRow, UpcomingEvaluationRow } from "@/lib/trainer-clients-actions";
 import { canEditLanding, isSuspendedTrainer } from "@/lib/admin-helpers";
-import { planLabel, landingStatusLabel, PLAN_CLIENT_CAP, type LandingStatusKey } from "@/lib/catalog";
+import { planLabel, landingStatusLabel, branchLabel, PLAN_CLIENT_CAP, type LandingStatusKey } from "@/lib/catalog";
+import { resolveBlockKind, type RoutineBlockKind } from "@/lib/routine-types";
 
 const STATUS_LABEL: Record<string, string> = {
   pendiente_evaluacion: "Por evaluar",
   activo: "Activo",
   pausado: "Pausado",
   inactivo: "Inactivo",
+};
+
+// Copy del acceso rápido a Entrenamientos según la rama del entrenador — un
+// entrenador de running no arma "rutinas" con series/reps, arma planes de
+// carrera, y uno de crossfit arma WODs. resolveBlockKind ya resuelve
+// gym/null → "fuerza", así que se reusa el mismo mapeo que el editor de
+// rutinas en vez de duplicar la lógica de rama.
+const TRAINING_MODULE_COPY: Record<RoutineBlockKind, { title: string; description: string; icon: React.ElementType }> = {
+  fuerza: { title: "Rutinas", description: "Series, repeticiones y descansos por cliente.", icon: Dumbbell },
+  running: { title: "Planes de carrera", description: "Distancia, ritmo objetivo y zona de frecuencia cardiaca.", icon: Activity },
+  crossfit: { title: "WODs", description: "Formato, rondas y movimientos por cliente.", icon: Flame },
 };
 
 function timeAgo(iso: string): string {
@@ -29,22 +41,27 @@ export function TrainerDashboardHome({
   recentClients,
   recentActivity,
   upcomingEvaluations,
+  routinesAssignedCount,
 }: {
   trainer: TrainerRow;
   clientStats: OwnClientStats;
   recentClients: ClientRow[];
   recentActivity: OwnActivityRow[];
   upcomingEvaluations: UpcomingEvaluationRow[];
+  routinesAssignedCount: number;
 }) {
   const unlocked = canEditLanding(trainer);
   const suspended = isSuspendedTrainer(trainer);
   const cap = PLAN_CLIENT_CAP[trainer.plan ?? "starter"];
+  const blockKind = resolveBlockKind(trainer.especialidad);
+  const trainingModule = TRAINING_MODULE_COPY[blockKind];
 
   return (
     <div className="mx-auto max-w-5xl">
       <h1 className="text-xl font-bold text-white">Hola, {trainer.business_name}</h1>
       <p className="mt-1 text-sm text-white/50">
-        Plan {planLabel(trainer.plan)} · Landing {landingStatusLabel(trainer.landing_status as LandingStatusKey)}
+        Plan {planLabel(trainer.plan)} · {branchLabel(trainer.especialidad)} · Landing{" "}
+        {landingStatusLabel(trainer.landing_status as LandingStatusKey)}
       </p>
 
       {!unlocked && (
@@ -135,7 +152,15 @@ export function TrainerDashboardHome({
       </div>
 
       {/* Accesos rápidos */}
-      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <PanelCard
+          href="/panel/entrenamientos"
+          icon={trainingModule.icon}
+          title={trainingModule.title}
+          description={`${routinesAssignedCount}/${clientStats.total} clientes con ${trainingModule.title.toLowerCase()} asignad${
+            blockKind === "fuerza" ? "a" : "o"
+          }.`}
+        />
         <PanelCard
           href="/panel/marca"
           icon={Sparkles}
