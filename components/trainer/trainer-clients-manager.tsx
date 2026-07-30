@@ -74,6 +74,7 @@ export type FormState = {
   horarioEntreno: string;
   status: ClientStatus;
   pausadoMotivo: string;
+  sesionesContratadas: string;
   perfilRunning: PerfilRunning;
   perfilCrossfit: PerfilCrossfit;
 };
@@ -93,6 +94,7 @@ export const EMPTY_FORM: FormState = {
   horarioEntreno: "",
   status: "pendiente_evaluacion",
   pausadoMotivo: "",
+  sesionesContratadas: "",
   perfilRunning: emptyPerfilRunning(),
   perfilCrossfit: emptyPerfilCrossfit(),
 };
@@ -114,6 +116,7 @@ export function clientToForm(c: ClientRow): FormState {
     horarioEntreno: c.horario_entreno ?? "",
     status: c.status,
     pausadoMotivo: c.pausado_motivo ?? "",
+    sesionesContratadas: c.sesiones_contratadas != null ? String(c.sesiones_contratadas) : "",
     perfilRunning: rama === "running" ? (c.perfil_deportivo as PerfilRunning) : emptyPerfilRunning(),
     perfilCrossfit: rama === "crossfit" ? (c.perfil_deportivo as PerfilCrossfit) : emptyPerfilCrossfit(),
   };
@@ -220,6 +223,7 @@ export function TrainerClientsManager({
       const pesoActual = form.pesoActual ? parseFloat(form.pesoActual) : null;
       const altura = form.altura ? parseFloat(form.altura) : null;
       const perfilDeportivo = rama === "running" ? form.perfilRunning : rama === "crossfit" ? form.perfilCrossfit : null;
+      const sesionesContratadas = form.sesionesContratadas ? parseInt(form.sesionesContratadas, 10) : null;
       if (modalMode === "create") {
         const res = await createOwnClient({
           fullName: form.fullName,
@@ -236,6 +240,7 @@ export function TrainerClientsManager({
           horarioEntreno: form.horarioEntreno,
           status: form.status,
           perfilDeportivo,
+          sesionesContratadas,
         });
         if (!res.ok) return setError(res.error ?? "No se pudo crear el cliente.");
       } else if (modalMode === "edit" && editingId) {
@@ -255,6 +260,7 @@ export function TrainerClientsManager({
           status: form.status,
           pausadoMotivo: form.pausadoMotivo,
           perfilDeportivo,
+          sesionesContratadas,
         });
         if (!res.ok) return setError(res.error ?? "No se pudo guardar.");
       }
@@ -787,6 +793,16 @@ export function ClientFormModal({
               max={7}
               value={form.diasPorSemana}
               onChange={(e) => setForm({ ...form, diasPorSemana: e.target.value })}
+              className="input"
+            />
+          </Field>
+          <Field label="Sesiones contratadas (opcional)">
+            <input
+              type="number"
+              min={0}
+              value={form.sesionesContratadas}
+              onChange={(e) => setForm({ ...form, sesionesContratadas: e.target.value })}
+              placeholder="Ej. 24"
               className="input"
             />
           </Field>

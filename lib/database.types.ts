@@ -246,6 +246,7 @@ export interface Database {
           perfil_deportivo: Json | null;
           calendar_connect_token: string | null;
           calendar_connect_token_expires_at: string | null;
+          sesiones_contratadas: number | null;
           created_at: string;
         };
         Insert: {
@@ -271,6 +272,7 @@ export interface Database {
           perfil_deportivo?: Json | null;
           calendar_connect_token?: string | null;
           calendar_connect_token_expires_at?: string | null;
+          sesiones_contratadas?: number | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["clients"]["Insert"]>;
@@ -433,6 +435,7 @@ export interface Database {
           trainer_id: string;
           scheduled_at: string | null;
           status: string;
+          modalidad: string;
           titulo: string | null;
           notas: string | null;
           duracion_min: number;
@@ -445,6 +448,7 @@ export interface Database {
           trainer_id: string;
           scheduled_at?: string | null;
           status?: string;
+          modalidad?: string;
           titulo?: string | null;
           notas?: string | null;
           duracion_min?: number;

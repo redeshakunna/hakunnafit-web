@@ -43,6 +43,7 @@ export interface ClientRow {
   // lib/client-profile-types.ts) — en gym se queda null, esos datos no
   // aplican y los campos genéricos de arriba (objetivo, nivel, etc.) bastan.
   perfil_deportivo: (PerfilRunning | PerfilCrossfit) | null;
+  sesiones_contratadas: number | null;
   created_at: string;
 }
 
@@ -136,6 +137,7 @@ export interface CreateOwnClientInput {
   horarioEntreno?: string | null;
   status?: ClientStatus;
   perfilDeportivo?: (PerfilRunning | PerfilCrossfit) | null;
+  sesionesContratadas?: number | null;
 }
 
 /**
@@ -179,6 +181,7 @@ export async function createOwnClient(input: CreateOwnClientInput): Promise<Admi
       horario_entreno: input.horarioEntreno || null,
       status: input.status ?? "pendiente_evaluacion",
       perfil_deportivo: (input.perfilDeportivo as unknown as Json) ?? null,
+      sesiones_contratadas: input.sesionesContratadas ?? null,
     })
     .select("id")
     .single();
@@ -208,6 +211,7 @@ export interface UpdateOwnClientInput {
   status?: ClientStatus;
   pausadoMotivo?: string | null;
   perfilDeportivo?: (PerfilRunning | PerfilCrossfit) | null;
+  sesionesContratadas?: number | null;
 }
 
 export async function updateOwnClient(clientId: string, input: UpdateOwnClientInput): Promise<AdminActionResult> {
@@ -232,6 +236,7 @@ export async function updateOwnClient(clientId: string, input: UpdateOwnClientIn
     pausado_motivo?: string | null;
     pausado_en?: string | null;
     perfil_deportivo?: Json | null;
+    sesiones_contratadas?: number | null;
   } = {};
   if (input.fullName !== undefined) update.full_name = input.fullName.trim();
   if (input.email !== undefined) update.email = input.email || null;
@@ -260,6 +265,7 @@ export async function updateOwnClient(clientId: string, input: UpdateOwnClientIn
   }
   if (input.pausadoMotivo !== undefined) update.pausado_motivo = input.pausadoMotivo || null;
   if (input.perfilDeportivo !== undefined) update.perfil_deportivo = input.perfilDeportivo as unknown as Json | null;
+  if (input.sesionesContratadas !== undefined) update.sesiones_contratadas = input.sesionesContratadas;
 
   if (Object.keys(update).length === 0) return { ok: true };
 
