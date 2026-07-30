@@ -18,16 +18,32 @@ import {
 import {
   emptyRoutineDay,
   emptyExerciseBlock,
+  resolveBlockKind,
+  blockKindOf,
+  categoriesForBlockKind,
+  WOD_FORMATOS,
   MUSCLE_GROUP_LABELS,
   EQUIPMENT_LABELS,
   MUSCLE_GROUP_OPTIONS,
   EQUIPMENT_OPTIONS,
   type RoutineDias,
   type RoutineDay,
+  type RoutineExerciseBlock,
+  type RoutineBlockKind,
+  type FuerzaBlock,
+  type RunningBlock,
+  type CrossfitBlock,
 } from "@/lib/routine-types";
 import { HORARIOS_ENTRENO } from "@/lib/client-ui";
 
+const BLOCK_KIND_LABELS: Record<RoutineBlockKind, string> = {
+  fuerza: "series, repeticiones y descansos",
+  running: "distancia, ritmo y zona de frecuencia cardiaca",
+  crossfit: "formato de WOD, rondas y movimientos",
+};
+
 export function TrainerRoutinesManager({ trainer, clients }: { trainer: TrainerRow; clients: ClientRow[] }) {
+  const kind = resolveBlockKind(trainer.especialidad);
   const [selectedClientId, setSelectedClientId] = useState<string>(clients[0]?.id ?? "");
   const [routines, setRoutines] = useState<RoutineRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -72,7 +88,7 @@ export function TrainerRoutinesManager({ trainer, clients }: { trainer: TrainerR
   return (
     <div className="mx-auto max-w-4xl">
       <h1 className="text-xl font-bold text-white">Entrenamientos</h1>
-      <p className="mt-1 text-sm text-white/50">Rutinas manuales por cliente — series, repeticiones y descansos.</p>
+      <p className="mt-1 text-sm text-white/50">Rutinas manuales por cliente — {BLOCK_KIND_LABELS[kind]}.</p>
 
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
         <label className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2">
@@ -151,6 +167,7 @@ export function TrainerRoutinesManager({ trainer, clients }: { trainer: TrainerR
 
       {editing && selectedClientId && (
         <RoutineEditorModal
+          kind={kind}
           clientId={selectedClientId}
           clientName={selectedClient?.full_name ?? ""}
           routine={editing === "new" ? null : editing}
@@ -166,12 +183,14 @@ export function TrainerRoutinesManager({ trainer, clients }: { trainer: TrainerR
 }
 
 function RoutineEditorModal({
+  kind,
   clientId,
   clientName,
   routine,
   onClose,
   onSaved,
 }: {
+  kind: RoutineBlockKind;
   clientId: string;
   clientName: string;
   routine: RoutineRow | null;
@@ -201,15 +220,15 @@ function RoutineEditorModal({
   }
 
   function addBlock(dayIndex: number) {
-    updateDay(dayIndex, { bloques: [...dias[dayIndex].bloques, emptyExerciseBlock()] });
+    updateDay(dayIndex, { bloques: [...dias[dayIndex].bloques, emptyExerciseBlock(kind)] });
   }
 
   function removeBlock(dayIndex: number, blockIndex: number) {
     updateDay(dayIndex, { bloques: dias[dayIndex].bloques.filter((_, i) => i !== blockIndex) });
   }
 
-  function updateBlock(dayIndex: number, blockIndex: number, patch: Partial<RoutineDias[number]["bloques"][number]>) {
-    const bloques = dias[dayIndex].bloques.map((b, i) => (i === blockIndex ? { ...b, ...patch } : b));
+  function updateBlock(dayIndex: number, blockIndex: number, patch: Partial<RoutineExerciseBlock>) {
+    const bloques = dias[dayIndex].bloques.map((b, i) => (i === blockIndex ? ({ ...b, ...patch } as RoutineExerciseBlock) : b));
     updateDay(dayIndex, { bloques });
   }
 
@@ -287,6 +306,7 @@ function RoutineEditorModal({
           {dias.map((day, dayIndex) => (
             <DayEditor
               key={dayIndex}
+              kind={kind}
               day={day}
               onChange={(patch) => updateDay(dayIndex, patch)}
               onRemove={() => removeDay(dayIndex)}
@@ -339,6 +359,7 @@ function RoutineEditorModal({
 }
 
 function DayEditor({
+  kind,
   day,
   onChange,
   onRemove,
@@ -346,12 +367,13 @@ function DayEditor({
   onRemoveBlock,
   onUpdateBlock,
 }: {
+  kind: RoutineBlockKind;
   day: RoutineDay;
   onChange: (patch: Partial<RoutineDay>) => void;
   onRemove: () => void;
   onAddBlock: () => void;
   onRemoveBlock: (blockIndex: number) => void;
-  onUpdateBlock: (blockIndex: number, patch: Partial<RoutineDay["bloques"][number]>) => void;
+  onUpdateBlock: (blockIndex: number, patch: Partial<RoutineExerciseBlock>) => void;
 }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
@@ -379,6 +401,7 @@ function DayEditor({
           {day.bloques.map((block, blockIndex) => (
             <ExerciseBlockEditor
               key={blockIndex}
+              kind={kind}
               block={block}
               onChange={(patch) => onUpdateBlock(blockIndex, patch)}
               onRemove={() => onRemoveBlock(blockIndex)}
@@ -396,16 +419,56 @@ function DayEditor({
   );
 }
 
+// Dispatcher: cada rama tiene su propio shape de bloque (ver
+// lib/routine-types.ts), así que en vez de un solo formulario con todos los
+// campos posibles (confuso e incorrecto para las otras 2 ramas), cada rama
+// tiene su propio editor. blockKindOf(block) manda sobre "kind" del
+// entrenador para que una rutina vieja (creada antes de este cambio, sin
+// "tipo") se siga leyendo como fuerza sin importar la rama actual.
 function ExerciseBlockEditor({
+  kind,
   block,
   onChange,
   onRemove,
 }: {
-  block: RoutineDay["bloques"][number];
-  onChange: (patch: Partial<RoutineDay["bloques"][number]>) => void;
+  kind: RoutineBlockKind;
+  block: RoutineExerciseBlock;
+  onChange: (patch: Partial<RoutineExerciseBlock>) => void;
   onRemove: () => void;
 }) {
-  const [query, setQuery] = useState(block.nombreLibre ?? "");
+  const blockKind = blockKindOf(block);
+  if (blockKind === "running") {
+    return <RunningBlockEditor kind={kind} block={block as RunningBlock} onChange={onChange} onRemove={onRemove} />;
+  }
+  if (blockKind === "crossfit") {
+    return <CrossfitBlockEditor kind={kind} block={block as CrossfitBlock} onChange={onChange} onRemove={onRemove} />;
+  }
+  return <FuerzaBlockEditor kind={kind} block={block as FuerzaBlock} onChange={onChange} onRemove={onRemove} />;
+}
+
+/**
+ * Buscador/selector de ejercicio compartido por los 3 editores de bloque —
+ * misma UI (buscar, elegir de resultados, escribir libre, o abrir la
+ * biblioteca completa) parametrizada por qué categorías de exercises.category
+ * le sirven a la rama actual (categoriesForBlockKind), para que un
+ * entrenador de running no vea sentadillas al buscar.
+ */
+function ExerciseSearchField({
+  nombreLibre,
+  ejercicioId,
+  categories,
+  onSelect,
+  onChangeFreeText,
+  onRemove,
+}: {
+  nombreLibre: string | null;
+  ejercicioId: string | null;
+  categories: string[];
+  onSelect: (ex: ExerciseRow) => void;
+  onChangeFreeText: (text: string) => void;
+  onRemove: () => void;
+}) {
+  const [query, setQuery] = useState(nombreLibre ?? "");
   const [results, setResults] = useState<ExerciseRow[]>([]);
   const [open, setOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -417,112 +480,136 @@ function ExerciseBlockEditor({
       return;
     }
     const t = setTimeout(() => {
-      searchExercises(query).then(setResults);
+      searchExercises(query, undefined, undefined, categories).then(setResults);
     }, 250);
     return () => clearTimeout(t);
-  }, [query, open]);
+  }, [query, open, categories]);
 
   // Trae grupo muscular + equipo del ejercicio ya elegido (aunque venga de
   // una rutina guardada antes, donde el bloque solo tiene el id) para poder
   // mostrar la insignia "qué máquina necesita" sin duplicar esos datos
   // dentro del jsonb de la rutina.
   useEffect(() => {
-    if (!block.ejercicioId) {
+    if (!ejercicioId) {
       setSelectedExercise(null);
       return;
     }
     let cancelled = false;
-    getExercisesByIds([block.ejercicioId]).then((rows) => {
+    getExercisesByIds([ejercicioId]).then((rows) => {
       if (!cancelled) setSelectedExercise(rows[0] ?? null);
     });
     return () => {
       cancelled = true;
     };
-  }, [block.ejercicioId]);
+  }, [ejercicioId]);
 
   function selectExercise(ex: ExerciseRow) {
     setQuery(ex.name);
     setSelectedExercise(ex);
-    onChange({ ejercicioId: ex.id, nombreLibre: ex.name });
+    onSelect(ex);
     setOpen(false);
     setPickerOpen(false);
   }
 
   return (
-    <div className="rounded-xl bg-white/[0.03] p-3">
-      <div className="flex items-start gap-2">
-        <Dumbbell size={14} className="mt-2 shrink-0 text-white/30" />
-        <div className="relative flex-1">
-          <input
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setOpen(true);
-              setSelectedExercise(null);
-              onChange({ ejercicioId: null, nombreLibre: e.target.value });
-            }}
-            onFocus={() => setOpen(true)}
-            placeholder="Buscar ejercicio o escribir uno propio..."
-            className="input !py-1.5 !text-xs"
-          />
-          {open && results.length > 0 && (
-            <div className="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-white/10 bg-[#12151f] shadow-lg">
-              {results.map((ex) => (
-                <button
-                  key={ex.id}
-                  onClick={() => selectExercise(ex)}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-white/80 hover:bg-white/5"
-                >
-                  {ex.image_url ? (
-                    <Image
-                      src={ex.image_url}
-                      alt=""
-                      width={28}
-                      height={28}
-                      unoptimized
-                      className="h-7 w-7 shrink-0 rounded-md object-cover"
-                    />
-                  ) : (
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/5">
-                      <Dumbbell size={12} className="text-white/30" />
-                    </span>
-                  )}
-                  <span className="min-w-0 flex-1 truncate">{ex.name}</span>
-                  <span className="shrink-0 text-[10px] text-white/30">
-                    {MUSCLE_GROUP_LABELS[ex.muscle_group] ?? ex.muscle_group}
+    <div className="flex items-start gap-2">
+      <Dumbbell size={14} className="mt-2 shrink-0 text-white/30" />
+      <div className="relative flex-1">
+        <input
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setOpen(true);
+            setSelectedExercise(null);
+            onChangeFreeText(e.target.value);
+          }}
+          onFocus={() => setOpen(true)}
+          placeholder="Buscar ejercicio o escribir uno propio..."
+          className="input !py-1.5 !text-xs"
+        />
+        {open && results.length > 0 && (
+          <div className="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-white/10 bg-[#12151f] shadow-lg">
+            {results.map((ex) => (
+              <button
+                key={ex.id}
+                onClick={() => selectExercise(ex)}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-white/80 hover:bg-white/5"
+              >
+                {ex.image_url ? (
+                  <Image
+                    src={ex.image_url}
+                    alt=""
+                    width={28}
+                    height={28}
+                    unoptimized
+                    className="h-7 w-7 shrink-0 rounded-md object-cover"
+                  />
+                ) : (
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/5">
+                    <Dumbbell size={12} className="text-white/30" />
                   </span>
-                  <span className="shrink-0 rounded-full bg-hf-blue/10 px-1.5 py-0.5 text-[9px] font-semibold text-hf-blue">
-                    {EQUIPMENT_LABELS[ex.equipment] ?? ex.equipment}
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
-          {selectedExercise && (
-            <div className="mt-1.5 flex flex-wrap gap-1">
-              <span className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] text-white/50">
-                {MUSCLE_GROUP_LABELS[selectedExercise.muscle_group] ?? selectedExercise.muscle_group}
-              </span>
-              <span className="rounded-full bg-hf-blue/10 px-2 py-0.5 text-[10px] font-semibold text-hf-blue">
-                {EQUIPMENT_LABELS[selectedExercise.equipment] ?? selectedExercise.equipment}
-              </span>
-            </div>
-          )}
-        </div>
-        <button
-          type="button"
-          onClick={() => setPickerOpen(true)}
-          className="mt-1.5 flex shrink-0 items-center gap-1 rounded-full border border-white/15 px-2.5 py-1.5 text-[10px] font-semibold text-white/60 hover:border-white/30 hover:text-white"
-        >
-          <Library size={11} /> Ver biblioteca
-        </button>
-        <button onClick={onRemove} className="mt-1.5 text-white/30 hover:text-red-400">
-          <X size={14} />
-        </button>
+                )}
+                <span className="min-w-0 flex-1 truncate">{ex.name}</span>
+                <span className="shrink-0 text-[10px] text-white/30">
+                  {MUSCLE_GROUP_LABELS[ex.muscle_group] ?? ex.muscle_group}
+                </span>
+                <span className="shrink-0 rounded-full bg-hf-blue/10 px-1.5 py-0.5 text-[9px] font-semibold text-hf-blue">
+                  {EQUIPMENT_LABELS[ex.equipment] ?? ex.equipment}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+        {selectedExercise && (
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            <span className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] text-white/50">
+              {MUSCLE_GROUP_LABELS[selectedExercise.muscle_group] ?? selectedExercise.muscle_group}
+            </span>
+            <span className="rounded-full bg-hf-blue/10 px-2 py-0.5 text-[10px] font-semibold text-hf-blue">
+              {EQUIPMENT_LABELS[selectedExercise.equipment] ?? selectedExercise.equipment}
+            </span>
+          </div>
+        )}
       </div>
+      <button
+        type="button"
+        onClick={() => setPickerOpen(true)}
+        className="mt-1.5 flex shrink-0 items-center gap-1 rounded-full border border-white/15 px-2.5 py-1.5 text-[10px] font-semibold text-white/60 hover:border-white/30 hover:text-white"
+      >
+        <Library size={11} /> Ver biblioteca
+      </button>
+      <button onClick={onRemove} className="mt-1.5 text-white/30 hover:text-red-400">
+        <X size={14} />
+      </button>
 
-      {pickerOpen && <ExercisePickerModal onSelect={selectExercise} onClose={() => setPickerOpen(false)} />}
+      {pickerOpen && (
+        <ExercisePickerModal categories={categories} onSelect={selectExercise} onClose={() => setPickerOpen(false)} />
+      )}
+    </div>
+  );
+}
 
+function FuerzaBlockEditor({
+  kind,
+  block,
+  onChange,
+  onRemove,
+}: {
+  kind: RoutineBlockKind;
+  block: FuerzaBlock;
+  onChange: (patch: Partial<RoutineExerciseBlock>) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="rounded-xl bg-white/[0.03] p-3">
+      <ExerciseSearchField
+        nombreLibre={block.nombreLibre}
+        ejercicioId={block.ejercicioId}
+        categories={categoriesForBlockKind(kind)}
+        onSelect={(ex) => onChange({ ejercicioId: ex.id, nombreLibre: ex.name })}
+        onChangeFreeText={(text) => onChange({ ejercicioId: null, nombreLibre: text })}
+        onRemove={onRemove}
+      />
       <div className="mt-2 grid grid-cols-3 gap-2 pl-6">
         <label className="flex flex-col gap-0.5">
           <span className="text-[10px] text-white/40">Series</span>
@@ -558,6 +645,147 @@ function ExerciseBlockEditor({
   );
 }
 
+function RunningBlockEditor({
+  kind,
+  block,
+  onChange,
+  onRemove,
+}: {
+  kind: RoutineBlockKind;
+  block: RunningBlock;
+  onChange: (patch: Partial<RoutineExerciseBlock>) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="rounded-xl bg-white/[0.03] p-3">
+      <ExerciseSearchField
+        nombreLibre={block.nombreLibre}
+        ejercicioId={block.ejercicioId}
+        categories={categoriesForBlockKind(kind)}
+        onSelect={(ex) => onChange({ ejercicioId: ex.id, nombreLibre: ex.name })}
+        onChangeFreeText={(text) => onChange({ ejercicioId: null, nombreLibre: text })}
+        onRemove={onRemove}
+      />
+      <div className="mt-2 grid grid-cols-2 gap-2 pl-6 sm:grid-cols-4">
+        <label className="flex flex-col gap-0.5">
+          <span className="text-[10px] text-white/40">Distancia (km)</span>
+          <input
+            type="number"
+            min={0}
+            step={0.1}
+            value={block.distanciaKm ?? ""}
+            onChange={(e) => onChange({ distanciaKm: e.target.value === "" ? null : parseFloat(e.target.value) })}
+            placeholder="5"
+            className="input !py-1 !text-xs"
+          />
+        </label>
+        <label className="flex flex-col gap-0.5">
+          <span className="text-[10px] text-white/40">Ritmo objetivo</span>
+          <input
+            value={block.ritmoObjetivo ?? ""}
+            onChange={(e) => onChange({ ritmoObjetivo: e.target.value })}
+            placeholder="5:30 min/km"
+            className="input !py-1 !text-xs"
+          />
+        </label>
+        <label className="flex flex-col gap-0.5">
+          <span className="text-[10px] text-white/40">Duración (min)</span>
+          <input
+            type="number"
+            min={0}
+            value={block.duracionMin ?? ""}
+            onChange={(e) => onChange({ duracionMin: e.target.value === "" ? null : parseInt(e.target.value, 10) })}
+            placeholder="30"
+            className="input !py-1 !text-xs"
+          />
+        </label>
+        <label className="flex flex-col gap-0.5">
+          <span className="text-[10px] text-white/40">Zona FC</span>
+          <input
+            value={block.zonaFc ?? ""}
+            onChange={(e) => onChange({ zonaFc: e.target.value })}
+            placeholder="Z2"
+            className="input !py-1 !text-xs"
+          />
+        </label>
+      </div>
+    </div>
+  );
+}
+
+function CrossfitBlockEditor({
+  kind,
+  block,
+  onChange,
+  onRemove,
+}: {
+  kind: RoutineBlockKind;
+  block: CrossfitBlock;
+  onChange: (patch: Partial<RoutineExerciseBlock>) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="rounded-xl bg-white/[0.03] p-3">
+      <ExerciseSearchField
+        nombreLibre={block.nombreLibre}
+        ejercicioId={block.ejercicioId}
+        categories={categoriesForBlockKind(kind)}
+        onSelect={(ex) => onChange({ ejercicioId: ex.id, nombreLibre: ex.name })}
+        onChangeFreeText={(text) => onChange({ ejercicioId: null, nombreLibre: text })}
+        onRemove={onRemove}
+      />
+      <div className="mt-2 grid grid-cols-2 gap-2 pl-6 sm:grid-cols-3">
+        <label className="flex flex-col gap-0.5">
+          <span className="text-[10px] text-white/40">Formato</span>
+          <select
+            value={block.formato ?? "for_time"}
+            onChange={(e) => onChange({ formato: e.target.value })}
+            className="input !py-1 !text-xs"
+          >
+            {WOD_FORMATOS.map((f) => (
+              <option key={f.value} value={f.value} className="bg-[#0a0d16]">
+                {f.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-col gap-0.5">
+          <span className="text-[10px] text-white/40">Duración (min)</span>
+          <input
+            type="number"
+            min={0}
+            value={block.duracionMin ?? ""}
+            onChange={(e) => onChange({ duracionMin: e.target.value === "" ? null : parseInt(e.target.value, 10) })}
+            placeholder="20"
+            className="input !py-1 !text-xs"
+          />
+        </label>
+        <label className="flex flex-col gap-0.5">
+          <span className="text-[10px] text-white/40">Rondas</span>
+          <input
+            type="number"
+            min={0}
+            value={block.rondas ?? ""}
+            onChange={(e) => onChange({ rondas: e.target.value === "" ? null : parseInt(e.target.value, 10) })}
+            placeholder="5"
+            className="input !py-1 !text-xs"
+          />
+        </label>
+        <label className="col-span-2 flex flex-col gap-0.5 sm:col-span-3">
+          <span className="text-[10px] text-white/40">Movimientos</span>
+          <textarea
+            value={block.movimientos ?? ""}
+            onChange={(e) => onChange({ movimientos: e.target.value })}
+            placeholder="21-15-9 Thrusters 40kg + Dominadas"
+            rows={2}
+            className="input resize-none !py-1 !text-xs"
+          />
+        </label>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Biblioteca completa de ejercicios (~386 hoy) para elegir mirando qué
  * grupo muscular trabaja y qué equipo/máquina necesita, en vez de tener que
@@ -566,9 +794,11 @@ function ExerciseBlockEditor({
  * ágil que pedir al servidor en cada tecla o cambio de filtro.
  */
 function ExercisePickerModal({
+  categories,
   onSelect,
   onClose,
 }: {
+  categories: string[];
   onSelect: (ex: ExerciseRow) => void;
   onClose: () => void;
 }) {
@@ -579,11 +809,14 @@ function ExercisePickerModal({
   const [equipment, setEquipment] = useState("");
 
   useEffect(() => {
-    searchExercises().then((rows) => {
+    // Filtra por la(s) categoría(s) de la rama del entrenador (fuerza+cardio,
+    // running o crossfit) para que la biblioteca completa no mezcle
+    // ejercicios de otras ramas.
+    searchExercises(undefined, undefined, undefined, categories).then((rows) => {
       setAll(rows);
       setLoading(false);
     });
-  }, []);
+  }, [categories]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
