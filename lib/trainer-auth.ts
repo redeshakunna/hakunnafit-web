@@ -25,6 +25,30 @@ export async function logoutTrainer(): Promise<void> {
 }
 
 /**
+ * "¿Olvidaste tu contraseña?" — dispara el correo de recuperación de
+ * Supabase Auth (mismo mecanismo que ya se usaba para el primer "crea tu
+ * contraseña" al activar un entrenador, ver admin-actions.ts). El link del
+ * correo cae en /auth/callback, que intercambia el code por una sesión real
+ * y manda a /panel/set-password para definir la nueva contraseña.
+ *
+ * Siempre devuelve ok:true, exista o no ese correo — resetPasswordForEmail
+ * de Supabase ya se comporta así (no revela si una cuenta existe), y
+ * replicamos el mismo criterio en el mensaje que ve el entrenador.
+ */
+export async function requestTrainerPasswordReset(email: string): Promise<{ ok: boolean }> {
+  const trimmed = email.trim();
+  if (!trimmed) return { ok: false };
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://hakunnafit.com";
+  const supabase = getSupabaseServerClient();
+  await supabase.auth.resetPasswordForEmail(trimmed, {
+    redirectTo: `${siteUrl}/auth/callback?next=/panel/set-password`,
+  });
+
+  return { ok: true };
+}
+
+/**
  * Devuelve el entrenador autenticado en la sesión actual (o null si no hay
  * sesión). No lanza error — cada página decide si redirige a /panel/login.
  */
