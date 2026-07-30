@@ -66,16 +66,24 @@ async function assertOwnRoutine(routineId: string): Promise<string> {
  * (scripts/import-wger-exercises.mjs) para ampliarla desde una fuente
  * pública cuando quieran correrlo desde una máquina con salida a internet.
  */
-export async function searchExercises(query?: string, muscleGroup?: string, equipment?: string): Promise<ExerciseRow[]> {
+export async function searchExercises(
+  query?: string,
+  muscleGroup?: string,
+  equipment?: string,
+  categories?: string[]
+): Promise<ExerciseRow[]> {
   await requireTrainer();
   const supabase = getSupabaseAdmin();
   let q = supabase.from("exercises").select("id, name, muscle_group, equipment, category, image_url").eq("active", true);
   if (query?.trim()) q = q.ilike("name", `%${query.trim()}%`);
   if (muscleGroup) q = q.eq("muscle_group", muscleGroup);
   if (equipment) q = q.eq("equipment", equipment);
-  // Sin filtros trae toda la biblioteca (~386 ejercicios hoy) para el
+  // categories: filtra por rama (fuerza/cardio para gym, running, crossfit)
+  // — así el picker de un entrenador de running no se llena de sentadillas.
+  if (categories?.length) q = q.in("category", categories);
+  // Sin filtros trae toda la biblioteca (~436 ejercicios hoy) para el
   // picker visual — por eso el límite es más alto que una búsqueda típica.
-  const { data, error } = await q.order("muscle_group").order("name").limit(400);
+  const { data, error } = await q.order("muscle_group").order("name").limit(500);
   if (error || !data) return [];
   return data as ExerciseRow[];
 }
