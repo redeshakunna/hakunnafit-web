@@ -5,7 +5,7 @@ import { Sparkles } from "lucide-react";
 
 export default async function ProximamentePage() {
   const authed = await isAdminAuthenticated();
-  if (!authed) redirect("/panel-hakunna/login");
+  if (!authed) redirect("/panel/login");
 
   return (
     <AdminShell active="proximamente">

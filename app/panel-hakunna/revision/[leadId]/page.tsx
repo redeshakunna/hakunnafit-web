@@ -6,7 +6,7 @@ import { RevisionEntrenadorView } from "@/components/admin/revision-entrenador-v
 
 export default async function RevisionEntrenadorPage({ params }: { params: { leadId: string } }) {
   const authed = await isAdminAuthenticated();
-  if (!authed) redirect("/panel-hakunna/login");
+  if (!authed) redirect("/panel/login");
 
   const data = await getLeadForRevision(params.leadId);
   if (!data) notFound();

@@ -6,7 +6,7 @@ import { LandingsView } from "@/components/admin/landings-view";
 
 export default async function LandingsPage() {
   const authed = await isAdminAuthenticated();
-  if (!authed) redirect("/panel-hakunna/login");
+  if (!authed) redirect("/panel/login");
 
   const trainers = await listTrainers();
 

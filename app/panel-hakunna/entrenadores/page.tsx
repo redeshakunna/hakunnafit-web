@@ -6,7 +6,7 @@ import { EntrenadoresView } from "@/components/admin/entrenadores-view";
 
 export default async function EntrenadoresPage() {
   const authed = await isAdminAuthenticated();
-  if (!authed) redirect("/panel-hakunna/login");
+  if (!authed) redirect("/panel/login");
 
   const trainers = await listTrainers();
 

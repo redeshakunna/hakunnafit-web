@@ -6,7 +6,7 @@ import { LandingEditorView } from "@/components/admin/landing-editor-view";
 
 export default async function LandingEditorPage({ params }: { params: { id: string } }) {
   const authed = await isAdminAuthenticated();
-  if (!authed) redirect("/panel-hakunna/login");
+  if (!authed) redirect("/panel/login");
 
   const trainers = await listTrainers();
   const trainer = trainers.find((t) => t.id === params.id);

@@ -6,7 +6,6 @@ import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import { useLeadModal } from "./lead-modal-context";
-import { HakunnaFitLoginModal } from "./login-modal";
 
 // Navegación reducida a lo que existe de verdad en la página (nada de
 // secciones placeholder sin contenido, para que el menú no se vea apilonado).
@@ -22,7 +21,6 @@ const nav = [
 
 export function HakunnaFitHeader() {
   const [open, setOpen] = useState(false);
-  const [showLogin, setShowLogin] = useState(false);
   const { openModal } = useLeadModal();
 
   return (
@@ -57,13 +55,12 @@ export function HakunnaFitHeader() {
         </nav>
 
         <div className="hidden items-center gap-3 xl:flex">
-          <button
-            type="button"
-            onClick={() => setShowLogin(true)}
+          <Link
+            href="/panel/login"
             className="rounded-full border border-white/15 px-5 py-2.5 text-sm font-semibold text-white/80 transition-colors hover:border-white/30 hover:text-white"
           >
             Iniciar sesión
-          </button>
+          </Link>
           <button
             type="button"
             onClick={() => openModal()}
@@ -127,16 +124,13 @@ export function HakunnaFitHeader() {
                   {item.label}
                 </motion.a>
               ))}
-              <button
-                type="button"
-                onClick={() => {
-                  setOpen(false);
-                  setShowLogin(true);
-                }}
+              <Link
+                href="/panel/login"
+                onClick={() => setOpen(false)}
                 className="text-left text-sm font-semibold text-white/50"
               >
                 Iniciar sesión
-              </button>
+              </Link>
               <button
                 type="button"
                 onClick={() => {
@@ -152,8 +146,6 @@ export function HakunnaFitHeader() {
           </motion.div>
         )}
       </AnimatePresence>
-
-      <HakunnaFitLoginModal open={showLogin} onClose={() => setShowLogin(false)} />
     </header>
   );
 }

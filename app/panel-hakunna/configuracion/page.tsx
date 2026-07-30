@@ -6,7 +6,7 @@ import { ConfiguracionView } from "@/components/admin/configuracion-view";
 
 export default async function ConfiguracionPage() {
   const authed = await isAdminAuthenticated();
-  if (!authed) redirect("/panel-hakunna/login");
+  if (!authed) redirect("/panel/login");
 
   const prices = await getPlanPrices();
 

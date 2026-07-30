@@ -7,7 +7,7 @@ import { SolicitudesView } from "@/components/admin/solicitudes-view";
 
 export default async function SolicitudesPage() {
   const authed = await isAdminAuthenticated();
-  if (!authed) redirect("/panel-hakunna/login");
+  if (!authed) redirect("/panel/login");
 
   const [leads, planPrices] = await Promise.all([listLeads(), getPlanPrices()]);
 

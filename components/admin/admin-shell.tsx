@@ -118,7 +118,7 @@ export function AdminShell({
               onClick={() =>
                 startTransition(async () => {
                   await logoutAdmin();
-                  router.push("/panel-hakunna/login");
+                  router.push("/panel/login");
                 })
               }
               className="flex items-center gap-1.5 rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-white/70 hover:border-white/30 hover:text-white"

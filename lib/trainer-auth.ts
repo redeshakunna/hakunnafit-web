@@ -4,26 +4,19 @@ import { getSupabaseServerClient } from "./supabase-server";
 import { getSupabaseAdmin } from "./supabase-admin";
 import type { TrainerRow } from "./admin-actions";
 
-export interface TrainerLoginResult {
-  ok: boolean;
-  error?: string;
-}
-
 /**
- * Login del panel de autoservicio del entrenador (correo + contraseña, sesión
- * real de Supabase Auth) — separado del login de Nando (admin-auth.ts), que
- * es una sola contraseña compartida sin usuarios individuales.
+ * Intenta iniciar sesión de Supabase Auth con correo + contraseña — usado
+ * por la pantalla única de login (lib/unified-login-actions.ts) para probar
+ * si las credenciales corresponden a un entrenador. Si signInWithPassword
+ * tiene éxito, la sesión ya queda seteada (cookie de Supabase); si falla, no
+ * deja ningún rastro, así que el mismo formulario puede seguir intentando
+ * con el otro tipo de cuenta (super-admin) sin efectos secundarios.
  */
-export async function loginTrainer(formData: FormData): Promise<TrainerLoginResult> {
-  const email = ((formData.get("email") as string) || "").trim();
-  const password = (formData.get("password") as string) || "";
-  if (!email || !password) return { ok: false, error: "Completa tu correo y contraseña." };
-
+export async function verifyTrainerCredentials(email: string, password: string): Promise<boolean> {
+  if (!email || !password) return false;
   const supabase = getSupabaseServerClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) return { ok: false, error: "Correo o contraseña incorrectos." };
-
-  return { ok: true };
+  return !error;
 }
 
 export async function logoutTrainer(): Promise<void> {
