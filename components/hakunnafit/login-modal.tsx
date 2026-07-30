@@ -133,8 +133,12 @@ export function HakunnaFitLoginModal({ open, onClose }: { open: boolean; onClose
         ) : (
           <form key="admin" action={onSubmitAdmin} className="mt-5 flex flex-col gap-3">
             <div>
+              <label className={labelClass}>Usuario</label>
+              <input type="text" name="username" required autoFocus autoCapitalize="none" autoCorrect="off" className={inputClass} />
+            </div>
+            <div>
               <label className={labelClass}>Contraseña del equipo</label>
-              <input type="password" name="password" required autoFocus className={inputClass} />
+              <input type="password" name="password" required className={inputClass} />
             </div>
             {error && <p className="text-xs text-red-400">{error}</p>}
             <button

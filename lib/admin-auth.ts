@@ -16,16 +16,18 @@ export interface AdminLoginResult {
 }
 
 export async function loginAdmin(formData: FormData): Promise<AdminLoginResult> {
+  const username = (formData.get("username") as string) || "";
   const password = (formData.get("password") as string) || "";
-  const expected = process.env.ADMIN_PANEL_PASSWORD;
+  const expectedUsername = process.env.ADMIN_PANEL_USERNAME;
+  const expectedPassword = process.env.ADMIN_PANEL_PASSWORD;
   const secret = process.env.ADMIN_SESSION_SECRET;
 
-  if (!expected || !secret) {
+  if (!expectedUsername || !expectedPassword || !secret) {
     return { ok: false, error: "El panel no está configurado todavía (faltan variables de entorno)." };
   }
 
-  if (password !== expected) {
-    return { ok: false, error: "Contraseña incorrecta." };
+  if (username !== expectedUsername || password !== expectedPassword) {
+    return { ok: false, error: "Usuario o contraseña incorrectos." };
   }
 
   cookies().set(ADMIN_COOKIE_NAME, secret, {
