@@ -37,12 +37,11 @@ import {
   addOwnClientMeasurement,
   uploadOwnClientMeasurementPhoto,
   getOwnClientEvaluations,
-  scheduleOwnEvaluation,
-  updateOwnEvaluationStatus,
   type ClientRow,
   type MeasurementRow,
   type EvaluationRow,
 } from "@/lib/trainer-clients-actions";
+import { updateOwnAppointment } from "@/lib/trainer-agenda-actions";
 import type { RoutineRow } from "@/lib/trainer-routines-actions";
 import { registerOwnTrainingLog, getOwnClientTrainingLogs, type TrainingLogRow } from "@/lib/trainer-training-actions";
 import { ClientHojaDeVida } from "@/components/trainer/client-hoja-de-vida";
@@ -203,12 +202,12 @@ export function TrainerClientDetail({
           >
             <Pencil size={13} /> Editar
           </button>
-          <button
-            onClick={() => setTab("evaluaciones")}
+          <Link
+            href={`/panel/agenda?clientId=${client.id}&nuevo=1`}
             className="flex items-center gap-1.5 rounded-full bg-hf-blue px-3 py-2 text-xs font-bold text-black"
           >
             <CalendarClock size={13} /> Agendar evaluación
-          </button>
+          </Link>
           <button
             onClick={registerToday}
             disabled={isLoggingTraining || trainedToday}
@@ -659,22 +658,15 @@ function EvaluacionesTab({
   evaluations: EvaluationRow[];
   setEvaluations: (e: EvaluationRow[]) => void;
 }) {
-  const [newEvalDate, setNewEvalDate] = useState("");
   const [isPending, startTransition] = useTransition();
 
-  function addEvaluation() {
-    if (!newEvalDate) return;
-    startTransition(async () => {
-      await scheduleOwnEvaluation(clientId, new Date(newEvalDate).toISOString());
-      setNewEvalDate("");
-      const rows = await getOwnClientEvaluations(clientId);
-      setEvaluations(rows);
-    });
-  }
-
+  // Agendar una evaluación nueva vive solo en la Agenda real (/panel/agenda)
+  // — antes había un formulario aparte aquí que creaba filas "evaluations"
+  // sin modalidad, sin sincronizar con Google Calendar ni numerar sesión,
+  // duplicando (y desalineando) la lógica de agendamiento real.
   function markDone(id: string) {
     startTransition(async () => {
-      await updateOwnEvaluationStatus(id, "completada");
+      await updateOwnAppointment(id, { status: "completada" });
       const rows = await getOwnClientEvaluations(clientId);
       setEvaluations(rows);
     });
@@ -682,20 +674,14 @@ function EvaluacionesTab({
 
   return (
     <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-      <div className="flex flex-wrap gap-2">
-        <input
-          type="datetime-local"
-          value={newEvalDate}
-          onChange={(e) => setNewEvalDate(e.target.value)}
-          className="flex-1 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white outline-none"
-        />
-        <button
-          onClick={addEvaluation}
-          disabled={isPending || !newEvalDate}
-          className="flex items-center gap-1 rounded-xl bg-hf-blue px-3 py-2 text-xs font-bold text-black disabled:opacity-40"
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs text-white/50">Todas las citas se agendan desde la Agenda.</p>
+        <Link
+          href={`/panel/agenda?clientId=${clientId}&nuevo=1`}
+          className="flex items-center gap-1 rounded-xl bg-hf-blue px-3 py-2 text-xs font-bold text-black"
         >
-          <CalendarClock size={13} /> Agendar
-        </button>
+          <CalendarClock size={13} /> Agendar en la Agenda
+        </Link>
       </div>
 
       <div className="mt-4 space-y-2">

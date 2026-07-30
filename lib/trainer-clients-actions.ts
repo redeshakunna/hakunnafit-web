@@ -415,20 +415,9 @@ export async function getOwnNextEvaluationByClient(): Promise<Record<string, str
   return map;
 }
 
-export async function scheduleOwnEvaluation(clientId: string, scheduledAt: string): Promise<AdminActionResult> {
-  const { trainerId } = await assertOwnClient(clientId);
-  const supabase = getSupabaseAdmin();
-  const { error } = await supabase
-    .from("evaluations")
-    .insert({ client_id: clientId, trainer_id: trainerId, scheduled_at: scheduledAt, status: "pendiente" });
-  if (error) return { ok: false, error: error.message };
-  return { ok: true };
-}
-
-export async function updateOwnEvaluationStatus(evaluationId: string, status: string): Promise<AdminActionResult> {
-  await requireTrainer();
-  const supabase = getSupabaseAdmin();
-  const { error } = await supabase.from("evaluations").update({ status }).eq("id", evaluationId);
-  if (error) return { ok: false, error: error.message };
-  return { ok: true };
-}
+// scheduleOwnEvaluation y updateOwnEvaluationStatus se retiraron: creaban
+// filas en "evaluations" sin modalidad, sin sincronizar con Google Calendar
+// ni numerar sesión — duplicaban (y desalineaban) lo que ya hace la Agenda
+// real (createOwnAppointment/updateOwnAppointment en
+// lib/trainer-agenda-actions.ts, mismo "evaluations"). Agendar y actualizar
+// estado ahora vive solo ahí.

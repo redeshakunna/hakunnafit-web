@@ -173,6 +173,7 @@ async function syncAppointmentToGoogle(
         description: event.description,
         startIso: event.startIso,
         endIso: event.endIso,
+        attendeeEmail: owner.type === "trainer" ? event.clientEmail : null,
       });
       continue;
     }

@@ -7,6 +7,7 @@
 // recordatorios por WhatsApp.
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ChevronLeft,
   ChevronRight,
@@ -148,8 +149,27 @@ export function TrainerAgendaManager({
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [editing, setEditing] = useState<AgendaEventRow | "new" | null>(null);
   const [newApptDefault, setNewApptDefault] = useState<Date | null>(null);
+  const [presetClientId, setPresetClientId] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [isPending, startTransition] = useTransition();
+
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Deep-link desde la ficha de un cliente (botón "Agendar evaluación") —
+  // /panel/agenda?clientId=X&nuevo=1 abre directo el modal de "Nueva cita"
+  // con ese cliente ya seleccionado, en vez de duplicar un formulario de
+  // agendamiento aparte en la ficha del cliente.
+  useEffect(() => {
+    const clientId = searchParams.get("clientId");
+    if (clientId && searchParams.get("nuevo") === "1") {
+      setPresetClientId(clientId);
+      setNewApptDefault(null);
+      setEditing("new");
+      router.replace("/panel/agenda");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const grid = useMemo(() => buildMonthGrid(monthCursor), [monthCursor]);
   const rangeStart = grid[0];
@@ -251,6 +271,7 @@ export function TrainerAgendaManager({
           <button
             onClick={() => {
               setNewApptDefault(null);
+              setPresetClientId(null);
               setEditing("new");
             }}
             className="flex items-center gap-1.5 rounded-full bg-hf-blue px-4 py-2 text-xs font-bold text-black"
@@ -392,6 +413,7 @@ export function TrainerAgendaManager({
               onSelectEvent={setSelectedEventId}
               onQuickAdd={(d) => {
                 setNewApptDefault(d);
+                setPresetClientId(null);
                 setEditing("new");
               }}
             />
@@ -455,13 +477,16 @@ export function TrainerAgendaManager({
           clients={clients}
           initial={editing === "new" ? null : editing}
           defaultDate={newApptDefault ?? selectedDay}
+          presetClientId={editing === "new" ? presetClientId : null}
           onClose={() => {
             setEditing(null);
             setNewApptDefault(null);
+            setPresetClientId(null);
           }}
           onSaved={async () => {
             setEditing(null);
             setNewApptDefault(null);
+            setPresetClientId(null);
             await refresh();
           }}
           onCancelAppointment={handleCancel}
@@ -690,6 +715,7 @@ function AppointmentModal({
   clients,
   initial,
   defaultDate,
+  presetClientId,
   onClose,
   onSaved,
   onCancelAppointment,
@@ -697,11 +723,12 @@ function AppointmentModal({
   clients: ClientRow[];
   initial: AgendaEventRow | null;
   defaultDate: Date;
+  presetClientId?: string | null;
   onClose: () => void;
   onSaved: () => void;
   onCancelAppointment: (ev: AgendaEventRow) => void;
 }) {
-  const [clientId, setClientId] = useState(initial?.clientId ?? clients[0]?.id ?? "");
+  const [clientId, setClientId] = useState(initial?.clientId ?? presetClientId ?? clients[0]?.id ?? "");
   const [scheduledAt, setScheduledAt] = useState(() => {
     if (initial) return toDatetimeLocalValue(initial.scheduledAt);
     return toDatetimeLocalValue(defaultDate.toISOString());

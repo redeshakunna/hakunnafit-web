@@ -239,9 +239,11 @@ export interface CalendarEventInput {
 /**
  * Crea un evento en el calendario del dueño de la conexión — devuelve el id
  * del evento de Google (para poder editarlo/borrarlo después) o null si la
- * conexión no está vigente / la llamada falla. attendeeEmail es informativo
- * (le llega la invitación si Gmail se la deja mandar sin API de dominio
- * verificado); nunca es requisito para que el evento se cree.
+ * conexión no está vigente / la llamada falla. Si hay attendeeEmail, se pide
+ * sendUpdates=all para que Google realmente le mande el correo de invitación
+ * (con opción de agregarlo a su calendario personal) — sin este parámetro,
+ * la API agrega al invitado al evento pero NO envía ninguna notificación por
+ * defecto, así que el cliente nunca se enteraba.
  */
 export async function createCalendarEvent(
   connection: GoogleConnectionRow,
@@ -250,18 +252,23 @@ export async function createCalendarEvent(
   const accessToken = await getValidAccessToken(connection);
   if (!accessToken) return null;
 
+  const sendUpdates = event.attendeeEmail ? "all" : "none";
+
   try {
-    const res = await fetch(`${GOOGLE_CALENDAR_EVENTS_URL}/${encodeURIComponent(connection.calendar_id)}/events`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        summary: event.summary,
-        description: event.description,
-        start: { dateTime: event.startIso },
-        end: { dateTime: event.endIso },
-        attendees: event.attendeeEmail ? [{ email: event.attendeeEmail }] : undefined,
-      }),
-    });
+    const res = await fetch(
+      `${GOOGLE_CALENDAR_EVENTS_URL}/${encodeURIComponent(connection.calendar_id)}/events?sendUpdates=${sendUpdates}`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          summary: event.summary,
+          description: event.description,
+          start: { dateTime: event.startIso },
+          end: { dateTime: event.endIso },
+          attendees: event.attendeeEmail ? [{ email: event.attendeeEmail }] : undefined,
+        }),
+      }
+    );
     if (!res.ok) return null;
     const data = (await res.json()) as { id: string };
     return data.id;
@@ -278,9 +285,11 @@ export async function updateCalendarEvent(
   const accessToken = await getValidAccessToken(connection);
   if (!accessToken) return false;
 
+  const sendUpdates = event.attendeeEmail ? "all" : "none";
+
   try {
     const res = await fetch(
-      `${GOOGLE_CALENDAR_EVENTS_URL}/${encodeURIComponent(connection.calendar_id)}/events/${googleEventId}`,
+      `${GOOGLE_CALENDAR_EVENTS_URL}/${encodeURIComponent(connection.calendar_id)}/events/${googleEventId}?sendUpdates=${sendUpdates}`,
       {
         method: "PATCH",
         headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
@@ -289,6 +298,7 @@ export async function updateCalendarEvent(
           description: event.description,
           start: { dateTime: event.startIso },
           end: { dateTime: event.endIso },
+          attendees: event.attendeeEmail ? [{ email: event.attendeeEmail }] : undefined,
         }),
       }
     );
@@ -298,15 +308,23 @@ export async function updateCalendarEvent(
   }
 }
 
+/**
+ * Borra un evento — sendUpdates=all para que, si el cliente estaba invitado,
+ * también le llegue el aviso de cancelación (no solo desaparezca en
+ * silencio de su calendario, si es que lo había agregado desde el correo).
+ */
 export async function deleteCalendarEvent(connection: GoogleConnectionRow, googleEventId: string): Promise<void> {
   const accessToken = await getValidAccessToken(connection);
   if (!accessToken) return;
 
   try {
-    await fetch(`${GOOGLE_CALENDAR_EVENTS_URL}/${encodeURIComponent(connection.calendar_id)}/events/${googleEventId}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
+    await fetch(
+      `${GOOGLE_CALENDAR_EVENTS_URL}/${encodeURIComponent(connection.calendar_id)}/events/${googleEventId}?sendUpdates=all`,
+      {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }
+    );
   } catch {
     // Si Google ya no tiene el evento (borrado manual, etc.) no hay nada que
     // reintentar — igual vamos a borrar la fila local que lo referencia.
