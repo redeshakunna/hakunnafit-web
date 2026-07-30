@@ -22,6 +22,7 @@ import {
   blockKindOf,
   categoriesForBlockKind,
   WOD_FORMATOS,
+  DIAS_SEMANA,
   MUSCLE_GROUP_LABELS,
   EQUIPMENT_LABELS,
   MUSCLE_GROUP_OPTIONS,
@@ -383,6 +384,21 @@ function DayEditor({
           onChange={(e) => onChange({ nombre: e.target.value })}
           className="input flex-1 !py-1.5 !text-xs font-semibold"
         />
+        <select
+          value={day.diaSemana ?? ""}
+          onChange={(e) => onChange({ diaSemana: e.target.value === "" ? null : parseInt(e.target.value, 10) })}
+          title="Día de la semana (opcional) — para mostrarlo en la Agenda"
+          className="input !w-auto !py-1.5 !text-[11px]"
+        >
+          <option value="" className="bg-[#0a0d16]">
+            Sin día fijo
+          </option>
+          {DIAS_SEMANA.map((d) => (
+            <option key={d.value} value={d.value} className="bg-[#0a0d16]">
+              {d.label}
+            </option>
+          ))}
+        </select>
         <button
           onClick={() => onChange({ descanso: !day.descanso })}
           className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ${

@@ -244,6 +244,8 @@ export interface Database {
           pausado_motivo: string | null;
           pausado_en: string | null;
           perfil_deportivo: Json | null;
+          calendar_connect_token: string | null;
+          calendar_connect_token_expires_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -267,9 +269,57 @@ export interface Database {
           pausado_motivo?: string | null;
           pausado_en?: string | null;
           perfil_deportivo?: Json | null;
+          calendar_connect_token?: string | null;
+          calendar_connect_token_expires_at?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["clients"]["Insert"]>;
+        Relationships: [];
+      };
+      google_calendar_connections: {
+        Row: {
+          id: string;
+          owner_type: "trainer" | "client";
+          owner_id: string;
+          google_email: string | null;
+          access_token: string;
+          refresh_token: string;
+          access_token_expires_at: string;
+          calendar_id: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          owner_type: "trainer" | "client";
+          owner_id: string;
+          google_email?: string | null;
+          access_token: string;
+          refresh_token: string;
+          access_token_expires_at: string;
+          calendar_id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["google_calendar_connections"]["Insert"]>;
+        Relationships: [];
+      };
+      evaluation_calendar_events: {
+        Row: {
+          id: string;
+          evaluation_id: string;
+          connection_id: string;
+          google_event_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          evaluation_id: string;
+          connection_id: string;
+          google_event_id: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["evaluation_calendar_events"]["Insert"]>;
         Relationships: [];
       };
       training_logs: {
@@ -383,6 +433,10 @@ export interface Database {
           trainer_id: string;
           scheduled_at: string | null;
           status: string;
+          titulo: string | null;
+          notas: string | null;
+          duracion_min: number;
+          updated_at: string;
           created_at: string;
         };
         Insert: {
@@ -391,6 +445,10 @@ export interface Database {
           trainer_id: string;
           scheduled_at?: string | null;
           status?: string;
+          titulo?: string | null;
+          notas?: string | null;
+          duracion_min?: number;
+          updated_at?: string;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["evaluations"]["Insert"]>;
