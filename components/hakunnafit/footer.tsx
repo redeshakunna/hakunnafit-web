@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { Facebook, Instagram, MessageCircle } from "lucide-react";
 
 const nav = [
@@ -8,7 +9,15 @@ const nav = [
   { label: "Tienda", href: "/tienda" },
 ];
 
-const legal = ["Términos", "Privacidad", "Cookies"];
+// "Términos" y "Cookies" siguen sin página propia (ver Política de
+// privacidad, que sí es real y cubre el uso de cookies y de Google
+// Calendar) — si se agregan más adelante, cambian de <span> a <Link> igual
+// que "Privacidad".
+const legal = [
+  { label: "Términos", href: null },
+  { label: "Privacidad", href: "/privacidad" },
+  { label: "Cookies", href: null },
+];
 
 const social = [
   { icon: Instagram, label: "Instagram" },
@@ -48,11 +57,21 @@ export function HakunnaFitFooter() {
           </nav>
 
           <div className="mt-5 flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
-            {legal.map((l) => (
-              <span key={l} className="text-xs text-white/40">
-                {l}
-              </span>
-            ))}
+            {legal.map((l) =>
+              l.href ? (
+                <Link
+                  key={l.label}
+                  href={l.href}
+                  className="text-xs text-white/40 transition-colors hover:text-white/70"
+                >
+                  {l.label}
+                </Link>
+              ) : (
+                <span key={l.label} className="text-xs text-white/40">
+                  {l.label}
+                </span>
+              )
+            )}
           </div>
 
           <div className="mt-7 flex items-center justify-center gap-3">
