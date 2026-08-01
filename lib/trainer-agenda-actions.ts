@@ -12,11 +12,12 @@
 
 import { getSupabaseAdmin } from "./supabase-admin";
 import { requireTrainer } from "./trainer-auth";
-import type { AdminActionResult } from "./admin-actions";
+import type { AdminActionResult, TrainerRow } from "./admin-actions";
 import { getConnection, createCalendarEvent, updateCalendarEvent, deleteCalendarEvent, type GoogleConnectionRow } from "./google-calendar";
 import type { RoutineDias } from "./routine-types";
 import { daysSinceLastTraining, isInactivityAlert } from "./training-stats";
 import { AGENDA_WORKING_HOURS, type AppointmentStatus, type AppointmentModalidad } from "./agenda-constants";
+import { renderLeadEmail, sendLeadEmail } from "./email";
 
 // AGENDA_WORKING_HOURS, AppointmentStatus, AppointmentModalidad y
 // APPOINTMENT_STATUS_LABELS viven en ./agenda-constants (no son server
@@ -41,14 +42,138 @@ export interface AgendaEventRow {
   syncedToClientGoogle: boolean;
 }
 
-async function assertOwnClient(clientId: string): Promise<{ trainerId: string; email: string | null }> {
+interface OwnClientBasics {
+  id: string;
+  fullName: string;
+  email: string | null;
+}
+
+async function assertOwnClient(clientId: string): Promise<{ trainer: TrainerRow; client: OwnClientBasics }> {
   const trainer = await requireTrainer();
   const supabase = getSupabaseAdmin();
-  const { data, error } = await supabase.from("clients").select("id, trainer_id, email").eq("id", clientId).maybeSingle();
+  const { data, error } = await supabase
+    .from("clients")
+    .select("id, trainer_id, email, full_name")
+    .eq("id", clientId)
+    .maybeSingle();
   if (error || !data || data.trainer_id !== trainer.id) {
     throw new Error("Cliente no encontrado.");
   }
-  return { trainerId: trainer.id, email: data.email };
+  return { trainer, client: { id: data.id, fullName: data.full_name ?? "Cliente", email: data.email } };
+}
+
+const MODALIDAD_LABEL: Record<AppointmentModalidad, string> = {
+  presencial: "Presencial",
+  virtual: "Virtual",
+};
+
+/** Formatea una fecha ISO en hora de Colombia — misma zona que usa todo el
+ * negocio de HakunnaFit, sin importar dónde corra el servidor (Vercel corre
+ * en UTC). Se usa tanto en el correo como en la descripción del evento de
+ * Google Calendar. */
+function formatApptDateTime(iso: string): { dateLabel: string; timeLabel: string } {
+  const date = new Date(iso);
+  const dateLabel = date.toLocaleDateString("es-CO", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    timeZone: "America/Bogota",
+  });
+  const timeLabel = date.toLocaleTimeString("es-CO", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "America/Bogota",
+  });
+  return { dateLabel, timeLabel };
+}
+
+/** Título del evento de Google Calendar — antes era solo el título suelto
+ * (ej. "Seguimiento"), que no dice con quién ni de qué negocio es la cita. */
+function buildEventSummary(titulo: string | null | undefined, clientName: string): string {
+  return `${titulo?.trim() || "Cita"} — ${clientName}`;
+}
+
+/** Descripción del evento de Google Calendar — antes era solo las notas
+ * libres del entrenador (casi siempre vacías). Ahora siempre incluye quién
+ * es el cliente, con qué negocio es la cita y la modalidad, y agrega las
+ * notas del entrenador al final si existen. */
+function buildEventDescription(input: {
+  clientName: string;
+  businessName: string;
+  modalidad: AppointmentModalidad;
+  notas?: string | null;
+}): string {
+  const lines = [
+    `Cliente: ${input.clientName}`,
+    `Entrenador: ${input.businessName}`,
+    `Modalidad: ${MODALIDAD_LABEL[input.modalidad]}`,
+  ];
+  if (input.notas?.trim()) lines.push("", `Notas: ${input.notas.trim()}`);
+  lines.push("", "Agendado a través de HakunnaFit.");
+  return lines.join("\n");
+}
+
+type AppointmentEmailKind = "creada" | "reprogramada" | "cancelada";
+
+const APPOINTMENT_EMAIL_COPY: Record<
+  AppointmentEmailKind,
+  { verbo: string; color: string; trainerVerb: string; clientVerb: string }
+> = {
+  creada: { verbo: "agendada", color: "#00C8FF", trainerVerb: "Se agendó una nueva cita", clientVerb: "te agendó una cita" },
+  reprogramada: { verbo: "reprogramada", color: "#6D2EFF", trainerVerb: "Se reprogramó una cita", clientVerb: "reprogramó tu cita" },
+  cancelada: { verbo: "cancelada", color: "#FF2DB8", trainerVerb: "Se canceló una cita", clientVerb: "canceló tu cita" },
+};
+
+/**
+ * Notifica por correo tanto al entrenador como al cliente cuando se crea,
+ * reprograma o cancela una cita — hasta ahora la única forma de enterarse
+ * era ver el evento en Google Calendar (y solo si tenían su cuenta
+ * conectada), así que un cliente sin Google conectado nunca se enteraba de
+ * nada. Si sendLeadEmail no tiene RESEND_API_KEY configurada, no hace nada
+ * (mismo comportamiento silencioso que el resto de correos del sistema).
+ */
+async function notifyAppointment(
+  kind: AppointmentEmailKind,
+  trainer: TrainerRow,
+  client: OwnClientBasics,
+  appt: { titulo?: string | null; scheduledAt: string; modalidad: AppointmentModalidad; notas?: string | null }
+): Promise<void> {
+  const copy = APPOINTMENT_EMAIL_COPY[kind];
+  const { dateLabel, timeLabel } = formatApptDateTime(appt.scheduledAt);
+  const modalidadLabel = MODALIDAD_LABEL[appt.modalidad];
+  const tituloLabel = appt.titulo?.trim() || "Cita";
+  const notasSuffix = appt.notas?.trim() ? ` Notas: ${appt.notas.trim()}.` : "";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://hakunnafit.com";
+
+  await Promise.all([
+    trainer.email
+      ? sendLeadEmail({
+          to: trainer.email,
+          subject: `${copy.trainerVerb}: ${client.fullName} — ${dateLabel}`,
+          html: renderLeadEmail({
+            nombre: trainer.full_name || trainer.business_name,
+            title: `${tituloLabel} con ${client.fullName}`,
+            message: `${copy.trainerVerb} (${modalidadLabel}) para el ${dateLabel} a las ${timeLabel}.${notasSuffix}`,
+            ctaLabel: "Ver en la Agenda",
+            ctaUrl: `${siteUrl}/panel/agenda`,
+            color: copy.color,
+          }),
+        })
+      : Promise.resolve(),
+    client.email
+      ? sendLeadEmail({
+          to: client.email,
+          subject: `${trainer.business_name} ${copy.clientVerb} — ${dateLabel}`,
+          html: renderLeadEmail({
+            nombre: client.fullName,
+            title: `Tu cita ${copy.verbo}`,
+            message: `${trainer.business_name} ${copy.clientVerb} (${modalidadLabel}) para el ${dateLabel} a las ${timeLabel}.${notasSuffix}`,
+            color: copy.color,
+          }),
+        })
+      : Promise.resolve(),
+  ]);
 }
 
 /**
@@ -225,18 +350,19 @@ export interface CreateAppointmentInput {
 }
 
 export async function createOwnAppointment(input: CreateAppointmentInput): Promise<AdminActionResult & { id?: string }> {
-  const { trainerId, email } = await assertOwnClient(input.clientId);
+  const { trainer, client } = await assertOwnClient(input.clientId);
+  const modalidad = input.modalidad ?? "presencial";
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("evaluations")
     .insert({
       client_id: input.clientId,
-      trainer_id: trainerId,
+      trainer_id: trainer.id,
       scheduled_at: input.scheduledAt,
       duracion_min: input.durationMin,
       titulo: input.titulo || null,
       notas: input.notas || null,
-      modalidad: input.modalidad ?? "presencial",
+      modalidad,
       status: "pendiente",
     })
     .select("id")
@@ -245,15 +371,27 @@ export async function createOwnAppointment(input: CreateAppointmentInput): Promi
 
   const start = new Date(input.scheduledAt);
   const end = new Date(start.getTime() + input.durationMin * 60_000);
-  await syncAppointmentToGoogle(data.id, input.clientId, trainerId, {
-    summary: input.titulo || "Cita HakunnaFit",
-    description: input.notas || undefined,
+  await syncAppointmentToGoogle(data.id, input.clientId, trainer.id, {
+    summary: buildEventSummary(input.titulo, client.fullName),
+    description: buildEventDescription({
+      clientName: client.fullName,
+      businessName: trainer.business_name,
+      modalidad,
+      notas: input.notas,
+    }),
     startIso: start.toISOString(),
     endIso: end.toISOString(),
-    clientEmail: email,
+    clientEmail: client.email,
   });
 
-  await supabase.from("trainer_activity").insert({ trainer_id: trainerId, type: "cita_agendada", title: "Nueva cita agendada" });
+  await supabase.from("trainer_activity").insert({ trainer_id: trainer.id, type: "cita_agendada", title: "Nueva cita agendada" });
+
+  await notifyAppointment("creada", trainer, client, {
+    titulo: input.titulo,
+    scheduledAt: input.scheduledAt,
+    modalidad,
+    notas: input.notas,
+  });
 
   return { ok: true, id: data.id };
 }
@@ -296,23 +434,55 @@ export async function updateOwnAppointment(evaluationId: string, input: UpdateAp
   const { error } = await supabase.from("evaluations").update(update).eq("id", evaluationId);
   if (error) return { ok: false, error: error.message };
 
+  const modalidad = input.modalidad !== undefined ? input.modalidad : (existing.modalidad as AppointmentModalidad);
+  const dateOrDurationChanged = input.scheduledAt !== undefined || input.durationMin !== undefined;
+
   if (input.status === "cancelada") {
     await deleteAppointmentFromGoogle(evaluationId);
-  } else if (input.scheduledAt !== undefined || input.durationMin !== undefined || input.titulo !== undefined || input.notas !== undefined) {
+    const { data: client } = await supabase
+      .from("clients")
+      .select("id, email, full_name")
+      .eq("id", existing.client_id)
+      .maybeSingle();
+    if (client) {
+      await notifyAppointment(
+        "cancelada",
+        trainer,
+        { id: client.id, fullName: client.full_name ?? "Cliente", email: client.email },
+        { titulo: existing.titulo, scheduledAt: existing.scheduled_at as string, modalidad, notas: existing.notas }
+      );
+    }
+  } else if (dateOrDurationChanged || input.titulo !== undefined || input.notas !== undefined || input.modalidad !== undefined) {
     const scheduledAt = input.scheduledAt ?? (existing.scheduled_at as string);
     const durationMin = input.durationMin ?? existing.duracion_min;
     const titulo = input.titulo !== undefined ? input.titulo : existing.titulo;
     const notas = input.notas !== undefined ? input.notas : existing.notas;
-    const { data: client } = await supabase.from("clients").select("email").eq("id", existing.client_id).maybeSingle();
+    const { data: client } = await supabase
+      .from("clients")
+      .select("id, email, full_name")
+      .eq("id", existing.client_id)
+      .maybeSingle();
+    const clientBasics: OwnClientBasics = {
+      id: existing.client_id,
+      fullName: client?.full_name ?? "Cliente",
+      email: client?.email ?? null,
+    };
     const start = new Date(scheduledAt);
     const end = new Date(start.getTime() + durationMin * 60_000);
     await syncAppointmentToGoogle(evaluationId, existing.client_id, trainer.id, {
-      summary: titulo || "Cita HakunnaFit",
-      description: notas || undefined,
+      summary: buildEventSummary(titulo, clientBasics.fullName),
+      description: buildEventDescription({ clientName: clientBasics.fullName, businessName: trainer.business_name, modalidad, notas }),
       startIso: start.toISOString(),
       endIso: end.toISOString(),
-      clientEmail: client?.email ?? null,
+      clientEmail: clientBasics.email,
     });
+
+    // Solo se avisa por correo si de verdad cambió fecha/hora (reprogramación
+    // real) — si el entrenador solo editó el título o las notas, alcanza con
+    // actualizar el evento de Google en silencio, sin mandar otro correo.
+    if (dateOrDurationChanged) {
+      await notifyAppointment("reprogramada", trainer, clientBasics, { titulo, scheduledAt, modalidad, notas });
+    }
   }
 
   return { ok: true };
@@ -321,12 +491,32 @@ export async function updateOwnAppointment(evaluationId: string, input: UpdateAp
 export async function cancelOwnAppointment(evaluationId: string): Promise<AdminActionResult> {
   const trainer = await requireTrainer();
   const supabase = getSupabaseAdmin();
-  const { data: existing } = await supabase.from("evaluations").select("id, trainer_id").eq("id", evaluationId).maybeSingle();
+  const { data: existing } = await supabase
+    .from("evaluations")
+    .select("id, trainer_id, client_id, titulo, notas, scheduled_at, modalidad")
+    .eq("id", evaluationId)
+    .maybeSingle();
   if (!existing || existing.trainer_id !== trainer.id) return { ok: false, error: "Cita no encontrada." };
 
   await deleteAppointmentFromGoogle(evaluationId);
   const { error } = await supabase.from("evaluations").delete().eq("id", evaluationId);
   if (error) return { ok: false, error: error.message };
+
+  const { data: client } = await supabase.from("clients").select("id, email, full_name").eq("id", existing.client_id).maybeSingle();
+  if (client) {
+    await notifyAppointment(
+      "cancelada",
+      trainer,
+      { id: client.id, fullName: client.full_name ?? "Cliente", email: client.email },
+      {
+        titulo: existing.titulo,
+        scheduledAt: existing.scheduled_at as string,
+        modalidad: existing.modalidad as AppointmentModalidad,
+        notas: existing.notas,
+      }
+    );
+  }
+
   return { ok: true };
 }
 
@@ -346,8 +536,13 @@ export async function resyncOwnAgendaToGoogle(rangeStartIso: string, rangeEndIso
     const start = new Date(ev.scheduledAt);
     const end = new Date(start.getTime() + ev.durationMin * 60_000);
     await syncAppointmentToGoogle(ev.id, ev.clientId, trainer.id, {
-      summary: ev.titulo || "Cita HakunnaFit",
-      description: ev.notas || undefined,
+      summary: buildEventSummary(ev.titulo, ev.clientFullName),
+      description: buildEventDescription({
+        clientName: ev.clientFullName,
+        businessName: trainer.business_name,
+        modalidad: ev.modalidad,
+        notas: ev.notas,
+      }),
       startIso: start.toISOString(),
       endIso: end.toISOString(),
       clientEmail: client?.email ?? null,
