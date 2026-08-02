@@ -504,6 +504,32 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["notifications"]["Insert"]>;
         Relationships: [];
       };
+      email_log: {
+        Row: {
+          id: string;
+          flow_id: string;
+          category: "corporate" | "trainer" | "client";
+          to_email: string;
+          subject: string;
+          status: "sent" | "failed" | "skipped_config";
+          is_test: boolean;
+          error: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          flow_id: string;
+          category: "corporate" | "trainer" | "client";
+          to_email: string;
+          subject: string;
+          status: "sent" | "failed" | "skipped_config";
+          is_test?: boolean;
+          error?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["email_log"]["Insert"]>;
+        Relationships: [];
+      };
       products: {
         Row: {
           id: string;

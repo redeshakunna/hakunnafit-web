@@ -17,7 +17,7 @@ import { getConnection, createCalendarEvent, updateCalendarEvent, deleteCalendar
 import type { RoutineDias } from "./routine-types";
 import { daysSinceLastTraining, isInactivityAlert } from "./training-stats";
 import { AGENDA_WORKING_HOURS, type AppointmentStatus, type AppointmentModalidad } from "./agenda-constants";
-import { renderLeadEmail, sendLeadEmail } from "./email";
+import { sendEmail, type EmailContext, type TrainerBrandingData } from "./mail";
 
 // AGENDA_WORKING_HOURS, AppointmentStatus, AppointmentModalidad y
 // APPOINTMENT_STATUS_LABELS viven en ./agenda-constants (no son server
@@ -118,20 +118,41 @@ type AppointmentEmailKind = "creada" | "reprogramada" | "cancelada";
 
 const APPOINTMENT_EMAIL_COPY: Record<
   AppointmentEmailKind,
-  { verbo: string; color: string; trainerVerb: string; clientVerb: string }
+  { verbo: string; trainerVerb: string; clientVerb: string }
 > = {
-  creada: { verbo: "agendada", color: "#00C8FF", trainerVerb: "Se agendó una nueva cita", clientVerb: "te agendó una cita" },
-  reprogramada: { verbo: "reprogramada", color: "#6D2EFF", trainerVerb: "Se reprogramó una cita", clientVerb: "reprogramó tu cita" },
-  cancelada: { verbo: "cancelada", color: "#FF2DB8", trainerVerb: "Se canceló una cita", clientVerb: "canceló tu cita" },
+  creada: { verbo: "agendada", trainerVerb: "Se agendó una nueva cita", clientVerb: "te agendó una cita" },
+  reprogramada: { verbo: "reprogramada", trainerVerb: "Se reprogramó una cita", clientVerb: "reprogramó tu cita" },
+  cancelada: { verbo: "cancelada", trainerVerb: "Se canceló una cita", clientVerb: "canceló tu cita" },
 };
+
+/** Arma los datos de marca del entrenador para el motor de correos
+ * (lib/mail) a partir de su fila de trainers — ver
+ * docs/EMAIL_ARCHITECTURE.md. whatsapp usa el público con respaldo al
+ * interno, mismo criterio que ya usa la landing (resolvePublicWhatsapp). */
+function trainerBranding(trainer: TrainerRow): TrainerBrandingData {
+  return {
+    businessName: trainer.business_name,
+    logoUrl: trainer.logo_url,
+    colorPrimario: trainer.color_primario,
+    colorSecundario: trainer.color_secundario,
+    whatsapp: trainer.whatsapp_publico?.trim() || trainer.whatsapp,
+    instagram: trainer.instagram,
+    emailPublico: trainer.email_publico,
+    subdominio: trainer.subdominio,
+    avatarUrl: trainer.avatar_url,
+  };
+}
 
 /**
  * Notifica por correo tanto al entrenador como al cliente cuando se crea,
  * reprograma o cancela una cita — hasta ahora la única forma de enterarse
  * era ver el evento en Google Calendar (y solo si tenían su cuenta
  * conectada), así que un cliente sin Google conectado nunca se enteraba de
- * nada. Si sendLeadEmail no tiene RESEND_API_KEY configurada, no hace nada
- * (mismo comportamiento silencioso que el resto de correos del sistema).
+ * nada. Migrado al motor de correos (lib/mail): el correo ahora se ve con
+ * el logo/colores reales del entrenador (marca "trainer"), no con la marca
+ * genérica de HakunnaFit — ver docs/EMAIL_ARCHITECTURE.md sección 1. Si
+ * falta RESEND_API_KEY, sendEmail no lanza error, solo lo deja registrado
+ * en email_log como "skipped_config".
  */
 async function notifyAppointment(
   kind: AppointmentEmailKind,
@@ -143,36 +164,45 @@ async function notifyAppointment(
   const { dateLabel, timeLabel } = formatApptDateTime(appt.scheduledAt);
   const modalidadLabel = MODALIDAD_LABEL[appt.modalidad];
   const tituloLabel = appt.titulo?.trim() || "Cita";
-  const notasSuffix = appt.notas?.trim() ? ` Notas: ${appt.notas.trim()}.` : "";
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://hakunnafit.com";
+  const brand = { kind: "trainer" as const, trainer: trainerBranding(trainer) };
+  const flowId = `agenda-cita-${kind}`;
+
+  const infoBox = {
+    rows: [
+      { label: "Fecha", value: dateLabel },
+      { label: "Hora", value: timeLabel },
+      { label: "Modalidad", value: modalidadLabel },
+      ...(appt.notas?.trim() ? [{ label: "Notas", value: appt.notas.trim() }] : []),
+    ],
+  };
+
+  const trainerContext: EmailContext = {
+    brand,
+    audience: "trainer",
+    to: trainer.email || "",
+    recipientName: trainer.full_name || trainer.business_name,
+    subject: `${copy.trainerVerb}: ${client.fullName} — ${dateLabel}`,
+    heading: `${tituloLabel} con ${client.fullName}`,
+    message: `${copy.trainerVerb} con ${client.fullName}.`,
+    primaryButton: { label: "Ver en la Agenda", url: `${siteUrl}/panel/agenda` },
+    infoBox,
+  };
+
+  const clientContext: EmailContext = {
+    brand,
+    audience: "client",
+    to: client.email || "",
+    recipientName: client.fullName,
+    subject: `${trainer.business_name} ${copy.clientVerb} — ${dateLabel}`,
+    heading: `Tu cita ${copy.verbo}`,
+    message: `${trainer.business_name} ${copy.clientVerb}.`,
+    infoBox,
+  };
 
   await Promise.all([
-    trainer.email
-      ? sendLeadEmail({
-          to: trainer.email,
-          subject: `${copy.trainerVerb}: ${client.fullName} — ${dateLabel}`,
-          html: renderLeadEmail({
-            nombre: trainer.full_name || trainer.business_name,
-            title: `${tituloLabel} con ${client.fullName}`,
-            message: `${copy.trainerVerb} (${modalidadLabel}) para el ${dateLabel} a las ${timeLabel}.${notasSuffix}`,
-            ctaLabel: "Ver en la Agenda",
-            ctaUrl: `${siteUrl}/panel/agenda`,
-            color: copy.color,
-          }),
-        })
-      : Promise.resolve(),
-    client.email
-      ? sendLeadEmail({
-          to: client.email,
-          subject: `${trainer.business_name} ${copy.clientVerb} — ${dateLabel}`,
-          html: renderLeadEmail({
-            nombre: client.fullName,
-            title: `Tu cita ${copy.verbo}`,
-            message: `${trainer.business_name} ${copy.clientVerb} (${modalidadLabel}) para el ${dateLabel} a las ${timeLabel}.${notasSuffix}`,
-            color: copy.color,
-          }),
-        })
-      : Promise.resolve(),
+    trainer.email ? sendEmail({ flowId, category: "trainer", context: trainerContext }) : Promise.resolve(),
+    client.email ? sendEmail({ flowId, category: "client", context: clientContext }) : Promise.resolve(),
   ]);
 }
 
