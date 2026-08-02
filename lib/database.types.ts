@@ -504,6 +504,34 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["notifications"]["Insert"]>;
         Relationships: [];
       };
+      platform_settings: {
+        Row: {
+          id: number;
+          contact_email: string | null;
+          contact_whatsapp: string | null;
+          contact_whatsapp_display: string | null;
+          instagram_url: string | null;
+          facebook_url: string | null;
+          tiktok_url: string | null;
+          resend_from_address: string | null;
+          admin_notification_email: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          id?: number;
+          contact_email?: string | null;
+          contact_whatsapp?: string | null;
+          contact_whatsapp_display?: string | null;
+          instagram_url?: string | null;
+          facebook_url?: string | null;
+          tiktok_url?: string | null;
+          resend_from_address?: string | null;
+          admin_notification_email?: string | null;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["platform_settings"]["Insert"]>;
+        Relationships: [];
+      };
       email_log: {
         Row: {
           id: string;

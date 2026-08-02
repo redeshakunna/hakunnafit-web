@@ -1,4 +1,5 @@
 import { getSupabaseAdmin } from "../supabase-admin";
+import { getPlatformSettings } from "../platform-settings-actions";
 import { renderEmailShell } from "./layout";
 import { resolveSenderName, resolveReplyTo } from "./identity";
 import { resendFromAddress } from "./constants";
@@ -57,16 +58,30 @@ export async function sendEmail(flow: FlowResult, opts: SendOptions = {}): Promi
     return;
   }
 
+  // Config editable desde /panel-hakunna/configuracion (platform_settings) —
+  // el remitente real y el contacto de HakunnaFit del footer salen de ahí,
+  // con la constante de código como respaldo si la BD no responde.
+  const settings = await getPlatformSettings();
+  const fromAddress = settings.resendFromAddress?.trim() || resendFromAddress();
+  const hakunnafitContact = {
+    email: settings.contactEmail,
+    whatsappDisplay: settings.contactWhatsappDisplay,
+    whatsappLink: `https://wa.me/${settings.contactWhatsapp.replace(/[^\d]/g, "")}`,
+    instagramUrl: settings.instagramUrl,
+    facebookUrl: settings.facebookUrl,
+    tiktokUrl: settings.tiktokUrl,
+  };
+
   const fromName = resolveSenderName(flow.context.brand);
   const replyTo = resolveReplyTo(flow.context.brand);
-  const html = renderEmailShell(flow.context);
+  const html = renderEmailShell(flow.context, hakunnafitContact);
 
   try {
     const res = await fetch(RESEND_API_URL, {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        from: `${fromName} <${resendFromAddress()}>`,
+        from: `${fromName} <${fromAddress}>`,
         to: flow.context.to,
         subject: flow.context.subject,
         html,

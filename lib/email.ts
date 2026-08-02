@@ -7,14 +7,20 @@
 // resto de la app (crear leads, aprobar entrenadores, etc.) nunca se rompe
 // por falta de configuración de correo.
 
+import { getPlatformSettings } from "./platform-settings-actions";
+
 const RESEND_API_URL = "https://api.resend.com/emails";
 
 export async function sendAdminEmail(input: { subject: string; html: string }): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return;
 
-  const to = process.env.ADMIN_NOTIFICATION_EMAIL || "redeshakunna@gmail.com";
-  const from = process.env.EMAIL_FROM || "HakunnaFit <onboarding@resend.dev>";
+  // Config editable desde /panel-hakunna/configuracion (platform_settings) —
+  // fuente de verdad ahora, getPlatformSettings ya trae su propio respaldo
+  // interno si la tabla está vacía (ver lib/platform-settings-actions.ts).
+  const settings = await getPlatformSettings();
+  const to = settings.adminNotificationEmail;
+  const from = `HakunnaFit <${settings.resendFromAddress}>`;
 
   try {
     await fetch(RESEND_API_URL, {
@@ -44,7 +50,8 @@ export async function sendLeadEmail(input: { to: string; subject: string; html: 
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return;
 
-  const from = process.env.EMAIL_FROM || "HakunnaFit <onboarding@resend.dev>";
+  const settings = await getPlatformSettings();
+  const from = `HakunnaFit <${settings.resendFromAddress}>`;
 
   try {
     await fetch(RESEND_API_URL, {

@@ -4,7 +4,7 @@
 
 import { escapeHtml, readableTextColor } from "./util";
 import { hakunnaFitMascotUrl } from "./constants";
-import { resolveAccentColor, resolveHeaderHtml, resolveFooterHtml, resolveUnsubscribeFooterNote } from "./identity";
+import { resolveAccentColor, resolveHeaderHtml, resolveFooterHtml, resolveUnsubscribeFooterNote, type HakunnaFitContactOverride } from "./identity";
 import type { EmailContext } from "./types";
 
 const FONT_HEAD = `<style>
@@ -42,11 +42,17 @@ function infoBoxHtml(ctx: EmailContext, accent: string): string {
   `;
 }
 
-export function renderEmailShell(ctx: EmailContext): string {
+/**
+ * @param hakunnafitContact Contacto/redes de HakunnaFit editable desde
+ * /panel-hakunna/configuracion (platform_settings) — lo resuelve
+ * lib/mail/send.ts antes de llamar acá; si no se pasa, se usan los valores
+ * por defecto de código (ver identity.ts).
+ */
+export function renderEmailShell(ctx: EmailContext, hakunnafitContact?: HakunnaFitContactOverride): string {
   const accent = resolveAccentColor(ctx.brand, ctx.accentColorOverride);
   const buttonTextColor = readableTextColor(accent);
   const header = resolveHeaderHtml(ctx.brand, ctx.audience);
-  const footer = resolveFooterHtml(ctx.brand, ctx.audience);
+  const footer = resolveFooterHtml(ctx.brand, ctx.audience, hakunnafitContact);
   const mascotUrl = hakunnaFitMascotUrl();
 
   return `<!doctype html>

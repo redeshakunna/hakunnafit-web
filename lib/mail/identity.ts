@@ -70,24 +70,50 @@ function trainerContactLines(trainer: { whatsapp: string | null; instagram: stri
   return lines.join(" &nbsp;·&nbsp; ");
 }
 
+/** Datos de contacto de HakunnaFit que sí son operativamente editables desde
+ * /panel-hakunna/configuracion (platform_settings) — el color/inicial de
+ * cada red social se queda fijo en código (es identidad de marca, no
+ * "configuración"), solo la URL de cada red y los datos de contacto directo
+ * se pueden reemplazar. Si no se pasa nada, se usan los valores por defecto
+ * de HAKUNNAFIT_CONTACT (constants.ts). */
+export interface HakunnaFitContactOverride {
+  email: string;
+  whatsappDisplay: string;
+  whatsappLink: string;
+  instagramUrl: string;
+  facebookUrl: string;
+  tiktokUrl: string;
+}
+
+function resolveHakunnaFitSocialUrl(label: string, override?: HakunnaFitContactOverride): string {
+  if (!override) return HAKUNNAFIT_CONTACT.social.find((s) => s.label === label)?.url ?? "#";
+  if (label === "Instagram") return override.instagramUrl;
+  if (label === "Facebook") return override.facebookUrl;
+  if (label === "TikTok") return override.tiktokUrl;
+  return "#";
+}
+
 /** Footer — la única diferencia real entre audiencia "trainer" y "client"
  * dentro de una marca de entrenador: al entrenador se le muestran TODOS sus
  * canales de contacto (para que los reconozca como propios); al cliente
  * solo lo esencial + el sello de HakunnaFit como proveedor de tecnología. */
-export function resolveFooterHtml(brand: Brand, audience: Audience): string {
+export function resolveFooterHtml(brand: Brand, audience: Audience, hakunnafitContact?: HakunnaFitContactOverride): string {
   if (brand.kind === "hakunnafit") {
+    const email = hakunnafitContact?.email || HAKUNNAFIT_CONTACT.email;
+    const whatsappDisplay = hakunnafitContact?.whatsappDisplay || HAKUNNAFIT_CONTACT.whatsappDisplay;
+    const whatsappLink = hakunnafitContact?.whatsappLink || HAKUNNAFIT_CONTACT.whatsappLink;
     const socialCircles = HAKUNNAFIT_CONTACT.social
       .map(
         (s) =>
-          `<a href="${s.url}" style="display:inline-block;width:32px;height:32px;border-radius:50%;background-color:${s.color};color:#ffffff;font-size:12px;font-weight:700;text-align:center;line-height:32px;text-decoration:none;margin-right:8px;">${s.initial}</a>`
+          `<a href="${resolveHakunnaFitSocialUrl(s.label, hakunnafitContact)}" style="display:inline-block;width:32px;height:32px;border-radius:50%;background-color:${s.color};color:#ffffff;font-size:12px;font-weight:700;text-align:center;line-height:32px;text-decoration:none;margin-right:8px;">${s.initial}</a>`
       )
       .join("");
     return `
       <p style="margin:0 0 6px;font-size:12px;font-weight:700;color:#ffffff;text-align:center;">Contáctanos</p>
       <p style="margin:0 0 14px;font-size:11.5px;color:#aeb2c4;text-align:center;">
-        <a href="mailto:${HAKUNNAFIT_CONTACT.email}" style="color:#aeb2c4;text-decoration:none;">${HAKUNNAFIT_CONTACT.email}</a>
+        <a href="mailto:${email}" style="color:#aeb2c4;text-decoration:none;">${email}</a>
         &nbsp;·&nbsp;
-        <a href="${HAKUNNAFIT_CONTACT.whatsappLink}" style="color:#aeb2c4;text-decoration:none;">${HAKUNNAFIT_CONTACT.whatsappDisplay}</a>
+        <a href="${whatsappLink}" style="color:#aeb2c4;text-decoration:none;">${whatsappDisplay}</a>
       </p>
       <div style="text-align:center;margin-bottom:6px;">${socialCircles}</div>
     `;
