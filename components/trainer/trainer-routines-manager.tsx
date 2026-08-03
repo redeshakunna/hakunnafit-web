@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import Image from "next/image";
-import { Plus, Trash2, X, Dumbbell, Moon, Library } from "lucide-react";
+import { Plus, Trash2, X, Dumbbell, Moon, Library, ArrowLeft, ImageOff } from "lucide-react";
 import type { TrainerRow } from "@/lib/admin-actions";
 import type { ClientRow } from "@/lib/trainer-clients-actions";
 import {
@@ -86,6 +86,26 @@ export function TrainerRoutinesManager({ trainer, clients }: { trainer: TrainerR
     );
   }
 
+  // "Nueva rutina"/"Editar rutina" ocupa toda la pantalla (reemplaza la
+  // lista) en vez de abrirse encima como ventana emergente — mismo patrón
+  // de edición en línea que ya usa la ficha del cliente (ver
+  // trainer-client-detail.tsx).
+  if (editing && selectedClientId) {
+    return (
+      <RoutineEditorScreen
+        kind={kind}
+        clientId={selectedClientId}
+        clientName={selectedClient?.full_name ?? ""}
+        routine={editing === "new" ? null : editing}
+        onClose={() => setEditing(null)}
+        onSaved={async () => {
+          setEditing(null);
+          await refresh();
+        }}
+      />
+    );
+  }
+
   return (
     <div className="mx-auto max-w-4xl">
       <h1 className="text-xl font-bold text-white">Entrenamientos</h1>
@@ -165,25 +185,11 @@ export function TrainerRoutinesManager({ trainer, clients }: { trainer: TrainerR
           </div>
         ))}
       </div>
-
-      {editing && selectedClientId && (
-        <RoutineEditorModal
-          kind={kind}
-          clientId={selectedClientId}
-          clientName={selectedClient?.full_name ?? ""}
-          routine={editing === "new" ? null : editing}
-          onClose={() => setEditing(null)}
-          onSaved={async () => {
-            setEditing(null);
-            await refresh();
-          }}
-        />
-      )}
     </div>
   );
 }
 
-function RoutineEditorModal({
+function RoutineEditorScreen({
   kind,
   clientId,
   clientName,
@@ -246,21 +252,20 @@ function RoutineEditorModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
-      <div
-        className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-white/10 bg-[#0a0d16] p-6"
-        onClick={(e) => e.stopPropagation()}
+    <div className="mx-auto max-w-2xl">
+      <button
+        onClick={onClose}
+        className="flex items-center gap-1.5 text-xs font-semibold text-white/50 hover:text-white"
       >
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-bold text-white">
-            {routine ? "Editar rutina" : "Nueva rutina"} — {clientName}
-          </h2>
-          <button onClick={onClose} className="text-white/40 hover:text-white">
-            <X size={18} />
-          </button>
-        </div>
+        <ArrowLeft size={14} /> Volver a Entrenamientos
+      </button>
 
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <h1 className="mt-4 text-xl font-bold text-white">
+        {routine ? "Editar rutina" : "Nueva rutina"} — {clientName}
+      </h1>
+
+      <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <label className="col-span-1 flex flex-col gap-1">
             <span className="text-[11px] font-semibold text-white/50">Días/semana</span>
             <input
@@ -836,11 +841,20 @@ function ExercisePickerModal({
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return all.filter((ex) => {
+    const rows = all.filter((ex) => {
       if (q && !ex.name.toLowerCase().includes(q)) return false;
       if (muscleGroup && ex.muscle_group !== muscleGroup) return false;
       if (equipment && ex.equipment !== equipment) return false;
       return true;
+    });
+    // Los ejercicios con foto van siempre primero — así lo que se ve de
+    // entrada al abrir la biblioteca es lo ilustrado (más fácil de
+    // reconocer de un vistazo), sin ocultar los que aún no tienen imagen.
+    return [...rows].sort((a, b) => {
+      const aHasImage = a.image_url ? 0 : 1;
+      const bHasImage = b.image_url ? 0 : 1;
+      if (aHasImage !== bHasImage) return aHasImage - bHasImage;
+      return a.name.localeCompare(b.name);
     });
   }, [all, query, muscleGroup, equipment]);
 
@@ -891,30 +905,30 @@ function ExercisePickerModal({
           {!loading && filtered.length === 0 && (
             <p className="text-xs text-white/40">Sin resultados con esos filtros.</p>
           )}
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {filtered.map((ex) => (
               <button
                 key={ex.id}
                 onClick={() => onSelect(ex)}
-                className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] p-2.5 text-left hover:border-hf-blue/40 hover:bg-white/5"
+                className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-2.5 text-left hover:border-hf-blue/40 hover:bg-white/5"
               >
                 {ex.image_url ? (
                   <Image
                     src={ex.image_url}
                     alt=""
-                    width={36}
-                    height={36}
+                    width={72}
+                    height={72}
                     unoptimized
-                    className="h-9 w-9 shrink-0 rounded-lg object-cover"
+                    className="h-[72px] w-[72px] shrink-0 rounded-xl border border-white/10 object-cover"
                   />
                 ) : (
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/5">
-                    <Dumbbell size={14} className="text-white/30" />
+                  <span className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-xl border border-dashed border-white/10 bg-white/5">
+                    <ImageOff size={20} className="text-white/20" />
                   </span>
                 )}
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-xs font-semibold text-white">{ex.name}</span>
-                  <span className="mt-0.5 flex flex-wrap gap-1">
+                  <span className="mt-1 flex flex-wrap gap-1">
                     <span className="rounded-full bg-white/5 px-1.5 py-0.5 text-[9px] text-white/50">
                       {MUSCLE_GROUP_LABELS[ex.muscle_group] ?? ex.muscle_group}
                     </span>
