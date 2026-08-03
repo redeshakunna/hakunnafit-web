@@ -214,11 +214,14 @@ export function LeadEditModal({
     }
   }
 
-  const canApprove =
-    lead &&
-    lead.plan &&
-    lead.pago_estado === "pagado" &&
-    ["solicitud_recibida", "en_revision", "rechazada"].includes(lead.estado);
+  // Aprobar activa al entrenador con 15 días de prueba gratis (ver
+  // activarEntrenador en admin-actions.ts) — el pago ya NO es requisito para
+  // aprobar desde que se quitó ese candado (tarea "approveSolicitud: quitar
+  // gate de pago obligatorio"). Antes este botón seguía exigiendo
+  // lead.pago_estado === "pagado", lo que dejaba toda solicitud nueva
+  // atascada sin poder aprobarse — corregido acá para que coincida con la
+  // regla real del negocio.
+  const canApprove = lead && lead.plan && ["solicitud_recibida", "en_revision", "rechazada"].includes(lead.estado);
   const hasOnboardingLink = lead && ["aprobada", "en_onboarding", "informacion_completada"].includes(lead.estado);
 
   return (
@@ -650,11 +653,6 @@ export function LeadEditModal({
                     {!lead.plan && (
                       <p className="text-center text-[10.5px] text-white/40">
                         Asigna un plan arriba para poder aprobar esta solicitud.
-                      </p>
-                    )}
-                    {lead.plan && lead.pago_estado !== "pagado" && (
-                      <p className="text-center text-[10.5px] text-white/40">
-                        Falta confirmar el pago del plan (arriba) para poder aprobar esta solicitud.
                       </p>
                     )}
                     {(lead.estado === "solicitud_recibida" || lead.estado === "en_revision") && (
