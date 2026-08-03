@@ -12,7 +12,7 @@
 // real. Cuando se construya el check-off de rutinas y el tracking de grasa
 // corporal, esta pantalla es el lugar natural para sumarlas.
 
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -26,11 +26,12 @@ import {
   CheckCircle2,
   Camera,
   X,
+  CalendarCheck2,
 } from "lucide-react";
 import type { TrainerRow } from "@/lib/admin-actions";
 import { calculateImc } from "@/lib/imc";
 import { daysSinceLastTraining, weeklyTrainingStreak } from "@/lib/training-stats";
-import { IMC_CATEGORY_CLASS, STATUS_META, STATUS_DOT, initials, avatarColor } from "@/lib/client-ui";
+import { IMC_CATEGORY_CLASS, STATUS_META, STATUS_DOT, initials, avatarColor, HORARIOS_ENTRENO } from "@/lib/client-ui";
 import {
   updateOwnClient,
   getOwnClientMeasurements,
@@ -42,6 +43,13 @@ import {
   type EvaluationRow,
 } from "@/lib/trainer-clients-actions";
 import { updateOwnAppointment } from "@/lib/trainer-agenda-actions";
+import type { AppointmentModalidad } from "@/lib/agenda-constants";
+import {
+  proposeSessionPlan,
+  getOwnSessionProposal,
+  cancelSessionProposal,
+  type SessionProposalRow,
+} from "@/lib/session-proposals-actions";
 import type { RoutineRow } from "@/lib/trainer-routines-actions";
 import { registerOwnTrainingLog, getOwnClientTrainingLogs, type TrainingLogRow } from "@/lib/trainer-training-actions";
 import { ClientHojaDeVida } from "@/components/trainer/client-hoja-de-vida";
@@ -313,7 +321,12 @@ export function TrainerClientDetail({
           )}
 
           {tab === "evaluaciones" && (
-            <EvaluacionesTab clientId={client.id} evaluations={evaluations} setEvaluations={setEvaluations} />
+            <EvaluacionesTab
+              clientId={client.id}
+              clientEmail={client.email}
+              evaluations={evaluations}
+              setEvaluations={setEvaluations}
+            />
           )}
 
           {tab === "rutina" && <RutinaTab routines={routines} />}
@@ -673,10 +686,12 @@ function ProgresoTab({
 
 function EvaluacionesTab({
   clientId,
+  clientEmail,
   evaluations,
   setEvaluations,
 }: {
   clientId: string;
+  clientEmail: string | null;
   evaluations: EvaluationRow[];
   setEvaluations: (e: EvaluationRow[]) => void;
 }) {
@@ -695,41 +710,271 @@ function EvaluacionesTab({
   }
 
   return (
-    <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-xs text-white/50">Todas las citas se agendan desde la Agenda.</p>
-        <Link
-          href={`/panel/agenda?clientId=${clientId}&nuevo=1`}
-          className="flex items-center gap-1 rounded-xl bg-hf-blue px-3 py-2 text-xs font-bold text-black"
-        >
-          <CalendarClock size={13} /> Agendar en la Agenda
-        </Link>
+    <div className="mt-4 space-y-4">
+      <SessionProposalPanel clientId={clientId} clientEmail={clientEmail} />
+
+      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs text-white/50">Todas las citas se agendan desde la Agenda.</p>
+          <Link
+            href={`/panel/agenda?clientId=${clientId}&nuevo=1`}
+            className="flex items-center gap-1 rounded-xl bg-hf-blue px-3 py-2 text-xs font-bold text-black"
+          >
+            <CalendarClock size={13} /> Agendar en la Agenda
+          </Link>
+        </div>
+
+        <div className="mt-4 space-y-2">
+          {evaluations.length === 0 && <p className="text-xs text-white/40">Sin evaluaciones agendadas.</p>}
+          {evaluations.map((ev) => (
+            <div key={ev.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2">
+              <span className="text-xs text-white/70">
+                {new Date(ev.scheduled_at).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })}
+              </span>
+              <div className="flex items-center gap-2">
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                    ev.status === "completada" ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"
+                  }`}
+                >
+                  {ev.status === "completada" ? "Completada" : "Pendiente"}
+                </span>
+                {ev.status !== "completada" && (
+                  <button onClick={() => markDone(ev.id)} className="flex items-center gap-1 text-[11px] font-semibold text-white/50 hover:text-white">
+                    <Check size={12} /> Marcar hecha
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const WEEKDAY_OPTIONS: { value: number; label: string }[] = [
+  { value: 1, label: "Lun" },
+  { value: 2, label: "Mar" },
+  { value: 3, label: "Mié" },
+  { value: 4, label: "Jue" },
+  { value: 5, label: "Vie" },
+  { value: 6, label: "Sáb" },
+  { value: 0, label: "Dom" },
+];
+
+/**
+ * Panel "Plan de sesiones" — el entrenador arma una lista de fechas
+ * semanales (días + horario + duración + modalidad + cantidad) y se la
+ * manda al cliente para que la apruebe sesión por sesión desde
+ * /agenda/aprobar/[token] (ver lib/session-proposals-actions.ts). Solo
+ * puede haber una propuesta 'pendiente' a la vez por cliente — mientras
+ * exista, este panel muestra su progreso en vez del formulario.
+ */
+function SessionProposalPanel({ clientId, clientEmail }: { clientId: string; clientEmail: string | null }) {
+  const [proposal, setProposal] = useState<SessionProposalRow | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [weekdays, setWeekdays] = useState<number[]>([]);
+  const [horario, setHorario] = useState(HORARIOS_ENTRENO[0]);
+  const [durationMin, setDurationMin] = useState(60);
+  const [modalidad, setModalidad] = useState<AppointmentModalidad>("presencial");
+  const [count, setCount] = useState(4);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const [isCanceling, startCancel] = useTransition();
+
+  useEffect(() => {
+    let active = true;
+    getOwnSessionProposal(clientId).then((p) => {
+      if (active) {
+        setProposal(p);
+        setLoaded(true);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [clientId]);
+
+  function toggleWeekday(d: number) {
+    setWeekdays((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort((a, b) => a - b)));
+  }
+
+  function submit() {
+    setError(null);
+    startTransition(async () => {
+      const res = await proposeSessionPlan({ clientId, weekdays, horario, durationMin, modalidad, count });
+      if (!res.ok) {
+        setError(res.error ?? "No se pudo enviar la propuesta.");
+        return;
+      }
+      const p = await getOwnSessionProposal(clientId);
+      setProposal(p);
+      setShowForm(false);
+      setWeekdays([]);
+    });
+  }
+
+  function cancel() {
+    if (!proposal) return;
+    startCancel(async () => {
+      await cancelSessionProposal(proposal.id);
+      setProposal(null);
+    });
+  }
+
+  if (!loaded) return null;
+
+  const aprobadas = proposal?.items.filter((i) => i.status === "aprobada").length ?? 0;
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5">
+          <CalendarCheck2 size={14} className="text-hf-blue" />
+          <p className="text-xs font-bold uppercase tracking-wide text-white/40">Plan de sesiones</p>
+        </div>
+        {!proposal && !showForm && (
+          <button
+            onClick={() => setShowForm(true)}
+            className="flex items-center gap-1 rounded-xl bg-hf-blue px-3 py-2 text-xs font-bold text-black"
+          >
+            <Plus size={13} /> Proponer plan de sesiones
+          </button>
+        )}
       </div>
 
-      <div className="mt-4 space-y-2">
-        {evaluations.length === 0 && <p className="text-xs text-white/40">Sin evaluaciones agendadas.</p>}
-        {evaluations.map((ev) => (
-          <div key={ev.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2">
-            <span className="text-xs text-white/70">
-              {new Date(ev.scheduled_at).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })}
-            </span>
-            <div className="flex items-center gap-2">
-              <span
-                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                  ev.status === "completada" ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"
-                }`}
-              >
-                {ev.status === "completada" ? "Completada" : "Pendiente"}
-              </span>
-              {ev.status !== "completada" && (
-                <button onClick={() => markDone(ev.id)} className="flex items-center gap-1 text-[11px] font-semibold text-white/50 hover:text-white">
-                  <Check size={12} /> Marcar hecha
+      {proposal && (
+        <div className="mt-3">
+          <p className="text-xs text-white/60">
+            Propuesta enviada — {aprobadas}/{proposal.items.length} sesiones aprobadas por el cliente.
+          </p>
+          <div className="mt-2 space-y-1.5">
+            {proposal.items.map((it) => (
+              <div key={it.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2">
+                <span className="text-xs text-white/70">
+                  {new Date(it.scheduledAt).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })}
+                </span>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                    it.status === "aprobada"
+                      ? "bg-emerald-500/10 text-emerald-400"
+                      : it.status === "rechazada"
+                        ? "bg-red-500/10 text-red-400"
+                        : "bg-amber-500/10 text-amber-400"
+                  }`}
+                >
+                  {it.status === "aprobada" ? "Aprobada" : it.status === "rechazada" ? "Rechazada" : "Por aprobar"}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 flex items-center gap-3">
+            <a href={proposal.url} target="_blank" rel="noreferrer" className="text-[11px] font-semibold text-hf-blue hover:underline">
+              Ver link de aprobación →
+            </a>
+            <button
+              onClick={cancel}
+              disabled={isCanceling}
+              className="text-[11px] font-semibold text-white/40 hover:text-red-400 disabled:opacity-50"
+            >
+              {isCanceling ? "Cancelando..." : "Cancelar propuesta"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!proposal && showForm && (
+        <div className="mt-3 space-y-3">
+          {!clientEmail && (
+            <p className="text-[11px] text-amber-400">Este cliente no tiene correo registrado — no podrás avisarle de la propuesta.</p>
+          )}
+          <div>
+            <p className="text-[11px] font-semibold text-white/50">Días de la semana</p>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {WEEKDAY_OPTIONS.map((w) => (
+                <button
+                  key={w.value}
+                  type="button"
+                  onClick={() => toggleWeekday(w.value)}
+                  className={`rounded-full px-3 py-1.5 text-[11px] font-semibold ${
+                    weekdays.includes(w.value) ? "bg-hf-blue text-black" : "border border-white/15 text-white/60 hover:text-white"
+                  }`}
+                >
+                  {w.label}
                 </button>
-              )}
+              ))}
             </div>
           </div>
-        ))}
-      </div>
+          <div className="flex flex-wrap gap-2">
+            <select
+              value={horario}
+              onChange={(e) => setHorario(e.target.value)}
+              className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white outline-none"
+            >
+              {HORARIOS_ENTRENO.map((h) => (
+                <option key={h} value={h} className="bg-hf-black">
+                  {h}
+                </option>
+              ))}
+            </select>
+            <select
+              value={durationMin}
+              onChange={(e) => setDurationMin(parseInt(e.target.value, 10))}
+              className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white outline-none"
+            >
+              {[30, 45, 60, 75, 90].map((d) => (
+                <option key={d} value={d} className="bg-hf-black">
+                  {d} min
+                </option>
+              ))}
+            </select>
+            <select
+              value={modalidad}
+              onChange={(e) => setModalidad(e.target.value as AppointmentModalidad)}
+              className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white outline-none"
+            >
+              <option value="presencial" className="bg-hf-black">
+                Presencial
+              </option>
+              <option value="virtual" className="bg-hf-black">
+                Virtual
+              </option>
+            </select>
+            <input
+              type="number"
+              min={1}
+              value={count}
+              onChange={(e) => setCount(parseInt(e.target.value, 10) || 1)}
+              placeholder="# sesiones"
+              className="w-24 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white outline-none"
+            />
+          </div>
+          {error && <p className="text-[11px] text-red-400">{error}</p>}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowForm(false)}
+              className="rounded-xl border border-white/15 px-4 py-2 text-xs font-semibold text-white/70 hover:border-white/30"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={submit}
+              disabled={isPending || !clientEmail || weekdays.length === 0}
+              className="rounded-xl bg-hf-blue px-4 py-2 text-xs font-bold text-black disabled:opacity-40"
+            >
+              {isPending ? "Enviando..." : "Enviar propuesta"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!proposal && !showForm && (
+        <p className="mt-2 text-xs text-white/35">
+          Genera una lista de sesiones semanales para que el cliente las apruebe una por una desde su link.
+        </p>
+      )}
     </div>
   );
 }
