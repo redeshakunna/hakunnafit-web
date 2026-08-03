@@ -27,6 +27,8 @@ import {
   Camera,
   X,
   CalendarCheck2,
+  Link2,
+  Copy,
 } from "lucide-react";
 import type { TrainerRow } from "@/lib/admin-actions";
 import { calculateImc } from "@/lib/imc";
@@ -87,6 +89,16 @@ export function TrainerClientDetail({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isLoggingTraining, startTrainingLog] = useTransition();
+  const [portalLinkCopied, setPortalLinkCopied] = useState(false);
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://hakunnafit.com";
+  const portalUrl = `${siteUrl}/mi-progreso/${client.portal_token}`;
+
+  function copyPortalLink() {
+    navigator.clipboard.writeText(portalUrl);
+    setPortalLinkCopied(true);
+    setTimeout(() => setPortalLinkCopied(false), 2000);
+  }
 
   const meta = STATUS_META[client.status];
   const imc = calculateImc(client.peso_actual, client.altura);
@@ -247,6 +259,51 @@ export function TrainerClientDetail({
                 <CheckCircle2 size={13} /> {trainedToday ? "Entrenó hoy" : "Registrar entrenamiento"}
               </button>
             </div>
+          )}
+        </div>
+      </div>
+
+      {/* Portal del cliente — link permanente y sin login (ver
+          lib/client-portal-actions.ts) donde el cliente ve su hoja de vida,
+          su rutina, aprueba su agenda y sube fotos de avance. Cada cliente
+          tiene el suyo propio (clients.portal_token, generado solo desde la
+          base de datos, sin expiración). */}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-hf-blue/10 text-hf-blue">
+            <Link2 size={14} />
+          </span>
+          <div>
+            <p className="text-xs font-semibold text-white">Portal de {client.full_name.split(" ")[0]}</p>
+            <p className="text-xs text-white/50">Su link para ver su rutina, avances y aprobar su agenda — sin necesidad de contraseña.</p>
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            onClick={copyPortalLink}
+            className="flex items-center gap-1.5 rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/5"
+          >
+            {portalLinkCopied ? (
+              <>
+                <Check size={13} className="text-emerald-400" /> Copiado
+              </>
+            ) : (
+              <>
+                <Copy size={13} /> Copiar link
+              </>
+            )}
+          </button>
+          {client.whatsapp && (
+            <a
+              href={`https://wa.me/${client.whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(
+                `Hola ${client.full_name.split(" ")[0]}, este es tu portal en HakunnaFit para ver tu rutina, tu agenda y subir tus fotos de avance: ${portalUrl}`
+              )}`}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1.5 rounded-full bg-hf-blue px-3 py-1.5 text-xs font-bold text-black"
+            >
+              <MessageCircle size={13} /> Enviar
+            </a>
           )}
         </div>
       </div>

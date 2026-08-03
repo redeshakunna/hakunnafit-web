@@ -170,7 +170,7 @@ export type FeatureKey = (typeof FEATURES)[number];
 // "incluidas / no disponibles" del editor de entrenadores (sobre todo
 // Starter, que necesita mostrar el gancho de upgrade a Pro).
 export const PLAN_FEATURES: Record<PlanKey, FeatureKey[]> = {
-  starter: ["Landing", "Clientes", "Rutinas", "Agenda", "Seguimiento", "Reportes Avanzados"],
+  starter: ["Landing", "Clientes", "Rutinas", "Agenda", "Seguimiento", "Reportes Avanzados", "App Cliente"],
   pro: [
     "Landing",
     "Dashboard",

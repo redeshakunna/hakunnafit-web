@@ -249,6 +249,7 @@ export interface Database {
           calendar_connect_token: string | null;
           calendar_connect_token_expires_at: string | null;
           sesiones_contratadas: number | null;
+          portal_token: string;
           created_at: string;
         };
         Insert: {
@@ -275,6 +276,7 @@ export interface Database {
           calendar_connect_token?: string | null;
           calendar_connect_token_expires_at?: string | null;
           sesiones_contratadas?: number | null;
+          portal_token?: string;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["clients"]["Insert"]>;

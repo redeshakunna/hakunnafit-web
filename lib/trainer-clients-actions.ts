@@ -44,6 +44,7 @@ export interface ClientRow {
   // aplican y los campos genéricos de arriba (objetivo, nivel, etc.) bastan.
   perfil_deportivo: (PerfilRunning | PerfilCrossfit) | null;
   sesiones_contratadas: number | null;
+  portal_token: string;
   created_at: string;
 }
 
