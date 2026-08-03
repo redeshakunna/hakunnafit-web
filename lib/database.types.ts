@@ -460,6 +460,54 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["evaluations"]["Insert"]>;
         Relationships: [];
       };
+      session_proposals: {
+        Row: {
+          id: string;
+          trainer_id: string;
+          client_id: string;
+          status: "pendiente" | "completada" | "cancelada";
+          token: string;
+          token_expires_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          trainer_id: string;
+          client_id: string;
+          status?: "pendiente" | "completada" | "cancelada";
+          token: string;
+          token_expires_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["session_proposals"]["Insert"]>;
+        Relationships: [];
+      };
+      session_proposal_items: {
+        Row: {
+          id: string;
+          proposal_id: string;
+          scheduled_at: string;
+          duration_min: number;
+          modalidad: string;
+          status: "pendiente" | "aprobada" | "rechazada";
+          evaluation_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          proposal_id: string;
+          scheduled_at: string;
+          duration_min?: number;
+          modalidad?: string;
+          status?: "pendiente" | "aprobada" | "rechazada";
+          evaluation_id?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["session_proposal_items"]["Insert"]>;
+        Relationships: [];
+      };
       profiles: {
         Row: {
           id: string;

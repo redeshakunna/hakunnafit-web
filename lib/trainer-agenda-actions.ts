@@ -23,14 +23,22 @@ import {
 } from "./google-calendar";
 import type { RoutineDias } from "./routine-types";
 import { daysSinceLastTraining, isInactivityAlert } from "./training-stats";
-import { AGENDA_WORKING_HOURS, type AppointmentStatus, type AppointmentModalidad } from "./agenda-constants";
-import { sendEmail, type EmailContext, type TrainerBrandingData } from "./mail";
+import {
+  AGENDA_WORKING_HOURS,
+  MODALIDAD_LABEL,
+  formatApptDateTime,
+  trainerBranding,
+  type AppointmentStatus,
+  type AppointmentModalidad,
+} from "./agenda-constants";
+import { sendEmail, type EmailContext } from "./mail";
 
-// AGENDA_WORKING_HOURS, AppointmentStatus, AppointmentModalidad y
-// APPOINTMENT_STATUS_LABELS viven en ./agenda-constants (no son server
-// actions, no pueden ir en un archivo "use server") — se re-exportan los
-// tipos aquí (borrados en runtime, no rompen la regla) para no tener que
-// tocar cada archivo que ya los importaba de aquí como tipo.
+// AGENDA_WORKING_HOURS, AppointmentStatus, AppointmentModalidad,
+// APPOINTMENT_STATUS_LABELS, MODALIDAD_LABEL, formatApptDateTime y
+// trainerBranding viven en ./agenda-constants (no son server actions, no
+// pueden ir en un archivo "use server") — se re-exportan los tipos aquí
+// (borrados en runtime, no rompen la regla) para no tener que tocar cada
+// archivo que ya los importaba de aquí como tipo.
 export type { AppointmentStatus, AppointmentModalidad };
 
 export interface AgendaEventRow {
@@ -69,32 +77,6 @@ async function assertOwnClient(clientId: string): Promise<{ trainer: TrainerRow;
   return { trainer, client: { id: data.id, fullName: data.full_name ?? "Cliente", email: data.email } };
 }
 
-const MODALIDAD_LABEL: Record<AppointmentModalidad, string> = {
-  presencial: "Presencial",
-  virtual: "Virtual",
-};
-
-/** Formatea una fecha ISO en hora de Colombia — misma zona que usa todo el
- * negocio de HakunnaFit, sin importar dónde corra el servidor (Vercel corre
- * en UTC). Se usa tanto en el correo como en la descripción del evento de
- * Google Calendar. */
-function formatApptDateTime(iso: string): { dateLabel: string; timeLabel: string } {
-  const date = new Date(iso);
-  const dateLabel = date.toLocaleDateString("es-CO", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    timeZone: "America/Bogota",
-  });
-  const timeLabel = date.toLocaleTimeString("es-CO", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-    timeZone: "America/Bogota",
-  });
-  return { dateLabel, timeLabel };
-}
-
 /** Título del evento de Google Calendar — antes era solo el título suelto
  * (ej. "Seguimiento"), que no dice con quién ni de qué negocio es la cita. */
 function buildEventSummary(titulo: string | null | undefined, clientName: string): string {
@@ -131,24 +113,6 @@ const APPOINTMENT_EMAIL_COPY: Record<
   reprogramada: { verbo: "reprogramada", trainerVerb: "Se reprogramó una cita", clientVerb: "reprogramó tu cita" },
   cancelada: { verbo: "cancelada", trainerVerb: "Se canceló una cita", clientVerb: "canceló tu cita" },
 };
-
-/** Arma los datos de marca del entrenador para el motor de correos
- * (lib/mail) a partir de su fila de trainers — ver
- * docs/EMAIL_ARCHITECTURE.md. whatsapp usa el público con respaldo al
- * interno, mismo criterio que ya usa la landing (resolvePublicWhatsapp). */
-function trainerBranding(trainer: TrainerRow): TrainerBrandingData {
-  return {
-    businessName: trainer.business_name,
-    logoUrl: trainer.logo_url,
-    colorPrimario: trainer.color_primario,
-    colorSecundario: trainer.color_secundario,
-    whatsapp: trainer.whatsapp_publico?.trim() || trainer.whatsapp,
-    instagram: trainer.instagram,
-    emailPublico: trainer.email_publico,
-    subdominio: trainer.subdominio,
-    avatarUrl: trainer.avatar_url,
-  };
-}
 
 /**
  * Notifica por correo tanto al entrenador como al cliente cuando se crea,
