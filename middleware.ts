@@ -36,7 +36,14 @@ export async function middleware(req: NextRequest) {
   // que usa su propio cookie de admin, nada de sesión Supabase) y lo
   // mandaría a /panel/login por error.
   if (req.nextUrl.pathname === "/panel" || req.nextUrl.pathname.startsWith("/panel/")) {
-    let response = NextResponse.next({ request: req });
+    // OJO: `response` se crea UNA sola vez y las cookies se van agregando
+    // sobre ese mismo objeto (response.cookies.set/.delete). Antes cada
+    // set()/remove() reasignaba `response = NextResponse.next(...)` de cero,
+    // así que cuando Supabase escribía varias cookies seguidas (típico al
+    // refrescar el access token) solo sobrevivía la última — corrompiendo la
+    // sesión silenciosamente. Bug real encontrado en producción: el panel
+    // del entrenador quedaba en ERR_TOO_MANY_REDIRECTS.
+    const response = NextResponse.next({ request: req });
 
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -48,12 +55,10 @@ export async function middleware(req: NextRequest) {
           },
           set(name: string, value: string, options: CookieOptions) {
             req.cookies.set({ name, value, ...options });
-            response = NextResponse.next({ request: req });
             response.cookies.set({ name, value, ...options });
           },
           remove(name: string, options: CookieOptions) {
             req.cookies.set({ name, value: "", ...options });
-            response = NextResponse.next({ request: req });
             response.cookies.set({ name, value: "", ...options });
           },
         },
@@ -64,16 +69,26 @@ export async function middleware(req: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser();
 
+    // Si getUser() refrescó el token (escribió cookies nuevas en `response`)
+    // y acá abajo redirigimos, NextResponse.redirect(url) crea un objeto
+    // totalmente nuevo que NO hereda esas cookies — se perderían y el
+    // navegador seguiría mandando el refresh token viejo (ya usado), que
+    // falla de nuevo en el siguiente request, y así en bucle infinito. Por
+    // eso copiamos explícitamente las cookies de `response` a cada redirect.
     if (!user && !PUBLIC_PANEL_ROUTES.has(req.nextUrl.pathname)) {
       const url = req.nextUrl.clone();
       url.pathname = "/panel/login";
-      return NextResponse.redirect(url);
+      const redirectResponse = NextResponse.redirect(url);
+      response.cookies.getAll().forEach((cookie) => redirectResponse.cookies.set(cookie));
+      return redirectResponse;
     }
 
     if (user && req.nextUrl.pathname === "/panel/login") {
       const url = req.nextUrl.clone();
       url.pathname = "/panel";
-      return NextResponse.redirect(url);
+      const redirectResponse = NextResponse.redirect(url);
+      response.cookies.getAll().forEach((cookie) => redirectResponse.cookies.set(cookie));
+      return redirectResponse;
     }
 
     return response;
@@ -85,7 +100,10 @@ export async function middleware(req: NextRequest) {
   // que si no hay sesión simplemente lo mandamos al home a que busque el
   // link de su entrenador.
   if (req.nextUrl.pathname === "/mi-cuenta" || req.nextUrl.pathname.startsWith("/mi-cuenta/")) {
-    let response = NextResponse.next({ request: req });
+    // Mismo fix que en el bloque de /panel de arriba: un solo `response` que
+    // acumula cookies, y copiarlas al redirect para no perder un refresh de
+    // token justo antes de redirigir (evita el mismo bucle de redirects).
+    const response = NextResponse.next({ request: req });
 
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -97,12 +115,10 @@ export async function middleware(req: NextRequest) {
           },
           set(name: string, value: string, options: CookieOptions) {
             req.cookies.set({ name, value, ...options });
-            response = NextResponse.next({ request: req });
             response.cookies.set({ name, value, ...options });
           },
           remove(name: string, options: CookieOptions) {
             req.cookies.set({ name, value: "", ...options });
-            response = NextResponse.next({ request: req });
             response.cookies.set({ name, value: "", ...options });
           },
         },
@@ -116,7 +132,9 @@ export async function middleware(req: NextRequest) {
     if (!user) {
       const url = req.nextUrl.clone();
       url.pathname = "/";
-      return NextResponse.redirect(url);
+      const redirectResponse = NextResponse.redirect(url);
+      response.cookies.getAll().forEach((cookie) => redirectResponse.cookies.set(cookie));
+      return redirectResponse;
     }
 
     return response;
