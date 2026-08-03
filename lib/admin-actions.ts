@@ -899,7 +899,14 @@ export async function approveSolicitud(leadId: string): Promise<AdminActionResul
     ]);
     const subdominio = firstAvailableSlug(lead.subdominio_propuesto || lead.nombre, taken);
 
-    const { error: trainerError } = await supabase.from("trainers").insert({
+    // Usamos upsert (no insert) porque el trigger on_auth_user_created ya
+    // puede haber creado una fila stub en trainers (id, business_name por
+    // defecto) justo al crear la cuenta de auth de arriba, si ese correo
+    // está en trainer_allowlist (mecanismo del login antiguo). Un insert
+    // plano chocaría con esa fila por la PK y fallaría con "No se pudo crear
+    // el registro del entrenador" — bug real encontrado en la prueba de
+    // flujo completo en producción.
+    const { error: trainerError } = await supabase.from("trainers").upsert({
       id: trainerId,
       business_name: lead.nombre,
       whatsapp: lead.whatsapp,
