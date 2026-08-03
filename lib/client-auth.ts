@@ -164,7 +164,25 @@ export async function setClientPassword(
       password: newPassword,
       email_confirm: true,
     });
-    if (error || !created.user) return { ok: false, error: error?.message ?? "No se pudo crear tu cuenta." };
+    if (error || !created.user) {
+      // Ese correo ya tiene una cuenta de Supabase Auth con otro dueño (otro
+      // entrenador, u otro cliente de otro entrenador) — no la reutilizamos
+      // acá como sí se hace en approveSolicitud/convertLeadToTrainer, porque
+      // ahí el reintento es siempre la misma persona retomando su propia
+      // aprobación a medio camino; acá solo sabemos que el correo coincide,
+      // no que sea la misma persona, y tomar esa cuenta con updateUserById
+      // le cambiaría la contraseña a otro dueño. Mensaje claro en español en
+      // vez de dejar pasar el error crudo de Supabase ("A user with this
+      // email address has already been registered") — encontrado probando
+      // el flujo real con un correo que ya era el del entrenador.
+      const alreadyRegistered = /already.*registered|already exists/i.test(error?.message ?? "");
+      return {
+        ok: false,
+        error: alreadyRegistered
+          ? "Ese correo ya tiene una cuenta en Hakunna Fit. Pídele a tu entrenador que registre otro correo para tu perfil."
+          : (error?.message ?? "No se pudo crear tu cuenta."),
+      };
+    }
 
     const { error: linkError } = await supabase.from("clients").update({ user_id: created.user.id }).eq("id", resolved.id);
     if (linkError) return { ok: false, error: linkError.message };
