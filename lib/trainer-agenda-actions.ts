@@ -445,6 +445,76 @@ async function deleteAppointmentFromGoogle(evaluationId: string): Promise<void> 
   await supabase.from("evaluation_calendar_events").delete().eq("evaluation_id", evaluationId);
 }
 
+/**
+ * Crea una cita real (evaluations) a partir de un item de propuesta de
+ * sesiones ya aprobado por el cliente — ver
+ * lib/public-session-proposal-actions.ts. Mismo camino que
+ * createOwnAppointment (sync a Google Calendar + Meet automático si es
+ * virtual + correo de confirmación a entrenador y cliente), pero sin pasar
+ * por requireTrainer(): quien aprueba acá es el cliente desde un link
+ * público sin sesión, así que el caller ya validó el token/item antes de
+ * llamar esto y pasa trainerId/clientId directo.
+ */
+export async function createAppointmentFromProposalItem(input: {
+  trainerId: string;
+  clientId: string;
+  scheduledAt: string;
+  durationMin: number;
+  modalidad: AppointmentModalidad;
+  titulo?: string | null;
+}): Promise<AdminActionResult & { id?: string }> {
+  const supabase = getSupabaseAdmin();
+  const { data: trainerRow } = await supabase.from("trainers").select("*").eq("id", input.trainerId).maybeSingle();
+  const { data: clientRow } = await supabase.from("clients").select("id, full_name, email").eq("id", input.clientId).maybeSingle();
+  if (!trainerRow || !clientRow) return { ok: false, error: "Entrenador o cliente no encontrado." };
+  const trainer = trainerRow as unknown as TrainerRow;
+  const client: OwnClientBasics = { id: clientRow.id, fullName: clientRow.full_name ?? "Cliente", email: clientRow.email };
+
+  const { data, error } = await supabase
+    .from("evaluations")
+    .insert({
+      client_id: input.clientId,
+      trainer_id: input.trainerId,
+      scheduled_at: input.scheduledAt,
+      duracion_min: input.durationMin,
+      titulo: input.titulo || "Sesión de entrenamiento",
+      modalidad: input.modalidad,
+      status: "pendiente",
+    })
+    .select("id")
+    .single();
+  if (error || !data) return { ok: false, error: error?.message ?? "No se pudo agendar la sesión." };
+
+  const start = new Date(input.scheduledAt);
+  const end = new Date(start.getTime() + input.durationMin * 60_000);
+  const meetLink = await syncAppointmentToGoogle(data.id, input.clientId, input.trainerId, {
+    summary: buildEventSummary(input.titulo, client.fullName),
+    description: buildEventDescription({
+      clientName: client.fullName,
+      businessName: trainer.business_name,
+      modalidad: input.modalidad,
+    }),
+    startIso: start.toISOString(),
+    endIso: end.toISOString(),
+    clientEmail: client.email,
+    requestMeetLink: input.modalidad === "virtual",
+  });
+  if (meetLink) await supabase.from("evaluations").update({ meet_link: meetLink }).eq("id", data.id);
+
+  await supabase
+    .from("trainer_activity")
+    .insert({ trainer_id: input.trainerId, type: "cita_agendada", title: "Sesión aprobada por el cliente" });
+
+  await notifyAppointment("creada", trainer, client, {
+    titulo: input.titulo,
+    scheduledAt: input.scheduledAt,
+    modalidad: input.modalidad,
+    meetLink,
+  });
+
+  return { ok: true, id: data.id };
+}
+
 export interface CreateAppointmentInput {
   clientId: string;
   scheduledAt: string;
