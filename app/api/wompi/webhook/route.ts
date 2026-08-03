@@ -82,10 +82,13 @@ export async function POST(req: NextRequest) {
   }
 
   // Cobro recurrente de un entrenador ya activo (recordatorios de 5/3/0 días
-  // — ver syncUpcomingChargeNotifications en lib/notifications.ts). Es un
-  // pago único por Wompi, no una suscripción con cobro automático: si queda
-  // aprobado, solo avisamos a Nando para que actualice manualmente
-  // proximo_cobro — se mantiene la decisión de dejar la renovación manual.
+  // — ver syncUpcomingChargeNotifications en lib/notifications.ts, y el
+  // bloqueo automático por impago en lib/subscription-lifecycle.ts). Es un
+  // pago único por Wompi, no una suscripción con cobro automático real, pero
+  // el pago sí dispara dos cosas solas, sin intervención de Nando: (1) avanza
+  // proximo_cobro un mes desde la fecha que vencía, y (2) si el panel estaba
+  // "bloqueado" por este mismo impago, lo reactiva a "activo". Nunca toca
+  // "suspendido" — esa sigue siendo la palanca manual de Nando.
   if (transaction.reference.startsWith("hf-trainer-")) {
     if (transaction.status === "APPROVED") {
       const match = transaction.reference.match(/^hf-trainer-([0-9a-f-]{36})-/i);
@@ -95,19 +98,35 @@ export async function POST(req: NextRequest) {
         const admin = getSupabaseAdmin();
         const { data: trainer } = await admin
           .from("trainers")
-          .select("business_name")
+          .select("business_name, dashboard_access, proximo_cobro")
           .eq("id", trainerId)
           .maybeSingle();
 
-        await createNotification({
-          type: "estado_cambio",
-          title: `Pago de cobro recibido: ${trainer?.business_name ?? "Entrenador"}`,
-          message: `${
-            trainer?.business_name ?? "Un entrenador"
-          } pagó su cobro por Wompi. Actualiza manualmente su próximo cobro desde Entrenadores.`,
-          link: "/panel-hakunna/entrenadores",
-          trainerId,
-        });
+        if (trainer) {
+          const base = trainer.proximo_cobro ? new Date(`${trainer.proximo_cobro}T00:00:00`) : new Date();
+          const nuevoProximoCobro = new Date(base);
+          nuevoProximoCobro.setMonth(nuevoProximoCobro.getMonth() + 1);
+
+          const wasBlocked = trainer.dashboard_access === "bloqueado";
+
+          await admin
+            .from("trainers")
+            .update({
+              proximo_cobro: nuevoProximoCobro.toISOString().slice(0, 10),
+              ...(wasBlocked ? { dashboard_access: "activo" as const } : {}),
+            })
+            .eq("id", trainerId);
+
+          await createNotification({
+            type: "estado_cambio",
+            title: `Pago de cobro recibido: ${trainer.business_name}`,
+            message: `${trainer.business_name} pagó su cobro por Wompi. Su próximo cobro se movió automáticamente al ${nuevoProximoCobro
+              .toISOString()
+              .slice(0, 10)}.${wasBlocked ? " Su panel, que estaba bloqueado por impago, ya quedó reactivado." : ""}`,
+            link: "/panel-hakunna/entrenadores",
+            trainerId,
+          });
+        }
       }
     }
 

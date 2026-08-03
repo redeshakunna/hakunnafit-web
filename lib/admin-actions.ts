@@ -5,6 +5,7 @@ import { getSupabaseAdmin } from "./supabase-admin";
 import { isAdminAuthenticated } from "./admin-auth";
 import {
   PLAN_PRICE_COP,
+  TRIAL_DAYS,
   planLabel,
   landingStatusLabel,
   dashboardStatusLabel,
@@ -164,6 +165,7 @@ export interface TrainerRow {
   landing_draft_updated_at: string | null;
   landing_published_at: string | null;
   planes_ofrecidos: PlanOfrecido[];
+  contrato_inicio: string | null;
 }
 
 export interface TrainerActivityRow {
@@ -836,12 +838,13 @@ export async function approveSolicitud(leadId: string): Promise<AdminActionResul
     return { ok: false, error: "Esta solicitud no tiene un plan asignado. Asígnalo antes de aprobar." };
   }
 
-  if (lead.pago_estado !== "pagado") {
-    return {
-      ok: false,
-      error: "Todavía no se ha confirmado el pago de esta solicitud. Genera el link de pago y espera la confirmación antes de aprobar.",
-    };
-  }
+  // Antes se exigía lead.pago_estado === "pagado" para poder aprobar — se
+  // quitó ese candado a propósito: ahora la cuenta se activa con 15 días de
+  // prueba gratis (TRIAL_DAYS en catalog.ts) sin necesidad de cobrar primero;
+  // el primer cobro real se genera solo al terminar el trial (ver
+  // activarEntrenador, que fija proximo_cobro = hoy + TRIAL_DAYS). El estado
+  // de pago del lead se sigue guardando por si el entrenador decide pagar
+  // por adelantado, pero ya no bloquea la aprobación.
 
   // Si ya existe un entrenador borrador ligado a esta solicitud (ej: un
   // reintento tras un error a mitad de camino), lo reutilizamos en vez de
@@ -1548,9 +1551,14 @@ export async function getLeadForRevision(
  * Nando manualmente después, desde Administrar Landing) — landing queda
  * "pendiente" hasta que él la publique.
  *
- * También fija el primer proximo_cobro a 30 días desde hoy, porque
- * approveSolicitud no lo hace (en ese punto todavía no había plan
- * confirmado por completo ni fecha de activación real).
+ * También arranca aquí el ciclo comercial de la cuenta: sella
+ * contrato_inicio = hoy y fija el primer proximo_cobro a TRIAL_DAYS (15)
+ * días desde hoy — ese es el período de prueba gratis. Al vencer ese primer
+ * proximo_cobro sin pago, el cron de lib/subscription-lifecycle.ts bloquea
+ * el panel solo; si paga, el webhook de Wompi avanza proximo_cobro +1 mes
+ * automáticamente (ver app/api/wompi/webhook/route.ts, rama "hf-trainer-").
+ * No se hace antes en approveSolicitud porque en ese punto todavía no había
+ * plan confirmado por completo ni fecha de activación real.
  */
 export async function activarEntrenador(leadId: string): Promise<AdminActionResult> {
   await requireAdmin();
@@ -1582,8 +1590,9 @@ export async function activarEntrenador(leadId: string): Promise<AdminActionResu
   const plan = trainer.plan as PlanKey | null;
   if (!plan) return { ok: false, error: "Este entrenador no tiene un plan asignado." };
 
-  const proximoCobro = new Date();
-  proximoCobro.setDate(proximoCobro.getDate() + 30);
+  const hoy = new Date();
+  const proximoCobro = new Date(hoy);
+  proximoCobro.setDate(proximoCobro.getDate() + TRIAL_DAYS);
 
   const { error: updateError } = await supabase
     .from("trainers")
@@ -1591,6 +1600,7 @@ export async function activarEntrenador(leadId: string): Promise<AdminActionResu
       landing_status: plan === "starter" ? "publicada" : "pendiente",
       dashboard_access: plan === "starter" ? "sin_acceso" : "activo",
       proximo_cobro: proximoCobro.toISOString().slice(0, 10),
+      contrato_inicio: hoy.toISOString().slice(0, 10),
     })
     .eq("id", trainer.id);
   if (updateError) return { ok: false, error: updateError.message };

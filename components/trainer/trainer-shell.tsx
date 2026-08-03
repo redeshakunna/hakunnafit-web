@@ -22,9 +22,10 @@ import {
 } from "lucide-react";
 import { logoutTrainer } from "@/lib/trainer-auth";
 import type { TrainerRow } from "@/lib/admin-actions";
-import { hasFeature, minPlanForFeature } from "@/lib/admin-helpers";
+import { hasFeature, minPlanForFeature, isBlockedTrainer } from "@/lib/admin-helpers";
 import { planLabel, type FeatureKey } from "@/lib/catalog";
 import { TrainerNotificationsBell } from "@/components/trainer/trainer-notifications-bell";
+import { TrainerAccessLocked } from "@/components/trainer/trainer-access-locked";
 
 export type TrainerSection =
   | "resumen"
@@ -99,6 +100,15 @@ export function TrainerShell({
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+
+  // El panel completo se reemplaza por una pantalla de bloqueo total cuando
+  // el entrenador está "bloqueado" (automático, por impago — ver
+  // lib/subscription-lifecycle.ts) o "suspendido" (manual, palanca de Nando)
+  // — se revisa de forma síncrona a partir del trainer ya cargado, sin
+  // parpadeo del contenido normal.
+  if (isBlockedTrainer(trainer)) {
+    return <TrainerAccessLocked />;
+  }
 
   const landingUrl = trainer.subdominio ? `https://${trainer.subdominio}.hakunnafit.com` : null;
 

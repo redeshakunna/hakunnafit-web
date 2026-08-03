@@ -1,5 +1,5 @@
 import type { TrainerRow } from "./admin-actions";
-import { PLAN_FEATURES, type FeatureKey, type PlanKey } from "./catalog";
+import { PLAN_FEATURES, TRIAL_DAYS, CONTRACT_MIN_MONTHS, type FeatureKey, type PlanKey } from "./catalog";
 
 /**
  * Un entrenador cuenta como "activo" (para KPIs e ingresos) si:
@@ -78,3 +78,46 @@ export const paymentStatusLabels: Record<PaymentStatus, string> = {
   sin_datos: "Sin datos",
   suspendido: "Suspendido",
 };
+
+/**
+ * ¿Está el entrenador dentro de su período de prueba gratis? Se calcula
+ * siempre a partir de contrato_inicio (fecha real de activación) +
+ * TRIAL_DAYS — no depende de proximo_cobro, así que sigue siendo correcto
+ * aunque el ciclo de cobro ya haya avanzado varias veces.
+ */
+export function isInTrial(t: Pick<TrainerRow, "contrato_inicio">): boolean {
+  if (!t.contrato_inicio) return false;
+  return new Date() < trialEndsAt(t)!;
+}
+
+/** Fecha (Date) en que termina el trial de 15 días, o null si nunca se activó. */
+export function trialEndsAt(t: Pick<TrainerRow, "contrato_inicio">): Date | null {
+  if (!t.contrato_inicio) return null;
+  const d = new Date(`${t.contrato_inicio}T00:00:00`);
+  d.setDate(d.getDate() + TRIAL_DAYS);
+  return d;
+}
+
+/**
+ * Fecha hasta la que el entrenador está comprometido por el contrato mínimo
+ * (6 meses desde la activación). Es puramente informativo — HakunnaFit no
+ * bloquea nada automáticamente por esto, solo se muestra en Mi Negocio y en
+ * el editor de entrenador para dejar claro el acuerdo comercial.
+ */
+export function contractCommittedUntil(t: Pick<TrainerRow, "contrato_inicio">): Date | null {
+  if (!t.contrato_inicio) return null;
+  const d = new Date(`${t.contrato_inicio}T00:00:00`);
+  d.setMonth(d.getMonth() + CONTRACT_MIN_MONTHS);
+  return d;
+}
+
+/**
+ * ¿Debe verse la pantalla de bloqueo total en /panel? Cubre tanto el
+ * bloqueo automático por impago ("bloqueado", lo pone el cron de
+ * subscription-lifecycle.ts) como la suspensión manual de Nando
+ * ("suspendido", el botón del editor de entrenador) — ambos casos cierran
+ * el panel por completo, la diferencia es solo el mensaje que se muestra.
+ */
+export function isBlockedTrainer(t: Pick<TrainerRow, "dashboard_access">): boolean {
+  return t.dashboard_access === "suspendido" || t.dashboard_access === "bloqueado";
+}

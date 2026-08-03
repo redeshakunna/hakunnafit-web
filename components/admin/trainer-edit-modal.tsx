@@ -42,7 +42,15 @@ import {
   type FeatureKey,
 } from "@/lib/catalog";
 import { fmtCOP, fmtDate, timeAgo, Pill, planTone } from "./admin-ui";
-import { getPaymentStatus, isActiveTrainer, isSuspendedTrainer, paymentStatusLabels } from "@/lib/admin-helpers";
+import {
+  getPaymentStatus,
+  isActiveTrainer,
+  isSuspendedTrainer,
+  paymentStatusLabels,
+  isInTrial,
+  trialEndsAt,
+  contractCommittedUntil,
+} from "@/lib/admin-helpers";
 
 type TabKey = "info" | "suscripcion" | "actividad";
 
@@ -164,6 +172,9 @@ export function TrainerEditModal({
 
   const paymentStatus = getPaymentStatus(trainer.proximo_cobro, isSuspendedTrainer(trainer));
   const clientCap = trainer.plan ? PLAN_CLIENT_CAP[trainer.plan] : null;
+  const enTrial = isInTrial(trainer);
+  const finDelTrial = trialEndsAt(trainer);
+  const comprometidoHasta = contractCommittedUntil(trainer);
 
   return (
     <AnimatePresence>
@@ -473,6 +484,24 @@ export function TrainerEditModal({
               {/* Tab: Suscripción */}
               {tab === "suscripcion" && (
                 <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                  {enTrial && finDelTrial && (
+                    <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 sm:col-span-2">
+                      <span className="block text-[11px] text-white/50">Período de prueba</span>
+                      <span className="mt-0.5 block text-sm font-semibold text-emerald-300">
+                        Gratis hasta el {fmtDate(finDelTrial.toISOString())} — el primer cobro se genera ese día.
+                      </span>
+                    </div>
+                  )}
+
+                  {comprometidoHasta && (
+                    <div className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2">
+                      <span className="block text-[11px] text-white/50">Contrato mínimo (informativo)</span>
+                      <span className="mt-0.5 block text-sm font-semibold text-white">
+                        Comprometido hasta {fmtDate(comprometidoHasta.toISOString())}
+                      </span>
+                    </div>
+                  )}
+
                   <label className="block">
                     <span className="mb-1 block text-[11px] text-white/50">Plan</span>
                     <select

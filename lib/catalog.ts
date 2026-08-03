@@ -30,6 +30,16 @@ export const PLAN_CLIENT_CAP: Record<PlanKey, number> = {
   elite: 30,
 };
 
+// Reglas comerciales del ciclo de vida de la suscripción de un entrenador
+// (ver lib/subscription-lifecycle.ts para la lógica que las aplica):
+// - TRIAL_DAYS: días de acceso gratis desde que se activa la cuenta
+//   (trainers.contrato_inicio) antes de que se genere el primer cobro real.
+// - CONTRACT_MIN_MONTHS: compromiso mínimo informativo — no bloquea nada por
+//   sí solo, solo se muestra como "comprometido hasta" en Mi Negocio y en el
+//   editor de entrenador para que quede claro el acuerdo comercial.
+export const TRIAL_DAYS = 15;
+export const CONTRACT_MIN_MONTHS = 6;
+
 // Los 3 modelos de landing estandarizados para el plan Starter. El propio
 // entrenador elige uno al llenar el formulario público (ver lead-modal.tsx);
 // la elección viaja con el lead y se copia al entrenador al aprobarlo

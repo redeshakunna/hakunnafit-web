@@ -26,7 +26,16 @@ import {
   type DashboardStatusKey,
   type PlanKey,
 } from "@/lib/catalog";
-import { hasFeature, minPlanForFeature, isSuspendedTrainer, getPaymentStatus, paymentStatusLabels } from "@/lib/admin-helpers";
+import {
+  hasFeature,
+  minPlanForFeature,
+  isSuspendedTrainer,
+  getPaymentStatus,
+  paymentStatusLabels,
+  isInTrial,
+  trialEndsAt,
+  contractCommittedUntil,
+} from "@/lib/admin-helpers";
 
 const cop = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
 
@@ -55,10 +64,24 @@ export function TrainerBusinessOverview({
   const nextPlan: PlanKey | null = plan === "starter" ? "pro" : plan === "pro" ? "elite" : null;
   const newFeatures = nextPlan ? PLAN_FEATURES[nextPlan].filter((f) => !PLAN_FEATURES[plan].includes(f)) : [];
 
+  const enTrial = isInTrial(trainer);
+  const finDelTrial = trialEndsAt(trainer);
+  const comprometidoHasta = contractCommittedUntil(trainer);
+
   return (
     <div className="mx-auto max-w-5xl">
       <h1 className="text-xl font-bold text-white">Mi Negocio</h1>
       <p className="mt-1 text-sm text-white/50">El estado de tu cuenta, tu plan y tu operación en Hakunna Fit.</p>
+
+      {enTrial && finDelTrial && (
+        <div className="mt-4 flex items-center gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 px-5 py-3">
+          <Clock size={16} className="shrink-0 text-emerald-400" />
+          <p className="text-sm text-emerald-300">
+            Estás en tu período de prueba gratis hasta el <strong>{formatDate(finDelTrial.toISOString())}</strong>. Tu
+            primer cobro se generará ese día.
+          </p>
+        </div>
+      )}
 
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
         {/* Plan actual */}
@@ -77,6 +100,11 @@ export function TrainerBusinessOverview({
             {suspended ? <AlertTriangle size={12} /> : <CheckCircle2 size={12} />}
             {suspended ? "Suspendido" : "Activo"}
           </span>
+          {comprometidoHasta && (
+            <p className="mt-2 text-[11px] text-white/30">
+              Contrato mínimo comprometido hasta {formatDate(comprometidoHasta.toISOString())}.
+            </p>
+          )}
         </div>
 
         {/* Próximo pago */}
