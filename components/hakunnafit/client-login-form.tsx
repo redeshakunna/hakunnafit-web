@@ -117,6 +117,7 @@ export function ClientLoginForm({ subdominio, accentColor }: { subdominio: strin
               onChange={(e) => setDocumento(e.target.value)}
               required
               autoFocus
+              autoComplete="off"
               className={inputClass}
               placeholder="Tu cédula, la misma que le diste a tu entrenador"
             />
@@ -139,6 +140,7 @@ export function ClientLoginForm({ subdominio, accentColor }: { subdominio: strin
               onChange={(e) => setPassword(e.target.value)}
               required
               autoFocus
+              autoComplete="current-password"
               className={inputClass}
             />
           </label>
@@ -178,6 +180,7 @@ export function ClientLoginForm({ subdominio, accentColor }: { subdominio: strin
               required
               autoFocus
               inputMode="numeric"
+              autoComplete="one-time-code"
               className={inputClass}
               placeholder="123456"
             />
@@ -190,6 +193,7 @@ export function ClientLoginForm({ subdominio, accentColor }: { subdominio: strin
               onChange={(e) => setNewPassword(e.target.value)}
               required
               minLength={6}
+              autoComplete="new-password"
               className={inputClass}
               placeholder="Mínimo 6 caracteres"
             />
