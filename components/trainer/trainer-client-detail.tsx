@@ -32,6 +32,8 @@ import type { TrainerRow } from "@/lib/admin-actions";
 import { calculateImc } from "@/lib/imc";
 import { daysSinceLastTraining, weeklyTrainingStreak } from "@/lib/training-stats";
 import { IMC_CATEGORY_CLASS, STATUS_META, STATUS_DOT, initials, avatarColor, HORARIOS_ENTRENO } from "@/lib/client-ui";
+import { perfilShapeForBranch, type PerfilRunning } from "@/lib/client-profile-types";
+import { branchTheme } from "@/lib/branch-theme";
 import {
   updateOwnClient,
   getOwnClientMeasurements,
@@ -89,6 +91,10 @@ export function TrainerClientDetail({
   const meta = STATUS_META[client.status];
   const imc = calculateImc(client.peso_actual, client.altura);
   const since = new Date(client.created_at).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" });
+  const rama = perfilShapeForBranch(trainer.especialidad);
+  const theme = branchTheme(trainer.especialidad);
+  const perfil = client.perfil_deportivo;
+  const runningPerfil = perfil && "objetivoCarrera" in perfil ? (perfil as PerfilRunning) : null;
 
   const pesoDelta = useMemo(() => {
     const withWeight = measurements.filter((m) => m.peso != null);
@@ -128,6 +134,7 @@ export function TrainerClientDetail({
       const diasPorSemana = form.diasPorSemana ? parseInt(form.diasPorSemana, 10) : null;
       const pesoActual = form.pesoActual ? parseFloat(form.pesoActual) : null;
       const altura = form.altura ? parseFloat(form.altura) : null;
+      const perfilDeportivo = rama === "running" ? form.perfilRunning : rama === "crossfit" ? form.perfilCrossfit : null;
       const res = await updateOwnClient(client.id, {
         fullName: form.fullName,
         email: form.email,
@@ -143,6 +150,7 @@ export function TrainerClientDetail({
         horarioEntreno: form.horarioEntreno,
         status: form.status,
         pausadoMotivo: form.pausadoMotivo,
+        perfilDeportivo,
       });
       if (!res.ok) return setError(res.error ?? "No se pudo guardar.");
       setClient({
@@ -162,6 +170,7 @@ export function TrainerClientDetail({
         status: form.status,
         pausado_motivo: form.status === "pausado" ? form.pausadoMotivo || null : null,
         pausado_en: form.status === "pausado" ? new Date().toISOString().slice(0, 10) : null,
+        perfil_deportivo: perfilDeportivo,
       });
       setEditing(false);
     });
@@ -173,59 +182,73 @@ export function TrainerClientDetail({
         <ArrowLeft size={14} /> Volver a clientes
       </Link>
 
-      <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
-        <div className="flex items-start gap-4">
-          <div className="relative shrink-0">
-            <div className={`flex h-16 w-16 items-center justify-center rounded-full text-xl font-bold ${avatarColor(client.id)}`}>
-              {initials(client.full_name)}
+      {/* Hero personalizado por rama del entrenador — foto de stock de la
+          disciplina (running/crossfit/gym) con degradado de marca y efecto
+          "parallax" vía bg-fixed (CSS puro, ver lib/branch-theme.ts). Antes
+          esta cabecera era idéntica para cualquier entrenador; ahora
+          refuerza visualmente en qué disciplina está el cliente. */}
+      <div
+        className="relative mt-4 overflow-hidden rounded-3xl border border-white/10 bg-cover bg-center bg-fixed"
+        style={{ backgroundImage: `url(${theme.heroImage})` }}
+      >
+        <div className={`absolute inset-0 ${theme.overlayClassName}`} />
+        <div className="relative flex flex-wrap items-start justify-between gap-4 p-5 sm:p-6">
+          <div className="flex items-start gap-4">
+            <div className="relative shrink-0">
+              <div className={`flex h-16 w-16 items-center justify-center rounded-full text-xl font-bold ${avatarColor(client.id)}`}>
+                {initials(client.full_name)}
+              </div>
+              <span
+                className={`absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full border-2 border-hf-black ${STATUS_DOT[client.status]}`}
+              />
             </div>
-            <span
-              className={`absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full border-2 border-hf-black ${STATUS_DOT[client.status]}`}
-            />
-          </div>
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-xl font-bold text-white">{client.full_name}</h1>
-              <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${meta.className}`}>{meta.label}</span>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl font-bold text-white">{client.full_name}</h1>
+                <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${meta.className}`}>{meta.label}</span>
+                <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${theme.accentBadgeClassName}`}>
+                  {theme.label}
+                </span>
+              </div>
+              <p className={`mt-1 text-sm font-medium ${theme.accentTextClassName}`}>{client.objetivo || "Sin objetivo definido"}</p>
+              <p className="mt-1 text-xs text-white/50">Cliente desde {since}</p>
             </div>
-            <p className="mt-1 text-sm font-medium text-hf-blue">{client.objetivo || "Sin objetivo definido"}</p>
-            <p className="mt-1 text-xs text-white/40">Cliente desde {since}</p>
           </div>
-        </div>
 
-        {!editing && (
-          <div className="flex flex-wrap items-center gap-2">
-            {client.whatsapp && (
-              <a
-                href={`https://wa.me/${client.whatsapp.replace(/\D/g, "")}`}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-1.5 rounded-full border border-white/15 px-3 py-2 text-xs font-semibold text-white/80 hover:border-white/30 hover:text-white"
+          {!editing && (
+            <div className="flex flex-wrap items-center gap-2">
+              {client.whatsapp && (
+                <a
+                  href={`https://wa.me/${client.whatsapp.replace(/\D/g, "")}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1.5 rounded-full border border-white/20 bg-black/30 px-3 py-2 text-xs font-semibold text-white/90 backdrop-blur hover:border-white/40 hover:text-white"
+                >
+                  <MessageCircle size={13} /> WhatsApp
+                </a>
+              )}
+              <button
+                onClick={openEdit}
+                className="flex items-center gap-1.5 rounded-full border border-white/20 bg-black/30 px-3 py-2 text-xs font-semibold text-white/90 backdrop-blur hover:border-white/40 hover:text-white"
               >
-                <MessageCircle size={13} /> WhatsApp
-              </a>
-            )}
-            <button
-              onClick={openEdit}
-              className="flex items-center gap-1.5 rounded-full border border-white/15 px-3 py-2 text-xs font-semibold text-white/80 hover:border-white/30 hover:text-white"
-            >
-              <Pencil size={13} /> Editar
-            </button>
-            <Link
-              href={`/panel/agenda?clientId=${client.id}&nuevo=1`}
-              className="flex items-center gap-1.5 rounded-full bg-hf-blue px-3 py-2 text-xs font-bold text-black"
-            >
-              <CalendarClock size={13} /> Agendar evaluación
-            </Link>
-            <button
-              onClick={registerToday}
-              disabled={isLoggingTraining || trainedToday}
-              className="flex items-center gap-1.5 rounded-full bg-emerald-500 px-3 py-2 text-xs font-bold text-black disabled:opacity-50"
-            >
-              <CheckCircle2 size={13} /> {trainedToday ? "Entrenó hoy" : "Registrar entrenamiento"}
-            </button>
-          </div>
-        )}
+                <Pencil size={13} /> Editar
+              </button>
+              <Link
+                href={`/panel/agenda?clientId=${client.id}&nuevo=1`}
+                className="flex items-center gap-1.5 rounded-full bg-hf-blue px-3 py-2 text-xs font-bold text-black"
+              >
+                <CalendarClock size={13} /> Agendar evaluación
+              </Link>
+              <button
+                onClick={registerToday}
+                disabled={isLoggingTraining || trainedToday}
+                className="flex items-center gap-1.5 rounded-full bg-emerald-500 px-3 py-2 text-xs font-bold text-black disabled:opacity-50"
+              >
+                <CheckCircle2 size={13} /> {trainedToday ? "Entrenó hoy" : "Registrar entrenamiento"}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {editing ? (
@@ -237,7 +260,7 @@ export function TrainerClientDetail({
             </button>
           </div>
 
-          <ClientFormFields form={form} setForm={setForm} planesOfrecidos={trainer.planes_ofrecidos} rama={null} />
+          <ClientFormFields form={form} setForm={setForm} planesOfrecidos={trainer.planes_ofrecidos} rama={rama} />
 
           {error && <p className="mt-3 text-xs text-red-400">{error}</p>}
 
@@ -284,11 +307,18 @@ export function TrainerClientDetail({
               value={client.peso_actual != null ? `${client.peso_actual} kg` : "—"}
               hint={pesoDelta != null ? `${pesoDelta > 0 ? "+" : ""}${pesoDelta} kg desde el inicio` : undefined}
             />
-            <div className={`rounded-2xl border border-white/10 p-4 ${imc ? IMC_CATEGORY_CLASS[imc.category] : "bg-white/[0.03]"}`}>
-              <p className="text-[11px] uppercase tracking-wide text-white/50">IMC</p>
-              <p className="mt-1.5 text-xl font-bold text-white">{imc ? imc.value : "—"}</p>
-              {imc && <p className="mt-0.5 text-[11px] text-white/60">{imc.label}</p>}
-            </div>
+            {runningPerfil ? (
+              <>
+                <MiniKpi label="Ritmo objetivo" value={runningPerfil.ritmoObjetivo || "—"} />
+                <MiniKpi label="Km/semana" value={runningPerfil.kilometrajeSemanal != null ? String(runningPerfil.kilometrajeSemanal) : "—"} />
+              </>
+            ) : (
+              <div className={`rounded-2xl border border-white/10 p-4 ${imc ? IMC_CATEGORY_CLASS[imc.category] : "bg-white/[0.03]"}`}>
+                <p className="text-[11px] uppercase tracking-wide text-white/50">IMC</p>
+                <p className="mt-1.5 text-xl font-bold text-white">{imc ? imc.value : "—"}</p>
+                {imc && <p className="mt-0.5 text-[11px] text-white/60">{imc.label}</p>}
+              </div>
+            )}
             <MiniKpi
               label="Último entreno"
               value={daysSinceTraining == null ? "—" : daysSinceTraining === 0 ? "Hoy" : daysSinceTraining === 1 ? "Ayer" : `Hace ${daysSinceTraining} días`}

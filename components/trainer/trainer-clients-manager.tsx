@@ -928,6 +928,14 @@ export function ClientFormFields({
                   className="input"
                 />
               </Field>
+              <Field label="Ritmo objetivo">
+                <input
+                  value={form.perfilRunning.ritmoObjetivo ?? ""}
+                  onChange={(e) => setForm({ ...form, perfilRunning: { ...form.perfilRunning, ritmoObjetivo: e.target.value || null } })}
+                  placeholder="Ej. 5:30 min/km"
+                  className="input"
+                />
+              </Field>
               <Field label="Superficie habitual">
                 <select
                   value={form.perfilRunning.superficieHabitual ?? ""}

@@ -20,6 +20,11 @@ export interface PerfilRunning {
   superficieHabitual: string | null;
   lesiones: string | null;
   usaPulsometroOReloj: boolean | null;
+  // Texto libre: "5:30 min/km" — el indicador clave de un corredor no es el
+  // IMC (una fórmula pensada para composición corporal genérica), es el
+  // ritmo al que entrena/compite. Junto con kilometrajeSemanal reemplaza al
+  // IMC en la hoja de vida y la ficha del cliente para clientes de running.
+  ritmoObjetivo: string | null;
 }
 
 export interface PerfilCrossfit {
@@ -48,6 +53,7 @@ export function emptyPerfilRunning(): PerfilRunning {
     superficieHabitual: null,
     lesiones: null,
     usaPulsometroOReloj: null,
+    ritmoObjetivo: null,
   };
 }
 

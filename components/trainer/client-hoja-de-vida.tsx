@@ -30,6 +30,11 @@ export function ClientHojaDeVida({ client }: { client: ClientRow }) {
   const perfil = client.perfil_deportivo;
   const esRunning = !!perfil && "objetivoCarrera" in perfil;
   const esCrossfit = !!perfil && "experienciaCrossfit" in perfil;
+  // El IMC es una fórmula de composición corporal genérica — no dice nada
+  // útil sobre el rendimiento de un corredor. Para clientes de running se
+  // reemplaza por ritmo objetivo + km/semana (ver PerfilRunning), que sí son
+  // indicadores propios de la disciplina.
+  const runningPerfil = esRunning ? (perfil as PerfilRunning) : null;
 
   const rows: { label: string; value: string }[] = [
     { label: "Sexo", value: client.sexo ? SEXO_LABELS[client.sexo] ?? client.sexo : "—" },
@@ -44,12 +49,23 @@ export function ClientHojaDeVida({ client }: { client: ClientRow }) {
 
   return (
     <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs font-bold uppercase tracking-wide text-white/40">Hoja de vida</p>
-        {imc && (
-          <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${IMC_CATEGORY_CLASS[imc.category]}`}>
-            IMC {imc.value} · {imc.label}
-          </span>
+        {runningPerfil ? (
+          <div className="flex flex-wrap gap-1.5">
+            <span className="rounded-full bg-hf-blue/15 px-2.5 py-1 text-[11px] font-semibold text-hf-blue">
+              Ritmo objetivo: {runningPerfil.ritmoObjetivo || "—"}
+            </span>
+            <span className="rounded-full bg-hf-blue/15 px-2.5 py-1 text-[11px] font-semibold text-hf-blue">
+              Km/semana: {runningPerfil.kilometrajeSemanal != null ? runningPerfil.kilometrajeSemanal : "—"}
+            </span>
+          </div>
+        ) : (
+          imc && (
+            <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${IMC_CATEGORY_CLASS[imc.category]}`}>
+              IMC {imc.value} · {imc.label}
+            </span>
+          )
         )}
       </div>
       <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
@@ -123,7 +139,7 @@ export function ClientHojaDeVida({ client }: { client: ClientRow }) {
         </div>
       )}
 
-      {!imc && (client.peso_actual == null || client.altura == null) && (
+      {!runningPerfil && !imc && (client.peso_actual == null || client.altura == null) && (
         <p className="mt-3 text-[11px] text-white/30">
           Falta {client.peso_actual == null ? "peso" : "estatura"} para calcular el IMC — agrégalo editando al cliente.
         </p>
