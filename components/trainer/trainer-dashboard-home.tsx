@@ -6,6 +6,8 @@ import type { ClientRow, UpcomingEvaluationRow } from "@/lib/trainer-clients-act
 import { canEditLanding, isSuspendedTrainer } from "@/lib/admin-helpers";
 import { planLabel, landingStatusLabel, branchLabel, PLAN_CLIENT_CAP, type LandingStatusKey } from "@/lib/catalog";
 import { resolveBlockKind, type RoutineBlockKind } from "@/lib/routine-types";
+import { branchTheme } from "@/lib/branch-theme";
+import { BranchHero } from "@/components/trainer/branch-hero";
 
 const STATUS_LABEL: Record<string, string> = {
   pendiente_evaluacion: "Por evaluar",
@@ -55,14 +57,16 @@ export function TrainerDashboardHome({
   const cap = PLAN_CLIENT_CAP[trainer.plan ?? "starter"];
   const blockKind = resolveBlockKind(trainer.especialidad);
   const trainingModule = TRAINING_MODULE_COPY[blockKind];
+  const theme = branchTheme(trainer.especialidad);
 
   return (
     <div className="mx-auto max-w-5xl">
-      <h1 className="text-xl font-bold text-white">Hola, {trainer.business_name}</h1>
-      <p className="mt-1 text-sm text-white/50">
-        Plan {planLabel(trainer.plan)} · {branchLabel(trainer.especialidad)} · Landing{" "}
-        {landingStatusLabel(trainer.landing_status as LandingStatusKey)}
-      </p>
+      <BranchHero
+        theme={theme}
+        eyebrow={branchLabel(trainer.especialidad)}
+        title={`Hola, ${trainer.business_name}`}
+        subtitle={`Plan ${planLabel(trainer.plan)} · Landing ${landingStatusLabel(trainer.landing_status as LandingStatusKey)}`}
+      />
 
       {!unlocked && (
         <div className="mt-6 flex items-start gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
@@ -160,6 +164,7 @@ export function TrainerDashboardHome({
           description={`${routinesAssignedCount}/${clientStats.total} clientes con ${trainingModule.title.toLowerCase()} asignad${
             blockKind === "fuerza" ? "a" : "o"
           }.`}
+          accentClassName={theme.accentTextClassName}
         />
         <PanelCard
           href="/panel/marca"
@@ -202,12 +207,18 @@ function PanelCard({
   title,
   description,
   disabled,
+  accentClassName,
 }: {
   href: string;
   icon: React.ElementType;
   title: string;
   description: string;
   disabled?: boolean;
+  // Color del ícono para la tarjeta de acceso rápido a Entrenamientos — usa
+  // el color de marca de la rama del entrenador (ver lib/branch-theme.ts) en
+  // vez del gris genérico, para que el dashboard se sienta más "vivo" y
+  // coherente con el hero de arriba. Las demás tarjetas se quedan neutras.
+  accentClassName?: string;
 }) {
   const content = (
     <div
@@ -217,7 +228,7 @@ function PanelCard({
           : "border-white/10 bg-white/[0.03] hover:border-white/20"
       }`}
     >
-      <Icon size={20} className="text-white/70" />
+      <Icon size={20} className={accentClassName ?? "text-white/70"} />
       <p className="mt-3 text-sm font-semibold text-white">{title}</p>
       <p className="mt-1 text-xs text-white/50">{description}</p>
     </div>

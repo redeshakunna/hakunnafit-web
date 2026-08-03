@@ -19,7 +19,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import type { TrainerRow, PlanOfrecido } from "@/lib/admin-actions";
-import { PLAN_CLIENT_CAP, planLabel } from "@/lib/catalog";
+import { PLAN_CLIENT_CAP, planLabel, branchLabel } from "@/lib/catalog";
 import { calculateImc } from "@/lib/imc";
 import { daysSinceLastTraining, isInactivityAlert } from "@/lib/training-stats";
 import {
@@ -46,6 +46,8 @@ import {
   type PerfilCrossfit,
   type PerfilRunning,
 } from "@/lib/client-profile-types";
+import { branchTheme } from "@/lib/branch-theme";
+import { BranchHero } from "@/components/trainer/branch-hero";
 
 /** Se calcula con la fórmula estándar (peso/altura²), no con un modelo de
  * IA — ver lib/imc.ts para la justificación completa. */
@@ -215,6 +217,7 @@ export function TrainerClientsManager({
   }
 
   const rama = perfilShapeForBranch(trainer.especialidad);
+  const theme = branchTheme(trainer.especialidad);
 
   function submitForm() {
     setError(null);
@@ -279,20 +282,22 @@ export function TrainerClientsManager({
 
   return (
     <div className="mx-auto max-w-6xl">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-white">Clientes</h1>
-          <p className="mt-1 text-sm text-white/50">Gestiona y da seguimiento a todos tus clientes.</p>
-        </div>
-        <button
-          onClick={openCreate}
-          disabled={atCap}
-          title={atCap ? `Llegaste al límite de ${cap} clientes de tu plan` : undefined}
-          className="flex items-center gap-1.5 rounded-full bg-hf-blue px-4 py-2 text-xs font-bold text-black disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          <Plus size={14} /> Nuevo cliente
-        </button>
-      </div>
+      <BranchHero
+        theme={theme}
+        eyebrow={branchLabel(trainer.especialidad)}
+        title="Clientes"
+        subtitle="Gestiona y da seguimiento a todos tus clientes."
+        right={
+          <button
+            onClick={openCreate}
+            disabled={atCap}
+            title={atCap ? `Llegaste al límite de ${cap} clientes de tu plan` : undefined}
+            className="flex items-center gap-1.5 rounded-full bg-hf-blue px-4 py-2 text-xs font-bold text-black disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Plus size={14} /> Nuevo cliente
+          </button>
+        }
+      />
 
       {atCap && (
         <p className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-xs text-amber-400">

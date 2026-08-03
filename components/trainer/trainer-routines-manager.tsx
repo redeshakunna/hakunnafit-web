@@ -36,6 +36,9 @@ import {
   type CrossfitBlock,
 } from "@/lib/routine-types";
 import { HORARIOS_ENTRENO } from "@/lib/client-ui";
+import { BranchHero } from "@/components/trainer/branch-hero";
+import { branchTheme } from "@/lib/branch-theme";
+import { branchLabel } from "@/lib/catalog";
 
 const BLOCK_KIND_LABELS: Record<RoutineBlockKind, string> = {
   fuerza: "series, repeticiones y descansos",
@@ -45,6 +48,7 @@ const BLOCK_KIND_LABELS: Record<RoutineBlockKind, string> = {
 
 export function TrainerRoutinesManager({ trainer, clients }: { trainer: TrainerRow; clients: ClientRow[] }) {
   const kind = resolveBlockKind(trainer.especialidad);
+  const theme = branchTheme(trainer.especialidad);
   const [selectedClientId, setSelectedClientId] = useState<string>(clients[0]?.id ?? "");
   const [routines, setRoutines] = useState<RoutineRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -108,8 +112,12 @@ export function TrainerRoutinesManager({ trainer, clients }: { trainer: TrainerR
 
   return (
     <div className="mx-auto max-w-4xl">
-      <h1 className="text-xl font-bold text-white">Entrenamientos</h1>
-      <p className="mt-1 text-sm text-white/50">Rutinas manuales por cliente — {BLOCK_KIND_LABELS[kind]}.</p>
+      <BranchHero
+        theme={theme}
+        eyebrow={branchLabel(trainer.especialidad)}
+        title="Entrenamientos"
+        subtitle={`Rutinas manuales por cliente — ${BLOCK_KIND_LABELS[kind]}.`}
+      />
 
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
         <label className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2">

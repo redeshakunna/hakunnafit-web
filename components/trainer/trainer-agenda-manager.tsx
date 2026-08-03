@@ -41,6 +41,9 @@ import {
 import { AGENDA_WORKING_HOURS, APPOINTMENT_STATUS_LABELS } from "@/lib/agenda-constants";
 import { TrainerAgendaDetailPanel } from "@/components/trainer/trainer-agenda-detail-panel";
 import { TrainerAgendaSettingsMenu } from "@/components/trainer/trainer-agenda-settings-menu";
+import { BranchHero } from "@/components/trainer/branch-hero";
+import { branchTheme } from "@/lib/branch-theme";
+import { branchLabel } from "@/lib/catalog";
 
 type ViewTab = "dia" | "semana" | "mes";
 
@@ -136,6 +139,7 @@ export function TrainerAgendaManager({
   googleConnected: boolean;
   googleEmail: string | null;
 }) {
+  const theme = branchTheme(trainer.especialidad);
   const [tab, setTab] = useState<ViewTab>("dia");
   const [selectedDay, setSelectedDay] = useState(() => startOfDay(new Date()));
   const [monthCursor, setMonthCursor] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
@@ -262,39 +266,41 @@ export function TrainerAgendaManager({
 
   return (
     <div className="mx-auto max-w-7xl">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-white">Agenda de Sesiones</h1>
-          <p className="mt-1 text-sm text-white/50">Organiza tus citas, valoraciones y seguimientos con tus clientes.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => {
-              setNewApptDefault(null);
-              setPresetClientId(null);
-              setEditing("new");
-            }}
-            className="flex items-center gap-1.5 rounded-full bg-hf-blue px-4 py-2 text-xs font-bold text-black"
-          >
-            <Plus size={14} /> Nueva cita
-          </button>
-          {googleConfigured && (
+      <BranchHero
+        theme={theme}
+        eyebrow={branchLabel(trainer.especialidad)}
+        title="Agenda de Sesiones"
+        subtitle="Organiza tus citas, valoraciones y seguimientos con tus clientes."
+        right={
+          <>
             <button
-              onClick={handleSync}
-              disabled={syncing}
-              className="flex items-center gap-1.5 rounded-full border border-white/15 px-3 py-2 text-xs font-semibold text-white/70 hover:border-white/30 hover:text-white disabled:opacity-50"
+              onClick={() => {
+                setNewApptDefault(null);
+                setPresetClientId(null);
+                setEditing("new");
+              }}
+              className="flex items-center gap-1.5 rounded-full bg-hf-blue px-4 py-2 text-xs font-bold text-black"
             >
-              <RefreshCw size={13} className={syncing ? "animate-spin" : ""} /> Sincronizar
+              <Plus size={14} /> Nueva cita
             </button>
-          )}
-          <TrainerAgendaSettingsMenu
-            clients={clients}
-            googleConfigured={googleConfigured}
-            googleConnected={googleConnected}
-            googleEmail={googleEmail}
-          />
-        </div>
-      </div>
+            {googleConfigured && (
+              <button
+                onClick={handleSync}
+                disabled={syncing}
+                className="flex items-center gap-1.5 rounded-full border border-white/20 bg-black/30 px-3 py-2 text-xs font-semibold text-white/90 backdrop-blur hover:border-white/40 hover:text-white disabled:opacity-50"
+              >
+                <RefreshCw size={13} className={syncing ? "animate-spin" : ""} /> Sincronizar
+              </button>
+            )}
+            <TrainerAgendaSettingsMenu
+              clients={clients}
+              googleConfigured={googleConfigured}
+              googleConnected={googleConnected}
+              googleEmail={googleEmail}
+            />
+          </>
+        }
+      />
 
       {/* KPIs */}
       <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-5">
