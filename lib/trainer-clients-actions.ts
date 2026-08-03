@@ -45,6 +45,8 @@ export interface ClientRow {
   perfil_deportivo: (PerfilRunning | PerfilCrossfit) | null;
   sesiones_contratadas: number | null;
   portal_token: string;
+  documento: string | null;
+  avatar_url: string | null;
   created_at: string;
 }
 
@@ -125,6 +127,7 @@ export async function getOwnUpcomingEvaluations(limit = 5): Promise<UpcomingEval
 
 export interface CreateOwnClientInput {
   fullName: string;
+  documento?: string | null;
   email?: string | null;
   whatsapp?: string | null;
   sexo?: string | null;
@@ -169,6 +172,7 @@ export async function createOwnClient(input: CreateOwnClientInput): Promise<Admi
     .insert({
       trainer_id: trainer.id,
       full_name: input.fullName.trim(),
+      documento: input.documento?.trim() || null,
       email: input.email || null,
       whatsapp: input.whatsapp || null,
       sexo: input.sexo || null,
@@ -186,6 +190,7 @@ export async function createOwnClient(input: CreateOwnClientInput): Promise<Admi
     })
     .select("id")
     .single();
+  if (error?.code === "23505") return { ok: false, error: "Ya tienes otro cliente registrado con ese documento." };
   if (error || !data) return { ok: false, error: error?.message ?? "No se pudo crear el cliente." };
 
   await getSupabaseAdmin()
@@ -197,6 +202,7 @@ export async function createOwnClient(input: CreateOwnClientInput): Promise<Admi
 
 export interface UpdateOwnClientInput {
   fullName?: string;
+  documento?: string | null;
   email?: string | null;
   whatsapp?: string | null;
   sexo?: string | null;
@@ -221,6 +227,7 @@ export async function updateOwnClient(clientId: string, input: UpdateOwnClientIn
 
   const update: {
     full_name?: string;
+    documento?: string | null;
     email?: string | null;
     whatsapp?: string | null;
     sexo?: string | null;
@@ -240,6 +247,7 @@ export async function updateOwnClient(clientId: string, input: UpdateOwnClientIn
     sesiones_contratadas?: number | null;
   } = {};
   if (input.fullName !== undefined) update.full_name = input.fullName.trim();
+  if (input.documento !== undefined) update.documento = input.documento?.trim() || null;
   if (input.email !== undefined) update.email = input.email || null;
   if (input.whatsapp !== undefined) update.whatsapp = input.whatsapp || null;
   if (input.sexo !== undefined) update.sexo = input.sexo || null;
@@ -271,6 +279,7 @@ export async function updateOwnClient(clientId: string, input: UpdateOwnClientIn
   if (Object.keys(update).length === 0) return { ok: true };
 
   const { error } = await supabase.from("clients").update(update).eq("id", clientId);
+  if (error?.code === "23505") return { ok: false, error: "Ya tienes otro cliente registrado con ese documento." };
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }

@@ -79,6 +79,49 @@ export async function middleware(req: NextRequest) {
     return response;
   }
 
+  // 3. Cuenta del cliente final (/mi-cuenta) — mismo mecanismo de sesión que
+  // /panel, pero sin login propio bajo esta ruta: el cliente siempre entra
+  // desde la landing de su entrenador (/landing/[subdominio]/ingresar), así
+  // que si no hay sesión simplemente lo mandamos al home a que busque el
+  // link de su entrenador.
+  if (req.nextUrl.pathname === "/mi-cuenta" || req.nextUrl.pathname.startsWith("/mi-cuenta/")) {
+    let response = NextResponse.next({ request: req });
+
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return req.cookies.get(name)?.value;
+          },
+          set(name: string, value: string, options: CookieOptions) {
+            req.cookies.set({ name, value, ...options });
+            response = NextResponse.next({ request: req });
+            response.cookies.set({ name, value, ...options });
+          },
+          remove(name: string, options: CookieOptions) {
+            req.cookies.set({ name, value: "", ...options });
+            response = NextResponse.next({ request: req });
+            response.cookies.set({ name, value: "", ...options });
+          },
+        },
+      }
+    );
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      const url = req.nextUrl.clone();
+      url.pathname = "/";
+      return NextResponse.redirect(url);
+    }
+
+    return response;
+  }
+
   return NextResponse.next();
 }
 

@@ -22,6 +22,7 @@ import type { Json } from "./database.types";
 export interface PublicClientIntakeInput {
   subdominio: string;
   fullName: string;
+  documento?: string | null;
   email?: string | null;
   whatsapp?: string | null;
   sexo?: string | null;
@@ -64,11 +65,15 @@ export async function submitPublicClientIntake(
   }
 
   const fullName = input.fullName?.trim();
+  const documento = input.documento?.trim() || null;
   const email = normalizeContact(input.email);
   const whatsapp = normalizeContact(input.whatsapp);
 
   if (!fullName) {
     return { ok: false, error: "Tu nombre es obligatorio." };
+  }
+  if (!documento) {
+    return { ok: false, error: "Tu número de documento es obligatorio — lo usarás para entrar a tu portal más adelante." };
   }
   if (!email && !whatsapp) {
     return { ok: false, error: "Déjanos tu correo o tu WhatsApp para que tu entrenador te contacte." };
@@ -118,6 +123,7 @@ export async function submitPublicClientIntake(
       .from("clients")
       .update({
         full_name: fullName,
+        documento: documento ?? undefined,
         email: email ?? undefined,
         whatsapp: whatsapp ?? undefined,
         sexo: input.sexo || undefined,
@@ -132,6 +138,7 @@ export async function submitPublicClientIntake(
         perfil_deportivo: (input.perfilDeportivo as unknown as Json) ?? undefined,
       })
       .eq("id", existingId);
+    if (error?.code === "23505") return { ok: false, error: "Ya existe un registro con ese número de documento." };
     if (error) return { ok: false, error: "No pudimos guardar tus datos. Intenta de nuevo." };
 
     await notifyTrainer(trainer.id, trainer.business_name, fullName, true);
@@ -141,6 +148,7 @@ export async function submitPublicClientIntake(
   const { error } = await supabase.from("clients").insert({
     trainer_id: trainer.id,
     full_name: fullName,
+    documento,
     email,
     whatsapp,
     sexo: input.sexo || null,

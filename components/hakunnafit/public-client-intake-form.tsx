@@ -79,6 +79,7 @@ export function PublicClientIntakeForm({
   const rama = perfilShapeForBranch(especialidad);
 
   const [fullName, setFullName] = useState("");
+  const [documento, setDocumento] = useState("");
   const [email, setEmail] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [sexo, setSexo] = useState("");
@@ -110,6 +111,7 @@ export function PublicClientIntakeForm({
     const result = await submitPublicClientIntake({
       subdominio,
       fullName,
+      documento,
       email,
       whatsapp,
       sexo: sexo || null,
@@ -173,6 +175,17 @@ export function PublicClientIntakeForm({
           onChange={(e) => setFullName(e.target.value)}
           required
           placeholder="Tu nombre"
+          className={inputClass}
+        />
+      </div>
+
+      <div>
+        <label className={labelClass}>Documento (cédula) *</label>
+        <input
+          value={documento}
+          onChange={(e) => setDocumento(e.target.value)}
+          required
+          placeholder="Lo usarás para entrar a tu portal más adelante"
           className={inputClass}
         />
       </div>

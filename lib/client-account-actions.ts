@@ -1,0 +1,325 @@
+"use server";
+
+// Cuenta real del cliente final — /mi-cuenta. Reemplaza por completo el
+// portal por token (lib/client-portal-actions.ts, retirado) ahora que el
+// cliente tiene sesión de verdad (ver lib/client-auth.ts). Misma superficie
+// de datos que el portal viejo, pero resuelta por sesión en vez de por
+// token, más las acciones de edición que el portal nunca tuvo.
+//
+// Split de edición (pedido explícito del negocio):
+// - "Mi perfil" (datos de presentación): nombre, whatsapp, foto — el cliente
+//   sí puede cambiarlos. El correo queda de solo lectura a propósito: es el
+//   identificador de su cuenta de Supabase Auth, cambiarlo es un flujo aparte
+//   que no entra en este alcance básico.
+// - "Mi hoja de vida": sexo, objetivo, nivel, actividad, peso, altura, perfil
+//   deportivo — también editable por el cliente.
+// - "Mi rutina" (weekly_plans): SOLO LECTURA. La arma y aprueba el
+//   entrenador; el cliente nunca la toca desde acá.
+
+import { getSupabaseAdmin } from "./supabase-admin";
+import { getCurrentClient } from "./client-auth";
+import { validateImageFile, imageExtension } from "./image-validation";
+import type { AdminActionResult } from "./admin-actions";
+import type { ClientRow, MeasurementRow } from "./trainer-clients-actions";
+import type { RoutineRow } from "./trainer-routines-actions";
+import type { PerfilCrossfit, PerfilRunning } from "./client-profile-types";
+import type { Json } from "./database.types";
+import {
+  approveProposalItem,
+  rejectAndReplaceItem,
+  getReplacementSuggestions,
+  type SuggestedSlot,
+} from "./public-session-proposal-actions";
+
+export type { SuggestedSlot };
+
+async function requireOwnClient(): Promise<ClientRow> {
+  const client = await getCurrentClient();
+  if (!client) throw new Error("No autenticado");
+  return client;
+}
+
+export interface OwnTrainerBranding {
+  businessName: string;
+  logoUrl: string | null;
+  colorPrimario: string;
+  colorSecundario: string;
+  whatsapp: string | null;
+  subdominio: string | null;
+}
+
+export interface OwnNextAppointment {
+  scheduledAt: string;
+  modalidad: string;
+  duracionMin: number;
+  meetLink: string | null;
+}
+
+export interface OwnPendingItem {
+  id: string;
+  scheduledAt: string;
+  durationMin: number;
+  modalidad: string;
+  status: "pendiente" | "aprobada" | "rechazada";
+}
+
+export interface OwnPendingProposal {
+  proposalId: string;
+  items: OwnPendingItem[];
+}
+
+export interface ClientAccountData {
+  client: ClientRow;
+  trainer: OwnTrainerBranding;
+  routine: RoutineRow | null;
+  nextAppointment: OwnNextAppointment | null;
+  pendingProposal: OwnPendingProposal | null;
+  measurements: MeasurementRow[];
+}
+
+export async function getOwnClientDashboardData(): Promise<ClientAccountData | null> {
+  const me = await getCurrentClient();
+  if (!me) return null;
+
+  const supabase = getSupabaseAdmin();
+  const [{ data: trainer }, { data: routine }, { data: nextAppt }, { data: proposal }, { data: measurements }] = await Promise.all([
+    supabase
+      .from("trainers")
+      .select("business_name, logo_url, color_primario, color_secundario, whatsapp_publico, whatsapp, subdominio")
+      .eq("id", me.trainer_id)
+      .maybeSingle(),
+    supabase
+      .from("weekly_plans")
+      .select("*")
+      .eq("client_id", me.id)
+      .eq("status", "aprobado")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("evaluations")
+      .select("scheduled_at, modalidad, duracion_min, meet_link")
+      .eq("client_id", me.id)
+      .not("status", "in", "(cancelada,completada)")
+      .not("scheduled_at", "is", null)
+      .gte("scheduled_at", new Date().toISOString())
+      .order("scheduled_at", { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+    supabase.from("session_proposals").select("id").eq("client_id", me.id).eq("status", "pendiente").maybeSingle(),
+    supabase.from("measurements").select("*").eq("client_id", me.id).order("fecha", { ascending: false }),
+  ]);
+
+  if (!trainer) return null;
+
+  let pendingProposal: OwnPendingProposal | null = null;
+  if (proposal) {
+    const { data: items } = await supabase
+      .from("session_proposal_items")
+      .select("id, scheduled_at, duration_min, modalidad, status")
+      .eq("proposal_id", proposal.id)
+      .order("scheduled_at", { ascending: true });
+    pendingProposal = {
+      proposalId: proposal.id,
+      items: ((items ?? []) as { id: string; scheduled_at: string; duration_min: number; modalidad: string; status: string }[]).map(
+        (i) => ({
+          id: i.id,
+          scheduledAt: i.scheduled_at,
+          durationMin: i.duration_min,
+          modalidad: i.modalidad,
+          status: i.status as OwnPendingItem["status"],
+        })
+      ),
+    };
+  }
+
+  return {
+    client: me,
+    trainer: {
+      businessName: trainer.business_name,
+      logoUrl: trainer.logo_url,
+      colorPrimario: trainer.color_primario,
+      colorSecundario: trainer.color_secundario,
+      whatsapp: trainer.whatsapp_publico?.trim() || trainer.whatsapp,
+      subdominio: trainer.subdominio,
+    },
+    routine: (routine as RoutineRow | null) ?? null,
+    nextAppointment: nextAppt
+      ? {
+          scheduledAt: nextAppt.scheduled_at as string,
+          modalidad: nextAppt.modalidad,
+          duracionMin: nextAppt.duracion_min,
+          meetLink: nextAppt.meet_link,
+        }
+      : null,
+    pendingProposal,
+    measurements: (measurements ?? []) as MeasurementRow[],
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Mi perfil (datos de presentación) — nombre, whatsapp, foto. El correo NO
+// se edita acá (ver comentario arriba).
+// ---------------------------------------------------------------------------
+
+export interface UpdateOwnPresentationInput {
+  fullName?: string;
+  whatsapp?: string | null;
+}
+
+export async function updateOwnPresentation(input: UpdateOwnPresentationInput): Promise<AdminActionResult> {
+  const me = await requireOwnClient();
+
+  const update: { full_name?: string; whatsapp?: string | null } = {};
+  if (input.fullName !== undefined) {
+    const trimmed = input.fullName.trim();
+    if (!trimmed) return { ok: false, error: "Tu nombre no puede quedar vacío." };
+    update.full_name = trimmed;
+  }
+  if (input.whatsapp !== undefined) update.whatsapp = input.whatsapp?.trim() || null;
+
+  const supabase = getSupabaseAdmin();
+  const { error } = await supabase.from("clients").update(update).eq("id", me.id);
+  if (error) return { ok: false, error: "No pudimos guardar tus datos." };
+  return { ok: true };
+}
+
+export async function uploadOwnAvatar(formData: FormData): Promise<AdminActionResult & { url?: string }> {
+  const me = await requireOwnClient();
+
+  const validated = validateImageFile(formData.get("foto"));
+  if (!validated.ok) return { ok: false, error: validated.error };
+
+  const supabase = getSupabaseAdmin();
+  const ext = imageExtension(validated.file);
+  const path = `${me.trainer_id}/clientes/${me.id}/avatar-${Date.now()}.${ext}`;
+  const buffer = Buffer.from(await validated.file.arrayBuffer());
+
+  const { error: uploadError } = await supabase.storage
+    .from("avatars")
+    .upload(path, buffer, { contentType: validated.file.type, upsert: true });
+  if (uploadError) return { ok: false, error: uploadError.message };
+
+  const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+
+  const { error: updateError } = await supabase.from("clients").update({ avatar_url: data.publicUrl }).eq("id", me.id);
+  if (updateError) return { ok: false, error: updateError.message };
+
+  return { ok: true, url: data.publicUrl };
+}
+
+// ---------------------------------------------------------------------------
+// Mi hoja de vida — todo editable salvo la rutina, que ni siquiera vive acá.
+// ---------------------------------------------------------------------------
+
+export interface UpdateOwnHojaDeVidaInput {
+  sexo?: string | null;
+  objetivo?: string | null;
+  nivel?: string | null;
+  actividad?: string | null;
+  pesoActual?: number | null;
+  altura?: number | null;
+  perfilDeportivo?: (PerfilRunning | PerfilCrossfit) | null;
+}
+
+export async function updateOwnHojaDeVida(input: UpdateOwnHojaDeVidaInput): Promise<AdminActionResult> {
+  const me = await requireOwnClient();
+
+  const update: {
+    sexo?: string | null;
+    objetivo?: string | null;
+    nivel?: string | null;
+    actividad?: string | null;
+    peso_actual?: number | null;
+    altura?: number | null;
+    perfil_deportivo?: Json | null;
+  } = {};
+  if (input.sexo !== undefined) update.sexo = input.sexo || null;
+  if (input.objetivo !== undefined) update.objetivo = input.objetivo || null;
+  if (input.nivel !== undefined) update.nivel = input.nivel || null;
+  if (input.actividad !== undefined) update.actividad = input.actividad || null;
+  if (input.pesoActual !== undefined) update.peso_actual = input.pesoActual;
+  if (input.altura !== undefined) update.altura = input.altura;
+  if (input.perfilDeportivo !== undefined) update.perfil_deportivo = (input.perfilDeportivo as unknown as Json) ?? null;
+
+  const supabase = getSupabaseAdmin();
+  const { error } = await supabase.from("clients").update(update).eq("id", me.id);
+  if (error) return { ok: false, error: "No pudimos guardar tu hoja de vida." };
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// Progreso — subir foto de avance (crea una medición con solo la foto).
+// ---------------------------------------------------------------------------
+
+export async function addOwnProgressPhoto(formData: FormData): Promise<AdminActionResult & { url?: string }> {
+  const me = await requireOwnClient();
+
+  const validated = validateImageFile(formData.get("foto"));
+  if (!validated.ok) return { ok: false, error: validated.error };
+
+  const supabase = getSupabaseAdmin();
+  const ext = imageExtension(validated.file);
+  const path = `${me.trainer_id}/clientes/${me.id}/progreso-${Date.now()}.${ext}`;
+  const buffer = Buffer.from(await validated.file.arrayBuffer());
+
+  const { error: uploadError } = await supabase.storage
+    .from("avatars")
+    .upload(path, buffer, { contentType: validated.file.type, upsert: true });
+  if (uploadError) return { ok: false, error: uploadError.message };
+
+  const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+
+  const peso = formData.get("peso");
+  const pesoNum = peso && typeof peso === "string" && peso.trim() ? parseFloat(peso) : null;
+
+  const { error: insertError } = await supabase.from("measurements").insert({
+    client_id: me.id,
+    fecha: new Date().toISOString().slice(0, 10),
+    peso: pesoNum,
+    foto_url: data.publicUrl,
+  });
+  if (insertError) return { ok: false, error: insertError.message };
+
+  if (pesoNum != null) {
+    await supabase.from("clients").update({ peso_actual: pesoNum }).eq("id", me.id);
+  }
+
+  return { ok: true, url: data.publicUrl };
+}
+
+// ---------------------------------------------------------------------------
+// Agenda — aprobar/rechazar sesiones propuestas, delegando en las mismas
+// acciones que ya usa /agenda/aprobar/[token] (igual que hacía el portal por
+// token). El token de la propuesta nunca sale al navegador: se resuelve acá
+// a partir de la sesión del cliente.
+// ---------------------------------------------------------------------------
+
+async function resolveProposalToken(proposalId: string): Promise<string | null> {
+  const me = await requireOwnClient();
+  const supabase = getSupabaseAdmin();
+  const { data } = await supabase.from("session_proposals").select("token, client_id").eq("id", proposalId).maybeSingle();
+  if (!data || data.client_id !== me.id) return null;
+  return data.token;
+}
+
+export async function approveOwnProposalItem(proposalId: string, itemId: string): Promise<AdminActionResult> {
+  const proposalToken = await resolveProposalToken(proposalId);
+  if (!proposalToken) return { ok: false, error: "Esta propuesta ya no es válida." };
+  return approveProposalItem(proposalToken, itemId);
+}
+
+export async function getOwnReplacementSuggestions(
+  proposalId: string,
+  itemId: string
+): Promise<AdminActionResult & { slots?: SuggestedSlot[] }> {
+  const proposalToken = await resolveProposalToken(proposalId);
+  if (!proposalToken) return { ok: false, error: "Esta propuesta ya no es válida." };
+  return getReplacementSuggestions(proposalToken, itemId);
+}
+
+export async function rejectAndReplaceOwnItem(proposalId: string, itemId: string, chosenIso: string): Promise<AdminActionResult> {
+  const proposalToken = await resolveProposalToken(proposalId);
+  if (!proposalToken) return { ok: false, error: "Esta propuesta ya no es válida." };
+  return rejectAndReplaceItem(proposalToken, itemId, chosenIso);
+}

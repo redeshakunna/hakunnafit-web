@@ -250,6 +250,10 @@ export interface Database {
           calendar_connect_token_expires_at: string | null;
           sesiones_contratadas: number | null;
           portal_token: string;
+          documento: string | null;
+          avatar_url: string | null;
+          access_code: string | null;
+          access_code_expires_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -277,6 +281,10 @@ export interface Database {
           calendar_connect_token_expires_at?: string | null;
           sesiones_contratadas?: number | null;
           portal_token?: string;
+          documento?: string | null;
+          avatar_url?: string | null;
+          access_code?: string | null;
+          access_code_expires_at?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["clients"]["Insert"]>;

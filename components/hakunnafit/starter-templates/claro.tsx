@@ -85,7 +85,7 @@ export function ClaroTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
           </nav>
           <div className="flex items-center gap-2">
             <Link
-              href={`/landing/${trainer.subdominio}/registro`}
+              href={`/landing/${trainer.subdominio}/ingresar`}
               className="flex items-center gap-1.5 rounded-full border-2 border-gray-300 px-4 py-1.5 text-xs font-semibold text-gray-600 hover:border-gray-400 hover:text-gray-900"
             >
               <LogIn size={14} />

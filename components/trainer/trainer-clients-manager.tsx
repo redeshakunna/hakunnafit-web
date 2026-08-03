@@ -63,6 +63,7 @@ function ImcPreview({ pesoKg, alturaCm }: { pesoKg: number | null; alturaCm: num
 
 export type FormState = {
   fullName: string;
+  documento: string;
   email: string;
   whatsapp: string;
   sexo: string;
@@ -83,6 +84,7 @@ export type FormState = {
 
 export const EMPTY_FORM: FormState = {
   fullName: "",
+  documento: "",
   email: "",
   whatsapp: "",
   sexo: "",
@@ -105,6 +107,7 @@ export function clientToForm(c: ClientRow): FormState {
   const rama = c.perfil_deportivo && "objetivoCarrera" in c.perfil_deportivo ? "running" : c.perfil_deportivo && "experienciaCrossfit" in c.perfil_deportivo ? "crossfit" : null;
   return {
     fullName: c.full_name,
+    documento: c.documento ?? "",
     email: c.email ?? "",
     whatsapp: c.whatsapp ?? "",
     sexo: c.sexo ?? "",
@@ -230,6 +233,7 @@ export function TrainerClientsManager({
       if (modalMode === "create") {
         const res = await createOwnClient({
           fullName: form.fullName,
+          documento: form.documento,
           email: form.email,
           whatsapp: form.whatsapp,
           sexo: form.sexo,
@@ -249,6 +253,7 @@ export function TrainerClientsManager({
       } else if (modalMode === "edit" && editingId) {
         const res = await updateOwnClient(editingId, {
           fullName: form.fullName,
+          documento: form.documento,
           email: form.email,
           whatsapp: form.whatsapp,
           sexo: form.sexo,
@@ -736,6 +741,14 @@ export function ClientFormFields({
             <input
               value={form.fullName}
               onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+              className="input"
+            />
+          </Field>
+          <Field label="Documento (cédula)">
+            <input
+              value={form.documento}
+              onChange={(e) => setForm({ ...form, documento: e.target.value })}
+              placeholder="Necesario para que inicie sesión en su portal"
               className="input"
             />
           </Field>
