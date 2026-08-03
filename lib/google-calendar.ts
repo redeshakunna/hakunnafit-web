@@ -335,6 +335,35 @@ export async function updateCalendarEvent(
 }
 
 /**
+ * Lee el estado de RSVP (responseStatus) de un invitado puntual dentro de un
+ * evento — "accepted" | "declined" | "tentative" | "needsAction", o null si
+ * el evento ya no existe, la conexión no está vigente, o ese correo no
+ * aparece entre los invitados. Se usa para saber si el cliente ya aceptó la
+ * citación (ver syncPendingAppointmentRsvps en trainer-agenda-actions.ts).
+ */
+export async function getEventAttendeeStatus(
+  connection: GoogleConnectionRow,
+  googleEventId: string,
+  attendeeEmail: string
+): Promise<string | null> {
+  const accessToken = await getValidAccessToken(connection);
+  if (!accessToken) return null;
+
+  try {
+    const res = await fetch(
+      `${GOOGLE_CALENDAR_EVENTS_URL}/${encodeURIComponent(connection.calendar_id)}/events/${googleEventId}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as { attendees?: { email: string; responseStatus: string }[] };
+    const attendee = data.attendees?.find((a) => a.email.toLowerCase() === attendeeEmail.toLowerCase());
+    return attendee?.responseStatus ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Borra un evento — sendUpdates=all para que, si el cliente estaba invitado,
  * también le llegue el aviso de cancelación (no solo desaparezca en
  * silencio de su calendario, si es que lo había agregado desde el correo).

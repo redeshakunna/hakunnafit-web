@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/cobros-por-vencer",
       "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/cron/sync-rsvp",
+      "schedule": "0 15 * * *"
     }
   ]
 }

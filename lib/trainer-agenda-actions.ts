@@ -13,7 +13,14 @@
 import { getSupabaseAdmin } from "./supabase-admin";
 import { requireTrainer } from "./trainer-auth";
 import type { AdminActionResult, TrainerRow } from "./admin-actions";
-import { getConnection, createCalendarEvent, updateCalendarEvent, deleteCalendarEvent, type GoogleConnectionRow } from "./google-calendar";
+import {
+  getConnection,
+  createCalendarEvent,
+  updateCalendarEvent,
+  deleteCalendarEvent,
+  getEventAttendeeStatus,
+  type GoogleConnectionRow,
+} from "./google-calendar";
 import type { RoutineDias } from "./routine-types";
 import { daysSinceLastTraining, isInactivityAlert } from "./training-stats";
 import { AGENDA_WORKING_HOURS, type AppointmentStatus, type AppointmentModalidad } from "./agenda-constants";
@@ -389,6 +396,72 @@ async function syncAppointmentToGoogle(
   return meetLink;
 }
 
+/**
+ * Revisa el RSVP de Google en las citas 'pendiente' que tienen invitación
+ * mandada desde el calendario del ENTRENADOR (el único lugar donde el
+ * cliente aparece como invitado con los botones Sí/No/Tal vez — un evento
+ * creado directo en el propio calendario del cliente no tiene RSVP que
+ * revisar) y las pasa a 'confirmada' si el cliente ya aceptó.
+ *
+ * Sin scopeTrainerId revisa TODAS las citas de la plataforma — la usa el
+ * cron diario (app/api/cron/sync-rsvp). Con scopeTrainerId solo las de ese
+ * entrenador — la usa el botón "Sincronizar" de la Agenda, para dar una
+ * confirmación al instante sin depender de esperar al cron del día
+ * siguiente (el plan de Vercel de HakunnaFit no permite crons más
+ * frecuentes que 1 vez al día).
+ */
+export async function syncPendingAppointmentRsvps(scopeTrainerId?: string): Promise<{ checked: number; confirmed: number }> {
+  const supabase = getSupabaseAdmin();
+
+  let query = supabase
+    .from("evaluations")
+    .select("id, client_id")
+    .eq("status", "pendiente")
+    .gt("scheduled_at", new Date().toISOString());
+  if (scopeTrainerId) query = query.eq("trainer_id", scopeTrainerId);
+  const { data: pending } = await query;
+  if (!pending || pending.length === 0) return { checked: 0, confirmed: 0 };
+
+  const evaluationIds = pending.map((p) => p.id);
+  const { data: links } = await supabase
+    .from("evaluation_calendar_events")
+    .select("evaluation_id, google_event_id, google_calendar_connections(*)")
+    .in("evaluation_id", evaluationIds);
+
+  interface RsvpLinkRow {
+    evaluation_id: string;
+    google_event_id: string;
+    google_calendar_connections: GoogleConnectionRow | null;
+  }
+  // Filtro en JS (no en la query) — mismo criterio que ya usa
+  // deleteAppointmentFromGoogle más abajo para esta misma tabla.
+  const linkRows = ((links ?? []) as unknown as RsvpLinkRow[]).filter(
+    (l) => l.google_calendar_connections?.owner_type === "trainer"
+  );
+  if (linkRows.length === 0) return { checked: 0, confirmed: 0 };
+
+  const clientIdByEvalId = new Map(pending.map((p) => [p.id, p.client_id]));
+  const clientIds = Array.from(new Set(pending.map((p) => p.client_id)));
+  const { data: clients } = await supabase.from("clients").select("id, email").in("id", clientIds);
+  const emailByClientId = new Map((clients ?? []).map((c) => [c.id, c.email]));
+
+  let checked = 0;
+  let confirmed = 0;
+  for (const link of linkRows) {
+    const clientId = clientIdByEvalId.get(link.evaluation_id);
+    const clientEmail = clientId ? emailByClientId.get(clientId) : null;
+    if (!clientEmail || !link.google_calendar_connections) continue;
+
+    checked++;
+    const status = await getEventAttendeeStatus(link.google_calendar_connections, link.google_event_id, clientEmail);
+    if (status === "accepted") {
+      await supabase.from("evaluations").update({ status: "confirmada" }).eq("id", link.evaluation_id);
+      confirmed++;
+    }
+  }
+  return { checked, confirmed };
+}
+
 async function deleteAppointmentFromGoogle(evaluationId: string): Promise<void> {
   const supabase = getSupabaseAdmin();
   const { data: links } = await supabase
@@ -632,6 +705,12 @@ export async function resyncOwnAgendaToGoogle(rangeStartIso: string, rangeEndIso
     // devuelve null a propósito y no hay que tocar lo que ya estaba guardado.
     if (meetLink) await supabase.from("evaluations").update({ meet_link: meetLink }).eq("id", ev.id);
   }
+
+  // Además de empujar eventos, "Sincronizar" también revisa si algún
+  // cliente ya aceptó su citación desde la última vez — así el entrenador
+  // tiene una forma de confirmar al instante sin esperar al cron diario.
+  await syncPendingAppointmentRsvps(trainer.id);
+
   return { ok: true };
 }
 
