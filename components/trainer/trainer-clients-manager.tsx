@@ -682,7 +682,51 @@ export function ClientFormModal({
           </button>
         </div>
 
-        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <ClientFormFields form={form} setForm={setForm} planesOfrecidos={planesOfrecidos} rama={rama} />
+
+        {error && <p className="mt-3 text-xs text-red-400">{error}</p>}
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            onClick={onCancel}
+            className="rounded-full border border-white/15 px-4 py-2 text-xs font-semibold text-white/70 hover:border-white/30"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={onSubmit}
+            disabled={isPending || !form.fullName.trim()}
+            className="rounded-full bg-hf-blue px-4 py-2 text-xs font-bold text-black disabled:opacity-40"
+          >
+            {isPending ? "Guardando..." : "Guardar"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Grid de campos del formulario de cliente — extraído de ClientFormModal
+ * para poder reusarse también en edición en línea (sin ventana emergente),
+ * ver components/trainer/trainer-client-detail.tsx. Mismo form/setForm que
+ * usa el modal, así ambos lugares comparten una sola fuente de verdad de
+ * qué campos existen y cómo se validan/envían (ver submitEdit).
+ */
+export function ClientFormFields({
+  form,
+  setForm,
+  planesOfrecidos,
+  rama = null,
+}: {
+  form: FormState;
+  setForm: (f: FormState) => void;
+  planesOfrecidos: PlanOfrecido[];
+  rama?: "running" | "crossfit" | null;
+}) {
+  return (
+    <>
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label="Nombre completo *" span2>
             <input
               value={form.fullName}
@@ -983,43 +1027,24 @@ export function ClientFormModal({
               </Field>
             </>
           )}
-        </div>
-
-        {error && <p className="mt-3 text-xs text-red-400">{error}</p>}
-
-        <div className="mt-5 flex justify-end gap-2">
-          <button
-            onClick={onCancel}
-            className="rounded-full border border-white/15 px-4 py-2 text-xs font-semibold text-white/70 hover:border-white/30"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={onSubmit}
-            disabled={isPending || !form.fullName.trim()}
-            className="rounded-full bg-hf-blue px-4 py-2 text-xs font-bold text-black disabled:opacity-40"
-          >
-            {isPending ? "Guardando..." : "Guardar"}
-          </button>
-        </div>
-
-        <style jsx global>{`
-          .input {
-            width: 100%;
-            border-radius: 0.75rem;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            background: rgba(255, 255, 255, 0.03);
-            padding: 0.5rem 0.75rem;
-            font-size: 0.8rem;
-            color: white;
-            outline: none;
-          }
-          .input:focus {
-            border-color: rgba(255, 255, 255, 0.3);
-          }
-        `}</style>
       </div>
-    </div>
+
+      <style jsx global>{`
+        .input {
+          width: 100%;
+          border-radius: 0.75rem;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          background: rgba(255, 255, 255, 0.03);
+          padding: 0.5rem 0.75rem;
+          font-size: 0.8rem;
+          color: white;
+          outline: none;
+        }
+        .input:focus {
+          border-color: rgba(255, 255, 255, 0.3);
+        }
+      `}</style>
+    </>
   );
 }
 
