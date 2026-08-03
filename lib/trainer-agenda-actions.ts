@@ -158,7 +158,13 @@ async function notifyAppointment(
   kind: AppointmentEmailKind,
   trainer: TrainerRow,
   client: OwnClientBasics,
-  appt: { titulo?: string | null; scheduledAt: string; modalidad: AppointmentModalidad; notas?: string | null }
+  appt: {
+    titulo?: string | null;
+    scheduledAt: string;
+    modalidad: AppointmentModalidad;
+    notas?: string | null;
+    meetLink?: string | null;
+  }
 ): Promise<void> {
   const copy = APPOINTMENT_EMAIL_COPY[kind];
   const { dateLabel, timeLabel } = formatApptDateTime(appt.scheduledAt);
@@ -168,11 +174,17 @@ async function notifyAppointment(
   const brand = { kind: "trainer" as const, trainer: trainerBranding(trainer) };
   const flowId = `agenda-cita-${kind}`;
 
+  // Si hay link de Google Meet y la cita sigue en pie, el botón principal
+  // lleva directo a la videollamada (lo más accionable) en vez de al panel
+  // — a una cita cancelada no tiene sentido ofrecerle "unirse".
+  const meetLink = kind !== "cancelada" ? appt.meetLink : null;
+
   const infoBox = {
     rows: [
       { label: "Fecha", value: dateLabel },
       { label: "Hora", value: timeLabel },
       { label: "Modalidad", value: modalidadLabel },
+      ...(meetLink ? [{ label: "Link de la sesión", value: meetLink }] : []),
       ...(appt.notas?.trim() ? [{ label: "Notas", value: appt.notas.trim() }] : []),
     ],
   };
@@ -185,7 +197,9 @@ async function notifyAppointment(
     subject: `${copy.trainerVerb}: ${client.fullName} — ${dateLabel}`,
     heading: `${tituloLabel} con ${client.fullName}`,
     message: `${copy.trainerVerb} con ${client.fullName}.`,
-    primaryButton: { label: "Ver en la Agenda", url: `${siteUrl}/panel/agenda` },
+    primaryButton: meetLink
+      ? { label: "Unirse a la videollamada", url: meetLink }
+      : { label: "Ver en la Agenda", url: `${siteUrl}/panel/agenda` },
     infoBox,
   };
 
@@ -197,6 +211,7 @@ async function notifyAppointment(
     subject: `${trainer.business_name} ${copy.clientVerb} — ${dateLabel}`,
     heading: `Tu cita ${copy.verbo}`,
     message: `${trainer.business_name} ${copy.clientVerb}.`,
+    primaryButton: meetLink ? { label: "Unirse a la videollamada", url: meetLink } : undefined,
     infoBox,
   };
 
@@ -298,18 +313,37 @@ export async function getOwnAgendaEvents(rangeStartIso: string, rangeEndIso: str
   });
 }
 
+/**
+ * Sincroniza la cita con Google Calendar en cada cuenta conectada (la del
+ * entrenador y/o la del cliente) y devuelve el link de Google Meet a
+ * guardar en evaluations.meet_link — o null si la cita es presencial, si
+ * nadie tiene Google conectado, o si la llamada a Google falló. Se prioriza
+ * el link generado en el calendario del entrenador (ahí es donde vive la
+ * invitación "oficial" con Sí/No/Tal vez) sobre el del cliente; en un
+ * update (evento ya existía) no se pide un link nuevo — updateCalendarEvent
+ * preserva el que ya se había mandado por correo.
+ */
 async function syncAppointmentToGoogle(
   evaluationId: string,
   clientId: string,
   trainerId: string,
-  event: { summary: string; description?: string; startIso: string; endIso: string; clientEmail: string | null }
-): Promise<void> {
+  event: {
+    summary: string;
+    description?: string;
+    startIso: string;
+    endIso: string;
+    clientEmail: string | null;
+    requestMeetLink: boolean;
+  }
+): Promise<string | null> {
   const supabase = getSupabaseAdmin();
 
   const owners: { type: "trainer" | "client"; id: string }[] = [
     { type: "trainer", id: trainerId },
     { type: "client", id: clientId },
   ];
+
+  let meetLink: string | null = null;
 
   for (const owner of owners) {
     const connection = await getConnection(owner.type, owner.id);
@@ -333,7 +367,7 @@ async function syncAppointmentToGoogle(
       continue;
     }
 
-    const googleEventId = await createCalendarEvent(connection, {
+    const created = await createCalendarEvent(connection, {
       summary: event.summary,
       description: event.description,
       startIso: event.startIso,
@@ -342,13 +376,17 @@ async function syncAppointmentToGoogle(
       // invitar al cliente por si no conectó el suyo) — en el propio
       // calendario del cliente el evento ya es de su cuenta, no hace falta.
       attendeeEmail: owner.type === "trainer" ? event.clientEmail : null,
+      requestMeetLink: event.requestMeetLink,
     });
-    if (googleEventId) {
+    if (created) {
       await supabase
         .from("evaluation_calendar_events")
-        .insert({ evaluation_id: evaluationId, connection_id: connection.id, google_event_id: googleEventId });
+        .insert({ evaluation_id: evaluationId, connection_id: connection.id, google_event_id: created.eventId });
+      if (created.meetLink && (owner.type === "trainer" || !meetLink)) meetLink = created.meetLink;
     }
   }
+
+  return meetLink;
 }
 
 async function deleteAppointmentFromGoogle(evaluationId: string): Promise<void> {
@@ -401,7 +439,7 @@ export async function createOwnAppointment(input: CreateAppointmentInput): Promi
 
   const start = new Date(input.scheduledAt);
   const end = new Date(start.getTime() + input.durationMin * 60_000);
-  await syncAppointmentToGoogle(data.id, input.clientId, trainer.id, {
+  const meetLink = await syncAppointmentToGoogle(data.id, input.clientId, trainer.id, {
     summary: buildEventSummary(input.titulo, client.fullName),
     description: buildEventDescription({
       clientName: client.fullName,
@@ -412,7 +450,9 @@ export async function createOwnAppointment(input: CreateAppointmentInput): Promi
     startIso: start.toISOString(),
     endIso: end.toISOString(),
     clientEmail: client.email,
+    requestMeetLink: modalidad === "virtual",
   });
+  if (meetLink) await supabase.from("evaluations").update({ meet_link: meetLink }).eq("id", data.id);
 
   await supabase.from("trainer_activity").insert({ trainer_id: trainer.id, type: "cita_agendada", title: "Nueva cita agendada" });
 
@@ -421,6 +461,7 @@ export async function createOwnAppointment(input: CreateAppointmentInput): Promi
     scheduledAt: input.scheduledAt,
     modalidad,
     notas: input.notas,
+    meetLink,
   });
 
   return { ok: true, id: data.id };
@@ -499,19 +540,27 @@ export async function updateOwnAppointment(evaluationId: string, input: UpdateAp
     };
     const start = new Date(scheduledAt);
     const end = new Date(start.getTime() + durationMin * 60_000);
-    await syncAppointmentToGoogle(evaluationId, existing.client_id, trainer.id, {
+    const newMeetLink = await syncAppointmentToGoogle(evaluationId, existing.client_id, trainer.id, {
       summary: buildEventSummary(titulo, clientBasics.fullName),
       description: buildEventDescription({ clientName: clientBasics.fullName, businessName: trainer.business_name, modalidad, notas }),
       startIso: start.toISOString(),
       endIso: end.toISOString(),
       clientEmail: clientBasics.email,
+      // Solo se pide un link nuevo si el evento de Google no existía todavía
+      // (p. ej. pasó de presencial a virtual, o nadie tenía Google conectado
+      // antes) — si ya había uno, syncAppointmentToGoogle no lo toca y acá se
+      // sigue usando el que ya estaba guardado en evaluations.meet_link.
+      requestMeetLink: modalidad === "virtual",
     });
+    const meetLink = modalidad === "virtual" ? newMeetLink ?? (existing.meet_link as string | null) : null;
+    if (newMeetLink) await supabase.from("evaluations").update({ meet_link: newMeetLink }).eq("id", evaluationId);
+    else if (modalidad !== "virtual" && existing.meet_link) await supabase.from("evaluations").update({ meet_link: null }).eq("id", evaluationId);
 
     // Solo se avisa por correo si de verdad cambió fecha/hora (reprogramación
     // real) — si el entrenador solo editó el título o las notas, alcanza con
     // actualizar el evento de Google en silencio, sin mandar otro correo.
     if (dateOrDurationChanged) {
-      await notifyAppointment("reprogramada", trainer, clientBasics, { titulo, scheduledAt, modalidad, notas });
+      await notifyAppointment("reprogramada", trainer, clientBasics, { titulo, scheduledAt, modalidad, notas, meetLink });
     }
   }
 
@@ -565,7 +614,7 @@ export async function resyncOwnAgendaToGoogle(rangeStartIso: string, rangeEndIso
     const { data: client } = await supabase.from("clients").select("email").eq("id", ev.clientId).maybeSingle();
     const start = new Date(ev.scheduledAt);
     const end = new Date(start.getTime() + ev.durationMin * 60_000);
-    await syncAppointmentToGoogle(ev.id, ev.clientId, trainer.id, {
+    const meetLink = await syncAppointmentToGoogle(ev.id, ev.clientId, trainer.id, {
       summary: buildEventSummary(ev.titulo, ev.clientFullName),
       description: buildEventDescription({
         clientName: ev.clientFullName,
@@ -576,7 +625,12 @@ export async function resyncOwnAgendaToGoogle(rangeStartIso: string, rangeEndIso
       startIso: start.toISOString(),
       endIso: end.toISOString(),
       clientEmail: client?.email ?? null,
+      requestMeetLink: ev.modalidad === "virtual",
     });
+    // Solo pisa meet_link si de verdad se generó uno nuevo (evento recién
+    // creado en este resync) — si ya existía, syncAppointmentToGoogle
+    // devuelve null a propósito y no hay que tocar lo que ya estaba guardado.
+    if (meetLink) await supabase.from("evaluations").update({ meet_link: meetLink }).eq("id", ev.id);
   }
   return { ok: true };
 }

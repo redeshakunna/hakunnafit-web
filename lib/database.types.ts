@@ -439,6 +439,7 @@ export interface Database {
           titulo: string | null;
           notas: string | null;
           duracion_min: number;
+          meet_link: string | null;
           updated_at: string;
           created_at: string;
         };
@@ -452,6 +453,7 @@ export interface Database {
           titulo?: string | null;
           notas?: string | null;
           duracion_min?: number;
+          meet_link?: string | null;
           updated_at?: string;
           created_at?: string;
         };

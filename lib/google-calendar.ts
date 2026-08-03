@@ -12,7 +12,7 @@
 // propio). Ambos usan las mismas credenciales de OAuth (un solo proyecto de
 // Google Cloud), solo cambia a quién queda asociada la conexión.
 
-import { createHmac, timingSafeEqual } from "crypto";
+import { createHmac, timingSafeEqual, randomUUID } from "crypto";
 import { getSupabaseAdmin } from "./supabase-admin";
 
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -234,29 +234,46 @@ export interface CalendarEventInput {
   startIso: string;
   endIso: string;
   attendeeEmail?: string | null;
+  /** Solo aplica en createCalendarEvent — le pide a Google que genere un
+   * link de Google Meet nuevo para el evento (citas modalidad "virtual").
+   * updateCalendarEvent lo ignora a propósito: no regenera el link en cada
+   * edición, así el que ya se mandó por correo sigue siendo válido. */
+  requestMeetLink?: boolean;
+}
+
+export interface CreatedCalendarEvent {
+  eventId: string;
+  meetLink: string | null;
 }
 
 /**
  * Crea un evento en el calendario del dueño de la conexión — devuelve el id
- * del evento de Google (para poder editarlo/borrarlo después) o null si la
- * conexión no está vigente / la llamada falla. Si hay attendeeEmail, se pide
- * sendUpdates=all para que Google realmente le mande el correo de invitación
- * (con opción de agregarlo a su calendario personal) — sin este parámetro,
+ * del evento de Google (para poder editarlo/borrarlo después) y el link de
+ * Google Meet si se pidió uno, o null si la conexión no está vigente / la
+ * llamada falla. Si hay attendeeEmail, se pide sendUpdates=all para que
+ * Google realmente le mande el correo de invitación (con opción de
+ * agregarlo a su calendario personal, y con los botones Sí/No/Tal vez que
+ * hacen que esto se sienta como una citación oficial) — sin este parámetro,
  * la API agrega al invitado al evento pero NO envía ninguna notificación por
  * defecto, así que el cliente nunca se enteraba.
  */
 export async function createCalendarEvent(
   connection: GoogleConnectionRow,
   event: CalendarEventInput
-): Promise<string | null> {
+): Promise<CreatedCalendarEvent | null> {
   const accessToken = await getValidAccessToken(connection);
   if (!accessToken) return null;
 
   const sendUpdates = event.attendeeEmail ? "all" : "none";
+  const params = new URLSearchParams({ sendUpdates });
+  // conferenceDataVersion=1 es obligatorio en la URL para que Google acepte
+  // el bloque conferenceData del body de abajo — sin este query param lo
+  // ignora en silencio y no genera ningún link.
+  if (event.requestMeetLink) params.set("conferenceDataVersion", "1");
 
   try {
     const res = await fetch(
-      `${GOOGLE_CALENDAR_EVENTS_URL}/${encodeURIComponent(connection.calendar_id)}/events?sendUpdates=${sendUpdates}`,
+      `${GOOGLE_CALENDAR_EVENTS_URL}/${encodeURIComponent(connection.calendar_id)}/events?${params.toString()}`,
       {
         method: "POST",
         headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
@@ -266,17 +283,26 @@ export async function createCalendarEvent(
           start: { dateTime: event.startIso },
           end: { dateTime: event.endIso },
           attendees: event.attendeeEmail ? [{ email: event.attendeeEmail }] : undefined,
+          conferenceData: event.requestMeetLink
+            ? { createRequest: { requestId: randomUUID(), conferenceSolutionKey: { type: "hangoutsMeet" } } }
+            : undefined,
         }),
       }
     );
     if (!res.ok) return null;
-    const data = (await res.json()) as { id: string };
-    return data.id;
+    const data = (await res.json()) as { id: string; hangoutLink?: string };
+    return { eventId: data.id, meetLink: data.hangoutLink ?? null };
   } catch {
     return null;
   }
 }
 
+/**
+ * A propósito NO toca conferenceData aunque event.requestMeetLink venga en
+ * true — PATCH sin ese campo deja intacto el link de Meet que ya se haya
+ * generado en el create, así el que se mandó por correo la primera vez
+ * nunca deja de servir por una edición posterior (fecha, notas, etc.).
+ */
 export async function updateCalendarEvent(
   connection: GoogleConnectionRow,
   googleEventId: string,
