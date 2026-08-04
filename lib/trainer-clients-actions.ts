@@ -225,6 +225,32 @@ export async function updateOwnClient(clientId: string, input: UpdateOwnClientIn
   await assertOwnClient(clientId);
   const supabase = getSupabaseAdmin();
 
+  // Si el cliente ya activó su cuenta (user_id) y se le está cambiando el
+  // correo, hay que sincronizar también auth.users — si no, clients.email
+  // queda apuntando a un correo distinto del que de verdad tiene su cuenta
+  // de Supabase Auth, y el login (que siempre resuelve el email desde
+  // clients) empieza a fallar con "Contraseña incorrecta" sin importar la
+  // contraseña, de forma silenciosa (sin ningún error al guardar). Bug real
+  // encontrado en producción: se probó cambiando el correo del cliente de
+  // prueba al mismo correo del propio entrenador, y quedó guardado en
+  // clients.email sin aviso aunque esa cuenta de Auth ya tenía otro dueño.
+  if (input.email !== undefined) {
+    const newEmail = input.email || null;
+    const { data: current } = await supabase.from("clients").select("user_id, email").eq("id", clientId).maybeSingle();
+    if (current?.user_id && newEmail && newEmail !== current.email) {
+      const { error: authError } = await supabase.auth.admin.updateUserById(current.user_id, { email: newEmail, email_confirm: true });
+      if (authError) {
+        const alreadyRegistered = /already.*registered|already exists/i.test(authError.message ?? "");
+        return {
+          ok: false,
+          error: alreadyRegistered
+            ? "Ese correo ya tiene otra cuenta en Hakunna Fit (puede ser el tuyo u otro cliente) — no se puede usar para este cliente."
+            : authError.message,
+        };
+      }
+    }
+  }
+
   const update: {
     full_name?: string;
     documento?: string | null;
