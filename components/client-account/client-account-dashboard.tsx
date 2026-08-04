@@ -599,7 +599,7 @@ function SessionsTimeline({
           if (entry.kind === "pendiente") {
             const busy = busyItemId === entry.id;
             return (
-              <div key={entry.id} className="overflow-hidden rounded-xl border border-amber-400/30 bg-amber-500/[0.06]">
+              <div key={entry.id} className="rounded-xl border border-amber-400/30 bg-amber-500/[0.06]">
                 <div className="flex items-start gap-3 p-3">
                   <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl bg-amber-500/15 text-amber-300">
                     <span className="text-base font-bold leading-none">{dayNum}</span>
@@ -696,7 +696,7 @@ function SessionsTimeline({
           return (
             <div
               key={entry.id}
-              className={`overflow-hidden rounded-xl border ${isFeatured ? "" : isCompleted ? "border-white/5 bg-white/[0.015]" : "border-white/10 bg-white/[0.02]"}`}
+              className={`rounded-xl border ${isFeatured ? "" : isCompleted ? "border-white/5 bg-white/[0.015]" : "border-white/10 bg-white/[0.02]"}`}
               style={
                 isFeatured
                   ? {
