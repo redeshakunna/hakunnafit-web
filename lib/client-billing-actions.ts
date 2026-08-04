@@ -119,6 +119,8 @@ export interface ClientPaymentRow {
   monto_cop: number;
   periodo_cubierto: string;
   pagado_en: string;
+  comprobante_url: string | null;
+  confirmado_por_entrenador: boolean;
 }
 
 export async function getOwnClientPayments(clientId: string): Promise<ClientPaymentRow[]> {
@@ -126,17 +128,53 @@ export async function getOwnClientPayments(clientId: string): Promise<ClientPaym
   const supabase = getSupabaseAdmin();
   const { data } = await supabase
     .from("client_payments")
-    .select("id, monto_cop, periodo_cubierto, pagado_en")
+    .select("id, monto_cop, periodo_cubierto, pagado_en, comprobante_url, confirmado_por_entrenador")
     .eq("client_id", clientId)
     .order("pagado_en", { ascending: false });
   return data ?? [];
+}
+
+export interface PendingPaymentReceipt {
+  id: string;
+  montoCop: number;
+  periodoCubierto: string;
+  comprobanteUrl: string | null;
+  createdAt: string;
+}
+
+/**
+ * Comprobante que el cliente ya subió desde /mi-cuenta y sigue sin
+ * confirmar — se carga al abrir la ficha para destacarlo arriba del todo
+ * en vez de esperar a que el entrenador despliegue el historial.
+ */
+export async function getOwnPendingPaymentReceipt(clientId: string): Promise<PendingPaymentReceipt | null> {
+  await assertOwnClient(clientId);
+  const supabase = getSupabaseAdmin();
+  const { data } = await supabase
+    .from("client_payments")
+    .select("id, monto_cop, periodo_cubierto, comprobante_url, created_at")
+    .eq("client_id", clientId)
+    .eq("confirmado_por_entrenador", false)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!data) return null;
+  return {
+    id: data.id,
+    montoCop: data.monto_cop,
+    periodoCubierto: data.periodo_cubierto,
+    comprobanteUrl: data.comprobante_url,
+    createdAt: data.created_at,
+  };
 }
 
 /**
  * El entrenador confirma que le llegó la transferencia — registra el pago en
  * el historial, avanza el próximo cobro un mes y suma un mes al contador de
  * meses pagados (informativo, para ver el avance contra el compromiso
- * mínimo).
+ * mínimo). Si el cliente ya había subido un comprobante desde /mi-cuenta
+ * (fila con confirmado_por_entrenador=false), se confirma esa misma fila en
+ * vez de insertar una nueva — así no se duplica el pago en el historial.
  */
 export async function markClientPaymentReceived(clientId: string): Promise<AdminActionResult> {
   const { trainerId } = await assertOwnClient(clientId);
@@ -153,15 +191,35 @@ export async function markClientPaymentReceived(clientId: string): Promise<Admin
     return { ok: false, error: "Este cliente todavía no tiene un valor de plan definido — configúralo antes de marcar el pago." };
   }
 
-  const periodoCubierto = client.proximo_cobro_cliente ?? client.fecha_inicio_facturacion ?? todayIso();
+  const { data: pending } = await supabase
+    .from("client_payments")
+    .select("id, periodo_cubierto")
+    .eq("client_id", clientId)
+    .eq("confirmado_por_entrenador", false)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
-  const { error: insertError } = await supabase.from("client_payments").insert({
-    client_id: clientId,
-    trainer_id: trainerId,
-    monto_cop: client.plan_precio_cop,
-    periodo_cubierto: periodoCubierto,
-  });
-  if (insertError) return { ok: false, error: insertError.message };
+  const periodoCubierto = pending?.periodo_cubierto ?? client.proximo_cobro_cliente ?? client.fecha_inicio_facturacion ?? todayIso();
+
+  if (pending) {
+    // No se toca pagado_en: ya quedó registrado el momento en que el
+    // cliente subió su comprobante — esta confirmación solo cambia el
+    // estado, no la fecha del pago.
+    const { error: updateError } = await supabase
+      .from("client_payments")
+      .update({ confirmado_por_entrenador: true })
+      .eq("id", pending.id);
+    if (updateError) return { ok: false, error: updateError.message };
+  } else {
+    const { error: insertError } = await supabase.from("client_payments").insert({
+      client_id: clientId,
+      trainer_id: trainerId,
+      monto_cop: client.plan_precio_cop,
+      periodo_cubierto: periodoCubierto,
+    });
+    if (insertError) return { ok: false, error: insertError.message };
+  }
 
   const { error: updateError } = await supabase
     .from("clients")

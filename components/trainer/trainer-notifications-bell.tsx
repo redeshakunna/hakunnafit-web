@@ -25,6 +25,7 @@ const TYPE_ICON: Record<string, React.ElementType> = {
   reactivado: CheckCircle2,
   informacion_actualizada: Info,
   cobro_cliente_proximo: Wallet,
+  comprobante_pago_cliente: Wallet,
 };
 
 const TYPE_LINK: Record<string, string> = {

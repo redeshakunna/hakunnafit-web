@@ -315,6 +315,8 @@ export interface Database {
           periodo_cubierto: string;
           pagado_en: string;
           created_at: string;
+          comprobante_url: string | null;
+          confirmado_por_entrenador: boolean;
         };
         Insert: {
           id?: string;
@@ -324,6 +326,8 @@ export interface Database {
           periodo_cubierto: string;
           pagado_en?: string;
           created_at?: string;
+          comprobante_url?: string | null;
+          confirmado_por_entrenador?: boolean;
         };
         Update: Partial<Database["public"]["Tables"]["client_payments"]["Insert"]>;
         Relationships: [];

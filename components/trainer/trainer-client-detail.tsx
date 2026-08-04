@@ -60,7 +60,9 @@ import {
   setClientBilling,
   markClientPaymentReceived,
   getOwnClientPayments,
+  getOwnPendingPaymentReceipt,
   type ClientPaymentRow,
+  type PendingPaymentReceipt,
 } from "@/lib/client-billing-actions";
 import { addOneMonth, buildClientPaymentWhatsappLink } from "@/lib/client-billing";
 import { ClientHojaDeVida } from "@/components/trainer/client-hoja-de-vida";
@@ -456,6 +458,15 @@ function FacturacionCard({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isMarking, startMarking] = useTransition();
+  // Comprobante que el cliente ya subió desde /mi-cuenta ("Ya pagué") y
+  // sigue sin confirmar — se carga eager (no perezoso como el historial)
+  // porque es lo primero que el entrenador debe ver al entrar a la ficha si
+  // hay un pago esperando revisión.
+  const [pendingReceipt, setPendingReceipt] = useState<PendingPaymentReceipt | null>(null);
+
+  useEffect(() => {
+    getOwnPendingPaymentReceipt(client.id).then(setPendingReceipt);
+  }, [client.id]);
 
   useEffect(() => {
     if (!showHistory || loadedPayments) return;
@@ -503,6 +514,7 @@ function FacturacionCard({
       }
       const periodo = client.proximo_cobro_cliente ?? client.fecha_inicio_facturacion ?? new Date().toISOString().slice(0, 10);
       setClient({ ...client, proximo_cobro_cliente: addOneMonth(periodo), meses_pagados: (client.meses_pagados ?? 0) + 1 });
+      setPendingReceipt(null);
       setLoadedPayments(false);
       setShowHistory(true);
     });
@@ -617,6 +629,30 @@ function FacturacionCard({
         </p>
       </div>
 
+      {pendingReceipt && (
+        <div className="mt-3 rounded-xl border border-amber-400/30 bg-amber-500/[0.06] p-3">
+          <div className="flex items-center gap-2 text-amber-300">
+            <CheckCircle2 size={14} />
+            <p className="text-xs font-semibold">El cliente subió un comprobante — pendiente de confirmar</p>
+          </div>
+          <p className="mt-1 text-[11px] text-white/50">
+            Enviado el {new Date(pendingReceipt.createdAt).toLocaleDateString("es-CO")} · $
+            {new Intl.NumberFormat("es-CO").format(pendingReceipt.montoCop)} · periodo{" "}
+            {new Date(pendingReceipt.periodoCubierto).toLocaleDateString("es-CO")}
+          </p>
+          {pendingReceipt.comprobanteUrl && (
+            <a
+              href={pendingReceipt.comprobanteUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-1.5 inline-block text-[11px] font-semibold text-amber-300 underline underline-offset-2 hover:text-amber-200"
+            >
+              Ver comprobante →
+            </a>
+          )}
+        </div>
+      )}
+
       {error && <p className="mt-2 text-[11px] text-red-400">{error}</p>}
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -626,7 +662,7 @@ function FacturacionCard({
           title={!client.plan_precio_cop ? "Define el precio del plan primero" : undefined}
           className="flex items-center gap-1.5 rounded-full bg-emerald-500 px-3 py-1.5 text-xs font-bold text-black disabled:opacity-40"
         >
-          <Check size={13} /> {isMarking ? "Guardando..." : "Marcar como pagado"}
+          <Check size={13} /> {isMarking ? "Guardando..." : pendingReceipt ? "Confirmar pago recibido" : "Marcar como pagado"}
         </button>
 
         {whatsappLink ? (
@@ -657,6 +693,16 @@ function FacturacionCard({
             <div key={p.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2">
               <span className="text-xs text-white/70">Periodo {new Date(p.periodo_cubierto).toLocaleDateString("es-CO")}</span>
               <span className="text-xs font-semibold text-white">${new Intl.NumberFormat("es-CO").format(p.monto_cop)}</span>
+              {p.comprobante_url && (
+                <a
+                  href={p.comprobante_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[11px] font-semibold text-hf-blue underline underline-offset-2 hover:text-white"
+                >
+                  Comprobante
+                </a>
+              )}
               <span className="text-[11px] text-white/40">Pagado {new Date(p.pagado_en).toLocaleDateString("es-CO")}</span>
             </div>
           ))}
