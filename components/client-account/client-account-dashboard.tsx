@@ -85,11 +85,16 @@ function todayDiaSemana(): number {
 export function ClientAccountDashboard({ initialData }: { initialData: ClientAccountData }) {
   const router = useRouter();
   const [data, setData] = useState(initialData);
-  const { client, trainer, routine, nextAppointment, pendingProposal, measurements } = data;
+  const { client, trainer, routine, nextAppointment, upcomingAppointments, pendingProposal, measurements } = data;
   const firstName = client.full_name.split(" ")[0];
   const waHref = whatsappHref(trainer.whatsapp, `Hola ${trainer.businessName}, te escribo desde mi cuenta de HakunnaFit.`);
   const imc = calculateImc(client.peso_actual, client.altura);
-  const hasPendingItems = !!pendingProposal?.items.some((i) => i.status === "pendiente");
+  // Antes solo se mostraba el bloque de "sesiones por aprobar" cuando había
+  // ítems pendientes, y desaparecía por completo al resolverse todos — el
+  // cliente perdía de vista qué se había aprobado/rechazado. Ahora se
+  // muestra siempre que exista una propuesta con al menos un ítem, y es
+  // ProposalSection quien distingue pendientes de ya resueltos.
+  const hasProposalItems = !!pendingProposal && pendingProposal.items.length > 0;
   const theme = branchTheme(trainer.especialidad);
 
   async function onLogout() {
@@ -184,9 +189,15 @@ export function ClientAccountDashboard({ initialData }: { initialData: ClientAcc
         </div>
 
         {/* Lo accionable primero: sesiones por aprobar y próxima cita */}
-        {hasPendingItems && pendingProposal && <ProposalSection proposal={pendingProposal} onChanged={refreshData} />}
+        {hasProposalItems && pendingProposal && <ProposalSection proposal={pendingProposal} onChanged={refreshData} />}
 
         {nextAppointment && <NextAppointmentCard appointment={nextAppointment} trainerName={trainer.businessName} />}
+
+        {/* Calendario/semana de citas — todas las citas ya aprobadas (reales,
+            en "evaluations") de los próximos ~14 días, con su estado, para
+            que el cliente tenga una vista tipo agenda y no solo la más
+            próxima. */}
+        {upcomingAppointments.length > 0 && <UpcomingAppointmentsSection appointments={upcomingAppointments} />}
 
         {/* Vistazo rápido en números */}
         <StatsRow client={client} imc={imc} routine={routine} nextAppointment={nextAppointment} />
@@ -322,6 +333,50 @@ function AddToCalendarMenu({ event, uid }: { event: CalendarEventInput; uid: str
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Próximas citas — vista tipo calendario/semana: todas las citas reales
+// (evaluations, ya aprobadas) de los próximos ~14 días con su estado
+// (Confirmada/Completada). Pedido explícito de Nando: en /mi-cuenta solo se
+// veía "Tu próxima cita" (una sola), sin forma de ver el resto de la semana
+// ni de confirmar que una sesión ya quedó aprobada.
+// ---------------------------------------------------------------------------
+
+function UpcomingAppointmentsSection({ appointments }: { appointments: ClientAccountData["upcomingAppointments"] }) {
+  return (
+    <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+      <div className="flex items-center gap-1.5">
+        <CalendarClock size={14} style={{ color: "var(--hf-primary)" }} />
+        <p className="text-xs font-bold uppercase tracking-wide text-white/40">Próximas citas</p>
+      </div>
+      <div className="mt-3 space-y-1.5">
+        {appointments.map((a) => {
+          const date = new Date(a.scheduledAt);
+          const dateLabel = date.toLocaleDateString("es-CO", { weekday: "short", day: "numeric", month: "short", timeZone: "America/Bogota" });
+          const timeLabel = date.toLocaleTimeString("es-CO", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "America/Bogota" });
+          const isCompleted = a.status === "completada";
+          return (
+            <div key={a.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2">
+              <div className="min-w-0">
+                <p className="truncate text-xs font-semibold capitalize text-white">{dateLabel}</p>
+                <p className="text-[11px] text-white/50">
+                  {timeLabel} · {a.duracionMin} min · {a.modalidad === "virtual" ? "Virtual" : "Presencial"}
+                </p>
+              </div>
+              <span
+                className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                  isCompleted ? "bg-white/10 text-white/50" : "bg-emerald-500/10 text-emerald-400"
+                }`}
+              >
+                {isCompleted ? "Completada" : "Confirmada"}
+              </span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -522,6 +577,7 @@ function ProposalSection({
   const [, startTransition] = useTransition();
 
   const pendingCount = proposal.items.filter((i) => i.status === "pendiente").length;
+  const aprobadasCount = proposal.items.filter((i) => i.status === "aprobada").length;
 
   function approve(itemId: string) {
     setError(null);
@@ -572,26 +628,56 @@ function ProposalSection({
 
   return (
     <div className="mt-4 overflow-hidden rounded-2xl border" style={{ borderColor: "color-mix(in srgb, var(--hf-primary) 45%, transparent)" }}>
-      <div className="flex items-center gap-2 px-4 py-2.5" style={{ background: GREEN }}>
-        <Sparkles size={14} className="text-black" />
-        <p className="text-xs font-bold uppercase tracking-wide text-black">
-          {pendingCount} {pendingCount === 1 ? "sesión espera" : "sesiones esperan"} tu aprobación
+      <div className="flex items-center gap-2 px-4 py-2.5" style={{ background: pendingCount > 0 ? GREEN : "rgba(255,255,255,0.06)" }}>
+        <Sparkles size={14} className={pendingCount > 0 ? "text-black" : "text-white/50"} />
+        <p className={`text-xs font-bold uppercase tracking-wide ${pendingCount > 0 ? "text-black" : "text-white/50"}`}>
+          {pendingCount > 0
+            ? `${pendingCount} ${pendingCount === 1 ? "sesión espera" : "sesiones esperan"} tu aprobación`
+            : `Plan de sesiones — ${aprobadasCount}/${proposal.items.length} aprobadas`}
         </p>
       </div>
       <div className="bg-white/[0.03] p-4">
         {error && <p className="mb-2 text-xs text-red-400">{error}</p>}
         <div className="space-y-2.5">
           {proposal.items.map((item) => {
-            if (item.status !== "pendiente") return null;
             const dateLabel = new Date(item.scheduledAt).toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", timeZone: "America/Bogota" });
             const timeLabel = new Date(item.scheduledAt).toLocaleTimeString("es-CO", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "America/Bogota" });
             const busy = busyItemId === item.id;
+
+            // Ítems ya resueltos (aprobada/rechazada) — misma idea de badge
+            // que ya usa el entrenador en su ficha (SessionProposalPanel):
+            // solo informativo, sin botones de acción.
+            if (item.status !== "pendiente") {
+              return (
+                <div key={item.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.02] p-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold capitalize text-white">{dateLabel}</p>
+                    <p className="text-xs text-white/50">
+                      {timeLabel} · {item.durationMin} min · {item.modalidad === "virtual" ? "Virtual" : "Presencial"}
+                    </p>
+                  </div>
+                  <span
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                      item.status === "aprobada" ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
+                    }`}
+                  >
+                    {item.status === "aprobada" ? "Aprobada" : "Rechazada"}
+                  </span>
+                </div>
+              );
+            }
+
             return (
               <div key={item.id} className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
-                <p className="text-sm font-semibold capitalize text-white">{dateLabel}</p>
-                <p className="text-xs text-white/50">
-                  {timeLabel} · {item.durationMin} min · {item.modalidad === "virtual" ? "Virtual" : "Presencial"}
-                </p>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold capitalize text-white">{dateLabel}</p>
+                    <p className="text-xs text-white/50">
+                      {timeLabel} · {item.durationMin} min · {item.modalidad === "virtual" ? "Virtual" : "Presencial"}
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-400">Por aprobar</span>
+                </div>
 
                 {openReject !== item.id ? (
                   <div className="mt-2.5 flex gap-2">

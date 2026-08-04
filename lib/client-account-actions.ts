@@ -69,6 +69,12 @@ export interface OwnNextAppointment {
   modalidad: string;
   duracionMin: number;
   meetLink: string | null;
+  // Estado real de la cita en "evaluations" (pendiente/completada) — se usa
+  // para el badge "Confirmada"/"Completada" en la lista de "Próximas citas"
+  // (calendario/semana) de /mi-cuenta. Toda fila en "evaluations" es, por
+  // definición, una cita YA aprobada (se crea recién cuando el cliente
+  // aprueba un ítem propuesto) — no hay estado "pendiente de aprobación" acá.
+  status: string;
 }
 
 export interface OwnPendingItem {
@@ -89,6 +95,11 @@ export interface ClientAccountData {
   trainer: OwnTrainerBranding;
   routine: RoutineRow | null;
   nextAppointment: OwnNextAppointment | null;
+  // Citas reales (evaluations, ya aprobadas) en una ventana de ~2 semanas —
+  // alimenta la sección "Próximas citas" (vista tipo calendario/semana) en
+  // /mi-cuenta. nextAppointment sigue existiendo para la tarjeta destacada
+  // (es simplemente el primer elemento de esta lista que aún no pasó).
+  upcomingAppointments: OwnNextAppointment[];
   pendingProposal: OwnPendingProposal | null;
   measurements: MeasurementRow[];
 }
@@ -97,8 +108,15 @@ export async function getOwnClientDashboardData(): Promise<ClientAccountData | n
   const me = await getCurrentClient();
   if (!me) return null;
 
+  // Ventana para "Próximas citas" (calendario/semana) — desde ayer (buffer de
+  // zona horaria para no perder la cita de hoy temprano) hasta 14 días
+  // adelante. No filtra "completada": el cliente debe poder ver, dentro de
+  // esa ventana, tanto lo que ya pasó/hizo como lo que viene.
+  const windowStart = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const windowEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+
   const supabase = getSupabaseAdmin();
-  const [{ data: trainer }, { data: routine }, { data: nextAppt }, { data: proposal }, { data: measurements }] = await Promise.all([
+  const [{ data: trainer }, { data: routine }, { data: upcoming }, { data: proposal }, { data: measurements }] = await Promise.all([
     supabase
       .from("trainers")
       .select("business_name, logo_url, color_primario, color_secundario, color_terciario, whatsapp_publico, whatsapp, subdominio, especialidad")
@@ -114,19 +132,43 @@ export async function getOwnClientDashboardData(): Promise<ClientAccountData | n
       .maybeSingle(),
     supabase
       .from("evaluations")
-      .select("id, scheduled_at, modalidad, duracion_min, meet_link")
+      .select("id, scheduled_at, modalidad, duracion_min, meet_link, status")
       .eq("client_id", me.id)
-      .not("status", "in", "(cancelada,completada)")
+      .not("status", "eq", "cancelada")
       .not("scheduled_at", "is", null)
-      .gte("scheduled_at", new Date().toISOString())
+      .gte("scheduled_at", windowStart)
+      .lte("scheduled_at", windowEnd)
       .order("scheduled_at", { ascending: true })
-      .limit(1)
-      .maybeSingle(),
-    supabase.from("session_proposals").select("id").eq("client_id", me.id).eq("status", "pendiente").maybeSingle(),
+      .limit(20),
+    // Última propuesta del cliente, sea cual sea su estado — antes filtraba
+    // por status="pendiente", así que en cuanto se aprobaba/rechazaba la
+    // última sesión de una propuesta (y esta pasaba a "completada") todo el
+    // bloque desaparecía de /mi-cuenta sin dejar rastro de qué se había
+    // aprobado. Ahora se trae la más reciente igual, y es ProposalSection
+    // quien decide qué mostrar según el status de cada ítem.
+    supabase.from("session_proposals").select("id, status").eq("client_id", me.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("measurements").select("*").eq("client_id", me.id).order("fecha", { ascending: false }),
   ]);
 
   if (!trainer) return null;
+
+  const upcomingAppointments: OwnNextAppointment[] = ((upcoming ?? []) as {
+    id: string;
+    scheduled_at: string;
+    modalidad: string;
+    duracion_min: number;
+    meet_link: string | null;
+    status: string;
+  }[]).map((e) => ({
+    id: e.id,
+    scheduledAt: e.scheduled_at,
+    modalidad: e.modalidad,
+    duracionMin: e.duracion_min,
+    meetLink: e.meet_link,
+    status: e.status,
+  }));
+  const nextAppointment =
+    upcomingAppointments.find((a) => a.status !== "completada" && new Date(a.scheduledAt).getTime() >= Date.now()) ?? null;
 
   let pendingProposal: OwnPendingProposal | null = null;
   if (proposal) {
@@ -162,15 +204,8 @@ export async function getOwnClientDashboardData(): Promise<ClientAccountData | n
       especialidad: trainer.especialidad,
     },
     routine: (routine as RoutineRow | null) ?? null,
-    nextAppointment: nextAppt
-      ? {
-          id: nextAppt.id,
-          scheduledAt: nextAppt.scheduled_at as string,
-          modalidad: nextAppt.modalidad,
-          duracionMin: nextAppt.duracion_min,
-          meetLink: nextAppt.meet_link,
-        }
-      : null,
+    nextAppointment,
+    upcomingAppointments,
     pendingProposal,
     measurements: (measurements ?? []) as MeasurementRow[],
   };
