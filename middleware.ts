@@ -19,7 +19,16 @@ export async function middleware(req: NextRequest) {
   const hostname = (req.headers.get("host") || "").split(":")[0].toLowerCase();
 
   // 1. Subdominios de entrenador — no tiene relación con la sesión de /panel.
-  if (hostname.endsWith(`.${ROOT_DOMAIN}`)) {
+  // OJO: /mi-cuenta es una ruta de app compartida (no vive bajo
+  // /landing/[subdominio]) — el cliente entra desde el subdominio de su
+  // entrenador (/landing/[subdominio]/ingresar) pero client-login-form.tsx
+  // hace router.push("/mi-cuenta") en el navegador, que en el subdominio
+  // resuelve a "<subdominio>.hakunnafit.com/mi-cuenta". Si no se excluye acá,
+  // esta regla la reescribe a /landing/[subdominio]/mi-cuenta (ruta
+  // inexistente) y el cliente recién logueado cae en un 404 real en
+  // producción — bug encontrado probando el login del cliente en vivo.
+  const isSharedAppRoute = req.nextUrl.pathname === "/mi-cuenta" || req.nextUrl.pathname.startsWith("/mi-cuenta/");
+  if (hostname.endsWith(`.${ROOT_DOMAIN}`) && !isSharedAppRoute) {
     const subdomain = hostname.slice(0, -(`.${ROOT_DOMAIN}`.length));
     if (subdomain && !subdomain.includes(".") && !RESERVED_SUBDOMAINS.has(subdomain)) {
       const url = req.nextUrl.clone();
