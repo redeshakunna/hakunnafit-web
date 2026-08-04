@@ -24,11 +24,19 @@ export function BranchHero({
   right?: ReactNode;
 }) {
   return (
-    <div
-      className="relative overflow-hidden rounded-3xl border border-white/10 bg-cover bg-center bg-fixed"
-      style={{ backgroundImage: `url(${theme.heroImage})` }}
-    >
-      <div className={`absolute inset-0 ${theme.overlayClassName}`} />
+    // La foto+overlay viven en una capa absoluta APARTE con su propio
+    // overflow-hidden (para que la imagen respete las esquinas redondeadas)
+    // — el contenido (título + botones de "right") va en un hermano sin
+    // overflow-hidden. Antes todo compartía un mismo contenedor
+    // overflow-hidden: cualquier menú desplegable dentro de "right" (p. ej.
+    // TrainerAgendaSettingsMenu, el botón "..." de conectar Google) quedaba
+    // recortado por ese overflow-hidden apenas se abría — se veía "cortado"
+    // en vez de flotar sobre el resto de la pantalla.
+    <div className="relative rounded-3xl border border-white/10">
+      <div className="absolute inset-0 overflow-hidden rounded-3xl">
+        <div className="absolute inset-0 bg-cover bg-center bg-fixed" style={{ backgroundImage: `url(${theme.heroImage})` }} />
+        <div className={`absolute inset-0 ${theme.overlayClassName}`} />
+      </div>
       <div className="relative flex flex-wrap items-center justify-between gap-4 p-5 sm:p-6">
         <div>
           {eyebrow && (
