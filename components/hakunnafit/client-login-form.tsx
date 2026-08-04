@@ -141,6 +141,9 @@ export function ClientLoginForm({ subdominio, accentColor }: { subdominio: strin
               required
               autoFocus
               autoComplete="current-password"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               className={inputClass}
             />
           </label>
@@ -194,6 +197,9 @@ export function ClientLoginForm({ subdominio, accentColor }: { subdominio: strin
               required
               minLength={6}
               autoComplete="new-password"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               className={inputClass}
               placeholder="Mínimo 6 caracteres"
             />

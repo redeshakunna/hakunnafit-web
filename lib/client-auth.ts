@@ -134,8 +134,17 @@ export async function setClientPassword(
   subdominio: string,
   documento: string,
   code: string,
-  newPassword: string
+  newPasswordRaw: string
 ): Promise<AdminActionResult> {
+  // Trim — el teclado de varios celulares (Gboard, teclado de iOS con texto
+  // predictivo) mete un espacio invisible al final al autocompletar o al
+  // tocar "listo", y como este es un campo type="password" no hay forma de
+  // notarlo a simple vista. Sin este trim, la contraseña que quedaba
+  // guardada en Supabase Auth incluía ese espacio, pero un login posterior
+  // desde otro dispositivo (o el mismo, sin el espacio esa vez) no
+  // coincidía — "Contraseña incorrecta" con la contraseña "correcta". Mismo
+  // trim en loginClientWithPassword de abajo para que ambos lados coincidan.
+  const newPassword = newPasswordRaw.trim();
   const resolved = await resolveClientByDocumento(subdominio, documento);
   if (!resolved) return { ok: false, error: "No encontramos un cliente con ese documento." };
   if (!newPassword || newPassword.length < 6) return { ok: false, error: "La contraseña debe tener al menos 6 caracteres." };
@@ -201,7 +210,12 @@ export async function setClientPassword(
 // Login normal (cuenta ya activada)
 // ---------------------------------------------------------------------------
 
-export async function loginClientWithPassword(subdominio: string, documento: string, password: string): Promise<AdminActionResult> {
+export async function loginClientWithPassword(subdominio: string, documento: string, passwordRaw: string): Promise<AdminActionResult> {
+  // Mismo trim que en setClientPassword — un espacio invisible agregado por
+  // el teclado del celular en cualquiera de los dos momentos (al crearla o
+  // al escribirla de nuevo para entrar) rompía la comparación exacta de
+  // Supabase Auth sin que el cliente pudiera notarlo (campo enmascarado).
+  const password = passwordRaw.trim();
   const resolved = await resolveClientByDocumento(subdominio, documento);
   if (!resolved) return { ok: false, error: "No encontramos un cliente con ese documento." };
   if (!resolved.userId || !resolved.email) {
