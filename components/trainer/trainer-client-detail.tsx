@@ -140,6 +140,7 @@ export function TrainerClientDetail({
       const perfilDeportivo = rama === "running" ? form.perfilRunning : rama === "crossfit" ? form.perfilCrossfit : null;
       const res = await updateOwnClient(client.id, {
         fullName: form.fullName,
+        documento: form.documento,
         email: form.email,
         whatsapp: form.whatsapp,
         sexo: form.sexo,
@@ -159,6 +160,7 @@ export function TrainerClientDetail({
       setClient({
         ...client,
         full_name: form.fullName.trim(),
+        documento: form.documento.trim() || null,
         email: form.email || null,
         whatsapp: form.whatsapp || null,
         sexo: form.sexo || null,
