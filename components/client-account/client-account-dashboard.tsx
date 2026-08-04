@@ -748,9 +748,22 @@ function SessionsTimeline({
                 )}
               </button>
 
-              {isExpanded && (entry.notas?.trim() || !isCompleted) && (
+              {isExpanded && (
+                // Antes este panel solo se dibujaba si había notas O la
+                // sesión seguía activa — una cita ya completada y sin notas
+                // (el caso más común: la mayoría se crean sin notas) caía en
+                // los dos "false" y el panel no se renderizaba en absoluto:
+                // el cliente tocaba la tarjeta y "no pasaba nada". Ahora
+                // siempre se muestra algo al expandir, con contenido acorde
+                // a cada caso.
                 <div className="border-t border-white/5 px-3 pb-3 pt-2.5">
-                  {entry.notas?.trim() && <p className="text-xs text-white/60">{entry.notas.trim()}</p>}
+                  {entry.notas?.trim() ? (
+                    <p className="text-xs text-white/60">{entry.notas.trim()}</p>
+                  ) : (
+                    <p className="text-xs text-white/35">
+                      {isCompleted ? "Sesión completada — sin notas del entrenador." : "Tu entrenador no dejó notas adicionales para esta sesión."}
+                    </p>
+                  )}
                   {!isCompleted && (
                     <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
                       {entry.modalidad === "virtual" && entry.meetLink && (
