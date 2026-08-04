@@ -53,9 +53,18 @@ export interface OwnTrainerBranding {
   colorTerciario: string;
   whatsapp: string | null;
   subdominio: string | null;
+  // Rama del entrenador (running/crossfit/gym) — se usa solo para elegir la
+  // foto de fondo tipo parallax de /mi-cuenta (lib/branch-theme.ts, mismo
+  // mecanismo ya usado en las pantallas del panel del entrenador). No se usa
+  // para nada funcional acá, solo para que la pantalla no se sienta vacía en
+  // pantallas anchas.
+  especialidad: string | null;
 }
 
 export interface OwnNextAppointment {
+  // Id real en "evaluations" — se usa para el nombre/UID del evento al
+  // generar el link de "agregar a mi calendario" (Google Calendar / .ics).
+  id: string;
   scheduledAt: string;
   modalidad: string;
   duracionMin: number;
@@ -92,7 +101,7 @@ export async function getOwnClientDashboardData(): Promise<ClientAccountData | n
   const [{ data: trainer }, { data: routine }, { data: nextAppt }, { data: proposal }, { data: measurements }] = await Promise.all([
     supabase
       .from("trainers")
-      .select("business_name, logo_url, color_primario, color_secundario, color_terciario, whatsapp_publico, whatsapp, subdominio")
+      .select("business_name, logo_url, color_primario, color_secundario, color_terciario, whatsapp_publico, whatsapp, subdominio, especialidad")
       .eq("id", me.trainer_id)
       .maybeSingle(),
     supabase
@@ -105,7 +114,7 @@ export async function getOwnClientDashboardData(): Promise<ClientAccountData | n
       .maybeSingle(),
     supabase
       .from("evaluations")
-      .select("scheduled_at, modalidad, duracion_min, meet_link")
+      .select("id, scheduled_at, modalidad, duracion_min, meet_link")
       .eq("client_id", me.id)
       .not("status", "in", "(cancelada,completada)")
       .not("scheduled_at", "is", null)
@@ -150,10 +159,12 @@ export async function getOwnClientDashboardData(): Promise<ClientAccountData | n
       colorTerciario: trainer.color_terciario,
       whatsapp: trainer.whatsapp_publico?.trim() || trainer.whatsapp,
       subdominio: trainer.subdominio,
+      especialidad: trainer.especialidad,
     },
     routine: (routine as RoutineRow | null) ?? null,
     nextAppointment: nextAppt
       ? {
+          id: nextAppt.id,
           scheduledAt: nextAppt.scheduled_at as string,
           modalidad: nextAppt.modalidad,
           duracionMin: nextAppt.duracion_min,

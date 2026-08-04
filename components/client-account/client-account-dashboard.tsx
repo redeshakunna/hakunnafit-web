@@ -23,8 +23,10 @@
 
 import { useMemo, useRef, useState, useTransition, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import {
   CalendarClock,
+  CalendarPlus,
   ChevronDown,
   Dumbbell,
   Flame,
@@ -47,11 +49,14 @@ import { ClientHojaDeVida } from "@/components/trainer/client-hoja-de-vida";
 import { calculateImc } from "@/lib/imc";
 import { SEXO_LABELS, NIVEL_LABELS, ACTIVIDAD_OPTIONS } from "@/lib/client-ui";
 import { blockKindOf, DIAS_SEMANA, type RoutineExerciseBlock } from "@/lib/routine-types";
+import { branchTheme } from "@/lib/branch-theme";
+import { googleCalendarUrl, downloadIcsFile, type CalendarEventInput } from "@/lib/calendar-links";
 import type { MeasurementRow } from "@/lib/trainer-clients-actions";
 import { logoutClient } from "@/lib/client-auth";
 import {
   addOwnProgressPhoto,
   approveOwnProposalItem,
+  getOwnClientDashboardData,
   getOwnReplacementSuggestions,
   rejectAndReplaceOwnItem,
   updateOwnHojaDeVida,
@@ -85,6 +90,7 @@ export function ClientAccountDashboard({ initialData }: { initialData: ClientAcc
   const waHref = whatsappHref(trainer.whatsapp, `Hola ${trainer.businessName}, te escribo desde mi cuenta de HakunnaFit.`);
   const imc = calculateImc(client.peso_actual, client.altura);
   const hasPendingItems = !!pendingProposal?.items.some((i) => i.status === "pendiente");
+  const theme = branchTheme(trainer.especialidad);
 
   async function onLogout() {
     await logoutClient();
@@ -92,8 +98,37 @@ export function ClientAccountDashboard({ initialData }: { initialData: ClientAcc
     router.refresh();
   }
 
+  // Se llama después de aprobar/rechazar una sesión propuesta: en vez de
+  // parchear el estado local a mano (y quedar desincronizado de nextAppointment,
+  // las stats, etc.), se vuelve a pedir el dashboard completo — así "Tu próxima
+  // cita" y los KPIs aparecen de inmediato, sin que el cliente tenga que
+  // recargar la página manualmente.
+  async function refreshData() {
+    const fresh = await getOwnClientDashboardData();
+    if (fresh) setData(fresh);
+  }
+
   return (
-    <div className="min-h-screen bg-hf-black text-white" style={brandVars(trainer)}>
+    <div className="relative min-h-screen text-white" style={brandVars(trainer)}>
+      {/* Fondo fijo tipo parallax — foto de stock según la rama del
+          entrenador (running/crossfit/gym, mismo mecanismo que ya usan las
+          pantallas del panel, ver lib/branch-theme.ts) con un degradado
+          oscuro teñido con el color de marca real del entrenador (no el
+          acento genérico por rama) para que combine con el resto de la
+          pantalla. Antes esta vista era bg-hf-black sólido de punta a punta,
+          así que en pantallas anchas los costados quedaban vacíos. */}
+      <div className="fixed inset-0 -z-10">
+        <Image src={theme.heroImage} alt="" fill priority={false} sizes="100vw" className="object-cover opacity-45" />
+        <div
+          className="absolute inset-0"
+          style={{ background: "linear-gradient(180deg, rgba(17,17,17,0.55) 0%, rgba(17,17,17,0.93) 45%, #111111 78%)" }}
+        />
+        <div
+          className="absolute inset-0"
+          style={{ background: "radial-gradient(circle at 15% 0%, color-mix(in srgb, var(--hf-primary) 25%, transparent), transparent 55%)" }}
+        />
+      </div>
+
       {/* Header — sticky, a juego con el header de la landing del entrenador */}
       <header className="sticky top-0 z-30 border-b border-white/10 bg-hf-black/85 backdrop-blur">
         <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 px-4 py-3">
@@ -149,11 +184,9 @@ export function ClientAccountDashboard({ initialData }: { initialData: ClientAcc
         </div>
 
         {/* Lo accionable primero: sesiones por aprobar y próxima cita */}
-        {hasPendingItems && pendingProposal && (
-          <ProposalSection proposal={pendingProposal} onChange={(p) => setData((d) => ({ ...d, pendingProposal: p }))} />
-        )}
+        {hasPendingItems && pendingProposal && <ProposalSection proposal={pendingProposal} onChanged={refreshData} />}
 
-        {nextAppointment && <NextAppointmentCard appointment={nextAppointment} />}
+        {nextAppointment && <NextAppointmentCard appointment={nextAppointment} trainerName={trainer.businessName} />}
 
         {/* Vistazo rápido en números */}
         <StatsRow client={client} imc={imc} routine={routine} nextAppointment={nextAppointment} />
@@ -185,36 +218,109 @@ export function ClientAccountDashboard({ initialData }: { initialData: ClientAcc
 // Próxima cita — banner con degradado de marca (antes era una caja plana).
 // ---------------------------------------------------------------------------
 
-function NextAppointmentCard({ appointment }: { appointment: NonNullable<ClientAccountData["nextAppointment"]> }) {
+function NextAppointmentCard({
+  appointment,
+  trainerName,
+}: {
+  appointment: NonNullable<ClientAccountData["nextAppointment"]>;
+  trainerName: string;
+}) {
   const date = new Date(appointment.scheduledAt);
   const dateLabel = date.toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", timeZone: "America/Bogota" });
   const timeLabel = date.toLocaleTimeString("es-CO", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "America/Bogota" });
+  const modalidadLabel = appointment.modalidad === "virtual" ? "Virtual" : "Presencial";
+
+  const calendarEvent: CalendarEventInput = {
+    title: `Sesión con ${trainerName}`,
+    description: [
+      `Sesión de entrenamiento con ${trainerName} (${modalidadLabel}).`,
+      appointment.meetLink ? `Link de la sesión: ${appointment.meetLink}` : null,
+    ]
+      .filter(Boolean)
+      .join(" "),
+    location: appointment.modalidad === "virtual" ? appointment.meetLink ?? undefined : trainerName,
+    startIso: appointment.scheduledAt,
+    durationMin: appointment.duracionMin,
+  };
 
   return (
-    <div className="mt-4 flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-      <div
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white"
-        style={{ background: GREEN }}
-      >
-        <CalendarClock size={19} />
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-[10px] font-bold uppercase tracking-wide text-white/40">Tu próxima cita</p>
-        <p className="truncate text-sm font-semibold capitalize text-white">{dateLabel}</p>
-        <p className="text-xs text-white/50">
-          {timeLabel} · {appointment.duracionMin} min · {appointment.modalidad === "virtual" ? "Virtual" : "Presencial"}
-        </p>
-      </div>
-      {appointment.modalidad === "virtual" && appointment.meetLink && (
-        <a
-          href={appointment.meetLink}
-          target="_blank"
-          rel="noreferrer"
-          className="flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2.5 text-xs font-bold text-black"
+    <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+      <div className="flex items-center gap-3">
+        <div
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white"
           style={{ background: GREEN }}
         >
-          <Video size={13} /> Unirme
-        </a>
+          <CalendarClock size={19} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-white/40">Tu próxima cita</p>
+          <p className="truncate text-sm font-semibold capitalize text-white">{dateLabel}</p>
+          <p className="text-xs text-white/50">
+            {timeLabel} · {appointment.duracionMin} min · {modalidadLabel}
+          </p>
+        </div>
+        {appointment.modalidad === "virtual" && appointment.meetLink && (
+          <a
+            href={appointment.meetLink}
+            target="_blank"
+            rel="noreferrer"
+            className="flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2.5 text-xs font-bold text-black"
+            style={{ background: GREEN }}
+          >
+            <Video size={13} /> Unirme
+          </a>
+        )}
+      </div>
+      <div className="mt-3 flex justify-end border-t border-white/5 pt-3">
+        <AddToCalendarMenu event={calendarEvent} uid={appointment.id} />
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Agregar a mi calendario — el cliente puede llevarse la cita a Gmail
+// (Google Calendar) o a cualquier otro calendario vía .ics estándar
+// (Outlook, Apple, Yahoo...). No depende de que el entrenador/cliente hayan
+// conectado Google Calendar a HakunnaFit — es un camino manual que siempre
+// funciona (ver lib/calendar-links.ts).
+// ---------------------------------------------------------------------------
+
+function AddToCalendarMenu({ event, uid }: { event: CalendarEventInput; uid: string }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-1.5 rounded-full border border-white/20 px-3 py-1.5 text-[11px] font-semibold text-white/80 hover:border-white/40"
+      >
+        <CalendarPlus size={12} /> Agregar a mi calendario
+      </button>
+      {open && (
+        <>
+          <button className="fixed inset-0 z-10 cursor-default" aria-label="Cerrar" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 z-20 mt-1.5 w-56 overflow-hidden rounded-xl border border-white/10 bg-[#181818] p-1.5 shadow-2xl">
+            <a
+              href={googleCalendarUrl(event)}
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => setOpen(false)}
+              className="block rounded-lg px-3 py-2 text-xs font-medium text-white/85 hover:bg-white/5"
+            >
+              Google Calendar (Gmail)
+            </a>
+            <button
+              onClick={() => {
+                downloadIcsFile(event, uid);
+                setOpen(false);
+              }}
+              className="block w-full rounded-lg px-3 py-2 text-left text-xs font-medium text-white/85 hover:bg-white/5"
+            >
+              Outlook / Apple / otro (.ics)
+            </button>
+          </div>
+        </>
       )}
     </div>
   );
@@ -399,10 +505,14 @@ function ExerciseBlockRow({ block }: { block: RoutineExerciseBlock }) {
 
 function ProposalSection({
   proposal,
-  onChange,
+  onChanged,
 }: {
   proposal: NonNullable<ClientAccountData["pendingProposal"]>;
-  onChange: (p: ClientAccountData["pendingProposal"]) => void;
+  // Se llama después de aprobar o reemplazar una sesión — el padre vuelve a
+  // pedir el dashboard completo (getOwnClientDashboardData) en vez de que
+  // este componente parchee su propio estado, así "Tu próxima cita" y los
+  // KPIs quedan sincronizados de inmediato sin recargar la página a mano.
+  onChanged: () => void | Promise<void>;
 }) {
   const [openReject, setOpenReject] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<SuggestedSlot[]>([]);
@@ -418,9 +528,12 @@ function ProposalSection({
     setBusyItemId(itemId);
     startTransition(async () => {
       const res = await approveOwnProposalItem(proposal.proposalId, itemId);
+      if (!res.ok) {
+        setBusyItemId(null);
+        return setError(res.error ?? "No se pudo aprobar esta sesión.");
+      }
+      await onChanged();
       setBusyItemId(null);
-      if (!res.ok) return setError(res.error ?? "No se pudo aprobar esta sesión.");
-      onChange({ ...proposal, items: proposal.items.map((it) => (it.id === itemId ? { ...it, status: "aprobada" } : it)) });
     });
   }
 
@@ -446,11 +559,14 @@ function ProposalSection({
     setBusyItemId(itemId);
     startTransition(async () => {
       const res = await rejectAndReplaceOwnItem(proposal.proposalId, itemId, iso);
-      setBusyItemId(null);
-      if (!res.ok) return setError(res.error ?? "No se pudo agendar el reemplazo — intenta con otro horario.");
+      if (!res.ok) {
+        setBusyItemId(null);
+        return setError(res.error ?? "No se pudo agendar el reemplazo — intenta con otro horario.");
+      }
       setOpenReject(null);
       setSuggestions([]);
-      onChange({ ...proposal, items: proposal.items.map((it) => (it.id === itemId ? { ...it, status: "aprobada", scheduledAt: iso } : it)) });
+      await onChanged();
+      setBusyItemId(null);
     });
   }
 
