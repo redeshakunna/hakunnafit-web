@@ -31,9 +31,25 @@ export async function middleware(req: NextRequest) {
   if (hostname.endsWith(`.${ROOT_DOMAIN}`) && !isSharedAppRoute) {
     const subdomain = hostname.slice(0, -(`.${ROOT_DOMAIN}`.length));
     if (subdomain && !subdomain.includes(".") && !RESERVED_SUBDOMAINS.has(subdomain)) {
-      const url = req.nextUrl.clone();
-      url.pathname = `/landing/${subdomain}${url.pathname === "/" ? "" : url.pathname}`;
-      return NextResponse.rewrite(url);
+      // OJO: algunos links dentro de las plantillas de landing (el botón
+      // "Ingresar", ver starter-templates/*.tsx) están armados con la ruta
+      // completa "/landing/[subdominio]/..." en vez de una relativa —
+      // pensados para funcionar también cuando se accede por path en el
+      // dominio raíz (hakunnafit.com/landing/[subdominio], útil para
+      // probar antes de que exista el DNS wildcard, ver comentario en
+      // app/landing/[subdominio]/page.tsx). Si esta regla los reescribe
+      // igual, el prefijo queda duplicado ("/landing/x/landing/x/...") y
+      // cae en un 404 real — bug encontrado en producción: el botón
+      // "Ingresar" del propio subdominio del entrenador no llevaba a
+      // ningún lado. Si el path ya viene prefijado con el subdominio
+      // correcto, se deja pasar tal cual en vez de prefijarlo de nuevo.
+      const prefix = `/landing/${subdomain}`;
+      const alreadyPrefixed = req.nextUrl.pathname === prefix || req.nextUrl.pathname.startsWith(`${prefix}/`);
+      if (!alreadyPrefixed) {
+        const url = req.nextUrl.clone();
+        url.pathname = `${prefix}${url.pathname === "/" ? "" : url.pathname}`;
+        return NextResponse.rewrite(url);
+      }
     }
   }
 
