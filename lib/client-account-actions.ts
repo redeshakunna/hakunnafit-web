@@ -69,6 +69,14 @@ export interface OwnNextAppointment {
   modalidad: string;
   duracionMin: number;
   meetLink: string | null;
+  // Qué se va a hacer en la sesión — lo define el entrenador al agendar
+  // (título libre, ej. "Piernas y glúteos", + notas). Las citas creadas
+  // automáticamente al aprobar un plan de sesiones llevan el título por
+  // defecto "Sesión de entrenamiento" y sin notas; las agendadas a mano
+  // desde la Agenda del entrenador suelen traer detalle real. Se muestra en
+  // /mi-cuenta para que el cliente sepa qué le espera, no solo cuándo.
+  titulo: string | null;
+  notas: string | null;
   // Estado real de la cita en "evaluations" (pendiente/completada) — se usa
   // para el badge "Confirmada"/"Completada" en la lista de "Próximas citas"
   // (calendario/semana) de /mi-cuenta. Toda fila en "evaluations" es, por
@@ -132,7 +140,7 @@ export async function getOwnClientDashboardData(): Promise<ClientAccountData | n
       .maybeSingle(),
     supabase
       .from("evaluations")
-      .select("id, scheduled_at, modalidad, duracion_min, meet_link, status")
+      .select("id, scheduled_at, modalidad, duracion_min, meet_link, status, titulo, notas")
       .eq("client_id", me.id)
       .not("status", "eq", "cancelada")
       .not("scheduled_at", "is", null)
@@ -159,6 +167,8 @@ export async function getOwnClientDashboardData(): Promise<ClientAccountData | n
     duracion_min: number;
     meet_link: string | null;
     status: string;
+    titulo: string | null;
+    notas: string | null;
   }[]).map((e) => ({
     id: e.id,
     scheduledAt: e.scheduled_at,
@@ -166,6 +176,8 @@ export async function getOwnClientDashboardData(): Promise<ClientAccountData | n
     duracionMin: e.duracion_min,
     meetLink: e.meet_link,
     status: e.status,
+    titulo: e.titulo,
+    notas: e.notas,
   }));
   const nextAppointment =
     upcomingAppointments.find((a) => a.status !== "completada" && new Date(a.scheduledAt).getTime() >= Date.now()) ?? null;

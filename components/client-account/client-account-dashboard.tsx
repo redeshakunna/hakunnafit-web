@@ -33,6 +33,7 @@ import {
   Footprints,
   Loader2,
   LogOut,
+  MapPin,
   MessageCircle,
   Moon,
   Pencil,
@@ -89,12 +90,6 @@ export function ClientAccountDashboard({ initialData }: { initialData: ClientAcc
   const firstName = client.full_name.split(" ")[0];
   const waHref = whatsappHref(trainer.whatsapp, `Hola ${trainer.businessName}, te escribo desde mi cuenta de HakunnaFit.`);
   const imc = calculateImc(client.peso_actual, client.altura);
-  // Antes solo se mostraba el bloque de "sesiones por aprobar" cuando había
-  // ítems pendientes, y desaparecía por completo al resolverse todos — el
-  // cliente perdía de vista qué se había aprobado/rechazado. Ahora se
-  // muestra siempre que exista una propuesta con al menos un ítem, y es
-  // ProposalSection quien distingue pendientes de ya resueltos.
-  const hasProposalItems = !!pendingProposal && pendingProposal.items.length > 0;
   const theme = branchTheme(trainer.especialidad);
 
   async function onLogout() {
@@ -188,16 +183,18 @@ export function ClientAccountDashboard({ initialData }: { initialData: ClientAcc
           </div>
         </div>
 
-        {/* Lo accionable primero: sesiones por aprobar y próxima cita */}
-        {hasProposalItems && pendingProposal && <ProposalSection proposal={pendingProposal} onChanged={refreshData} />}
-
-        {nextAppointment && <NextAppointmentCard appointment={nextAppointment} trainerName={trainer.businessName} />}
-
-        {/* Calendario/semana de citas — todas las citas ya aprobadas (reales,
-            en "evaluations") de los próximos ~14 días, con su estado, para
-            que el cliente tenga una vista tipo agenda y no solo la más
-            próxima. */}
-        {upcomingAppointments.length > 0 && <UpcomingAppointmentsSection appointments={upcomingAppointments} />}
+        {/* Lo accionable primero: un solo timeline con sesiones por aprobar
+            + próximas citas confirmadas (antes eran dos bloques separados
+            — "Plan de sesiones" y "Próximas citas" — que se veían
+            redundantes porque una sesión aprobada aparecía en los dos a la
+            vez). Cada tarjeta muestra qué se va a hacer (título/notas que
+            deja el entrenador), no solo cuándo. */}
+        <SessionsTimeline
+          proposal={pendingProposal}
+          appointments={upcomingAppointments}
+          trainerName={trainer.businessName}
+          onChanged={refreshData}
+        />
 
         {/* Vistazo rápido en números */}
         <StatsRow client={client} imc={imc} routine={routine} nextAppointment={nextAppointment} />
@@ -220,70 +217,6 @@ export function ClientAccountDashboard({ initialData }: { initialData: ClientAcc
         />
 
         <p className="mt-8 text-center text-[11px] text-white/25">Tu cuenta en HakunnaFit — {trainer.businessName}</p>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Próxima cita — banner con degradado de marca (antes era una caja plana).
-// ---------------------------------------------------------------------------
-
-function NextAppointmentCard({
-  appointment,
-  trainerName,
-}: {
-  appointment: NonNullable<ClientAccountData["nextAppointment"]>;
-  trainerName: string;
-}) {
-  const date = new Date(appointment.scheduledAt);
-  const dateLabel = date.toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", timeZone: "America/Bogota" });
-  const timeLabel = date.toLocaleTimeString("es-CO", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "America/Bogota" });
-  const modalidadLabel = appointment.modalidad === "virtual" ? "Virtual" : "Presencial";
-
-  const calendarEvent: CalendarEventInput = {
-    title: `Sesión con ${trainerName}`,
-    description: [
-      `Sesión de entrenamiento con ${trainerName} (${modalidadLabel}).`,
-      appointment.meetLink ? `Link de la sesión: ${appointment.meetLink}` : null,
-    ]
-      .filter(Boolean)
-      .join(" "),
-    location: appointment.modalidad === "virtual" ? appointment.meetLink ?? undefined : trainerName,
-    startIso: appointment.scheduledAt,
-    durationMin: appointment.duracionMin,
-  };
-
-  return (
-    <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-      <div className="flex items-center gap-3">
-        <div
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white"
-          style={{ background: GREEN }}
-        >
-          <CalendarClock size={19} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-bold uppercase tracking-wide text-white/40">Tu próxima cita</p>
-          <p className="truncate text-sm font-semibold capitalize text-white">{dateLabel}</p>
-          <p className="text-xs text-white/50">
-            {timeLabel} · {appointment.duracionMin} min · {modalidadLabel}
-          </p>
-        </div>
-        {appointment.modalidad === "virtual" && appointment.meetLink && (
-          <a
-            href={appointment.meetLink}
-            target="_blank"
-            rel="noreferrer"
-            className="flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2.5 text-xs font-bold text-black"
-            style={{ background: GREEN }}
-          >
-            <Video size={13} /> Unirme
-          </a>
-        )}
-      </div>
-      <div className="mt-3 flex justify-end border-t border-white/5 pt-3">
-        <AddToCalendarMenu event={calendarEvent} uid={appointment.id} />
       </div>
     </div>
   );
@@ -333,50 +266,6 @@ function AddToCalendarMenu({ event, uid }: { event: CalendarEventInput; uid: str
           </div>
         </>
       )}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Próximas citas — vista tipo calendario/semana: todas las citas reales
-// (evaluations, ya aprobadas) de los próximos ~14 días con su estado
-// (Confirmada/Completada). Pedido explícito de Nando: en /mi-cuenta solo se
-// veía "Tu próxima cita" (una sola), sin forma de ver el resto de la semana
-// ni de confirmar que una sesión ya quedó aprobada.
-// ---------------------------------------------------------------------------
-
-function UpcomingAppointmentsSection({ appointments }: { appointments: ClientAccountData["upcomingAppointments"] }) {
-  return (
-    <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-      <div className="flex items-center gap-1.5">
-        <CalendarClock size={14} style={{ color: "var(--hf-primary)" }} />
-        <p className="text-xs font-bold uppercase tracking-wide text-white/40">Próximas citas</p>
-      </div>
-      <div className="mt-3 space-y-1.5">
-        {appointments.map((a) => {
-          const date = new Date(a.scheduledAt);
-          const dateLabel = date.toLocaleDateString("es-CO", { weekday: "short", day: "numeric", month: "short", timeZone: "America/Bogota" });
-          const timeLabel = date.toLocaleTimeString("es-CO", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "America/Bogota" });
-          const isCompleted = a.status === "completada";
-          return (
-            <div key={a.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2">
-              <div className="min-w-0">
-                <p className="truncate text-xs font-semibold capitalize text-white">{dateLabel}</p>
-                <p className="text-[11px] text-white/50">
-                  {timeLabel} · {a.duracionMin} min · {a.modalidad === "virtual" ? "Virtual" : "Presencial"}
-                </p>
-              </div>
-              <span
-                className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                  isCompleted ? "bg-white/10 text-white/50" : "bg-emerald-500/10 text-emerald-400"
-                }`}
-              >
-                {isCompleted ? "Completada" : "Confirmada"}
-              </span>
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }
@@ -553,33 +442,84 @@ function ExerciseBlockRow({ block }: { block: RoutineExerciseBlock }) {
 }
 
 // ---------------------------------------------------------------------------
-// Sesiones por aprobar — igual que el portal, pero delegando en las
-// acciones "Own" (resueltas por sesión, no por token). Restilizado con el
-// degradado de marca en vez de un solo color plano.
+// Mis sesiones — timeline único que reemplaza los dos bloques que había
+// antes ("Plan de sesiones" y "Próximas citas"): eran redundantes porque en
+// cuanto el cliente aprobaba una sesión propuesta, esa MISMA sesión pasaba a
+// aparecer también en "Próximas citas" (es una fila real de "evaluations"),
+// así que se veía dos veces con dos badges distintos. Acá se combinan en una
+// sola lista cronológica — sesiones por aprobar (del plan propuesto) +
+// sesiones ya confirmadas (evaluations reales) — cada una como una tarjeta
+// tipo "ficha de calendario" (día grande + mes) con el detalle real de qué
+// se va a hacer (título/notas que deja el entrenador), no solo la fecha. La
+// más próxima confirmada se destaca con el degradado de marca.
 // ---------------------------------------------------------------------------
 
-function ProposalSection({
+function SessionsTimeline({
   proposal,
+  appointments,
+  trainerName,
   onChanged,
 }: {
-  proposal: NonNullable<ClientAccountData["pendingProposal"]>;
+  proposal: ClientAccountData["pendingProposal"];
+  appointments: ClientAccountData["upcomingAppointments"];
+  trainerName: string;
   // Se llama después de aprobar o reemplazar una sesión — el padre vuelve a
   // pedir el dashboard completo (getOwnClientDashboardData) en vez de que
-  // este componente parchee su propio estado, así "Tu próxima cita" y los
-  // KPIs quedan sincronizados de inmediato sin recargar la página a mano.
+  // este componente parchee su propio estado, así "Próxima cita" y los KPIs
+  // quedan sincronizados de inmediato sin recargar la página a mano.
   onChanged: () => void | Promise<void>;
 }) {
   const [openReject, setOpenReject] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<SuggestedSlot[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [busyItemId, setBusyItemId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
-  const pendingCount = proposal.items.filter((i) => i.status === "pendiente").length;
-  const aprobadasCount = proposal.items.filter((i) => i.status === "aprobada").length;
+  type TimelineEntry =
+    | { kind: "pendiente"; id: string; scheduledAt: string; durationMin: number; modalidad: string }
+    | {
+        kind: "confirmada";
+        id: string;
+        scheduledAt: string;
+        durationMin: number;
+        modalidad: string;
+        status: string;
+        titulo: string | null;
+        notas: string | null;
+        meetLink: string | null;
+      };
+
+  const pendientes = proposal?.items.filter((i) => i.status === "pendiente") ?? [];
+
+  const entries: TimelineEntry[] = [
+    ...pendientes.map(
+      (i): TimelineEntry => ({ kind: "pendiente", id: i.id, scheduledAt: i.scheduledAt, durationMin: i.durationMin, modalidad: i.modalidad })
+    ),
+    ...appointments.map(
+      (a): TimelineEntry => ({
+        kind: "confirmada",
+        id: a.id,
+        scheduledAt: a.scheduledAt,
+        durationMin: a.duracionMin,
+        modalidad: a.modalidad,
+        status: a.status,
+        titulo: a.titulo,
+        notas: a.notas,
+        meetLink: a.meetLink,
+      })
+    ),
+  ].sort((x, y) => new Date(x.scheduledAt).getTime() - new Date(y.scheduledAt).getTime());
+
+  if (entries.length === 0) return null;
+
+  const featuredId = entries.find((e) => e.kind === "confirmada" && e.status !== "completada")?.id ?? null;
+  const pendingCount = pendientes.length;
+  const confirmedCount = appointments.filter((a) => a.status !== "completada").length;
 
   function approve(itemId: string) {
+    if (!proposal) return;
     setError(null);
     setBusyItemId(itemId);
     startTransition(async () => {
@@ -594,6 +534,7 @@ function ProposalSection({
   }
 
   function openRejectFlow(itemId: string) {
+    if (!proposal) return;
     setError(null);
     setOpenReject(itemId);
     setSuggestions([]);
@@ -611,6 +552,7 @@ function ProposalSection({
   }
 
   function chooseReplacement(itemId: string, iso: string) {
+    if (!proposal) return;
     setError(null);
     setBusyItemId(itemId);
     startTransition(async () => {
@@ -627,114 +569,209 @@ function ProposalSection({
   }
 
   return (
-    <div className="mt-4 overflow-hidden rounded-2xl border" style={{ borderColor: "color-mix(in srgb, var(--hf-primary) 45%, transparent)" }}>
-      <div className="flex items-center gap-2 px-4 py-2.5" style={{ background: pendingCount > 0 ? GREEN : "rgba(255,255,255,0.06)" }}>
-        <Sparkles size={14} className={pendingCount > 0 ? "text-black" : "text-white/50"} />
-        <p className={`text-xs font-bold uppercase tracking-wide ${pendingCount > 0 ? "text-black" : "text-white/50"}`}>
-          {pendingCount > 0
-            ? `${pendingCount} ${pendingCount === 1 ? "sesión espera" : "sesiones esperan"} tu aprobación`
-            : `Plan de sesiones — ${aprobadasCount}/${proposal.items.length} aprobadas`}
-        </p>
+    <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5">
+          <Sparkles size={14} style={{ color: "var(--hf-primary)" }} />
+          <p className="text-xs font-bold uppercase tracking-wide text-white/40">Mis sesiones</p>
+        </div>
+        {(pendingCount > 0 || confirmedCount > 0) && (
+          <p className="text-[11px] text-white/40">
+            {pendingCount > 0 && <span className="font-semibold text-amber-400">{pendingCount} por aprobar</span>}
+            {pendingCount > 0 && confirmedCount > 0 && " · "}
+            {confirmedCount > 0 && `${confirmedCount} próxima${confirmedCount === 1 ? "" : "s"}`}
+          </p>
+        )}
       </div>
-      <div className="bg-white/[0.03] p-4">
-        {error && <p className="mb-2 text-xs text-red-400">{error}</p>}
-        <div className="space-y-2.5">
-          {proposal.items.map((item) => {
-            const dateLabel = new Date(item.scheduledAt).toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", timeZone: "America/Bogota" });
-            const timeLabel = new Date(item.scheduledAt).toLocaleTimeString("es-CO", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "America/Bogota" });
-            const busy = busyItemId === item.id;
 
-            // Ítems ya resueltos (aprobada/rechazada) — misma idea de badge
-            // que ya usa el entrenador en su ficha (SessionProposalPanel):
-            // solo informativo, sin botones de acción.
-            if (item.status !== "pendiente") {
-              return (
-                <div key={item.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.02] p-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold capitalize text-white">{dateLabel}</p>
-                    <p className="text-xs text-white/50">
-                      {timeLabel} · {item.durationMin} min · {item.modalidad === "virtual" ? "Virtual" : "Presencial"}
-                    </p>
-                  </div>
-                  <span
-                    className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                      item.status === "aprobada" ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
-                    }`}
-                  >
-                    {item.status === "aprobada" ? "Aprobada" : "Rechazada"}
-                  </span>
-                </div>
-              );
-            }
+      {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
 
+      <div className="mt-3 space-y-2">
+        {entries.map((entry) => {
+          const date = new Date(entry.scheduledAt);
+          const dayNum = date.toLocaleDateString("es-CO", { day: "2-digit", timeZone: "America/Bogota" });
+          const monthAbbr = date.toLocaleDateString("es-CO", { month: "short", timeZone: "America/Bogota" }).replace(".", "");
+          const weekdayLabel = date.toLocaleDateString("es-CO", { weekday: "long", timeZone: "America/Bogota" });
+          const timeLabel = date.toLocaleTimeString("es-CO", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "America/Bogota" });
+          const ModIcon = entry.modalidad === "virtual" ? Video : MapPin;
+          const modalidadLabel = entry.modalidad === "virtual" ? "Virtual" : "Presencial";
+
+          if (entry.kind === "pendiente") {
+            const busy = busyItemId === entry.id;
             return (
-              <div key={item.id} className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold capitalize text-white">{dateLabel}</p>
-                    <p className="text-xs text-white/50">
-                      {timeLabel} · {item.durationMin} min · {item.modalidad === "virtual" ? "Virtual" : "Presencial"}
+              <div key={entry.id} className="overflow-hidden rounded-xl border border-amber-400/30 bg-amber-500/[0.06]">
+                <div className="flex items-start gap-3 p-3">
+                  <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl bg-amber-500/15 text-amber-300">
+                    <span className="text-base font-bold leading-none">{dayNum}</span>
+                    <span className="text-[9px] font-semibold uppercase leading-none">{monthAbbr}</span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-semibold capitalize text-white">{weekdayLabel}</p>
+                      <span className="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-300">Por aprobar</span>
+                    </div>
+                    <p className="mt-0.5 flex items-center gap-1 text-xs text-white/60">
+                      <ModIcon size={11} /> {timeLabel} · {entry.durationMin} min · {modalidadLabel}
                     </p>
-                  </div>
-                  <span className="shrink-0 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-400">Por aprobar</span>
-                </div>
 
-                {openReject !== item.id ? (
-                  <div className="mt-2.5 flex gap-2">
-                    <button
-                      onClick={() => approve(item.id)}
-                      disabled={busy}
-                      className="flex-1 rounded-lg py-2 text-xs font-bold text-black disabled:opacity-50"
-                      style={{ background: GREEN }}
-                    >
-                      {busy ? "Aprobando..." : "Aceptar"}
-                    </button>
-                    <button
-                      onClick={() => openRejectFlow(item.id)}
-                      disabled={busy}
-                      className="flex-1 rounded-lg border border-white/15 py-2 text-xs font-semibold text-white/70 hover:border-white/30 disabled:opacity-50"
-                    >
-                      No me sirve
-                    </button>
-                  </div>
-                ) : (
-                  <div className="mt-2.5 rounded-lg border border-white/10 bg-white/[0.02] p-2.5">
-                    <p className="text-[11px] font-semibold text-white/50">Elige un horario alternativo:</p>
-                    {loadingSuggestions ? (
-                      <div className="mt-2 flex items-center gap-1.5 text-xs text-white/40">
-                        <Loader2 size={12} className="animate-spin" /> Buscando horarios...
+                    {openReject !== entry.id ? (
+                      <div className="mt-2.5 flex gap-2">
+                        <button
+                          onClick={() => approve(entry.id)}
+                          disabled={busy}
+                          className="flex-1 rounded-lg py-2 text-xs font-bold text-black disabled:opacity-50"
+                          style={{ background: GREEN }}
+                        >
+                          {busy ? "Aprobando..." : "Aceptar"}
+                        </button>
+                        <button
+                          onClick={() => openRejectFlow(entry.id)}
+                          disabled={busy}
+                          className="flex-1 rounded-lg border border-white/15 py-2 text-xs font-semibold text-white/70 hover:border-white/30 disabled:opacity-50"
+                        >
+                          No me sirve
+                        </button>
                       </div>
-                    ) : suggestions.length === 0 ? (
-                      <p className="mt-2 text-xs text-white/40">No encontramos horarios alternativos — escríbele a tu entrenador.</p>
                     ) : (
-                      <div className="mt-2 space-y-1.5">
-                        {suggestions.map((s) => (
-                          <button
-                            key={s.iso}
-                            onClick={() => chooseReplacement(item.id, s.iso)}
-                            disabled={busy}
-                            className="w-full rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-left text-xs text-white/80 hover:border-white/30 disabled:opacity-50"
-                          >
-                            <span className="capitalize">{s.dateLabel}</span>, {s.timeLabel}
-                          </button>
-                        ))}
+                      <div className="mt-2.5 rounded-lg border border-white/10 bg-white/[0.03] p-2.5">
+                        <p className="text-[11px] font-semibold text-white/50">Elige un horario alternativo:</p>
+                        {loadingSuggestions ? (
+                          <div className="mt-2 flex items-center gap-1.5 text-xs text-white/40">
+                            <Loader2 size={12} className="animate-spin" /> Buscando horarios...
+                          </div>
+                        ) : suggestions.length === 0 ? (
+                          <p className="mt-2 text-xs text-white/40">No encontramos horarios alternativos — escríbele a tu entrenador.</p>
+                        ) : (
+                          <div className="mt-2 space-y-1.5">
+                            {suggestions.map((s) => (
+                              <button
+                                key={s.iso}
+                                onClick={() => chooseReplacement(entry.id, s.iso)}
+                                disabled={busy}
+                                className="w-full rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-left text-xs text-white/80 hover:border-white/30 disabled:opacity-50"
+                              >
+                                <span className="capitalize">{s.dateLabel}</span>, {s.timeLabel}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        <button
+                          onClick={() => {
+                            setOpenReject(null);
+                            setSuggestions([]);
+                          }}
+                          className="mt-2 text-[11px] font-semibold text-white/40 hover:text-white"
+                        >
+                          Cancelar
+                        </button>
                       </div>
                     )}
-                    <button
-                      onClick={() => {
-                        setOpenReject(null);
-                        setSuggestions([]);
-                      }}
-                      className="mt-2 text-[11px] font-semibold text-white/40 hover:text-white"
-                    >
-                      Cancelar
-                    </button>
                   </div>
-                )}
+                </div>
               </div>
             );
-          })}
-        </div>
+          }
+
+          // Confirmada — cita real (evaluations). La más próxima (no
+          // completada) va destacada con el degradado de marca y siempre
+          // expandida (detalle + acciones visibles); el resto se puede
+          // expandir tocando la tarjeta.
+          const isCompleted = entry.status === "completada";
+          const isFeatured = entry.id === featuredId;
+          const isExpanded = isFeatured || expandedId === entry.id;
+          const calendarEvent: CalendarEventInput = {
+            title: entry.titulo?.trim() || `Sesión con ${trainerName}`,
+            description: [
+              `${entry.titulo?.trim() || "Sesión de entrenamiento"} con ${trainerName} (${modalidadLabel}).`,
+              entry.notas?.trim() ? `Notas: ${entry.notas.trim()}` : null,
+              entry.meetLink ? `Link de la sesión: ${entry.meetLink}` : null,
+            ]
+              .filter(Boolean)
+              .join(" "),
+            location: entry.modalidad === "virtual" ? entry.meetLink ?? undefined : trainerName,
+            startIso: entry.scheduledAt,
+            durationMin: entry.durationMin,
+          };
+
+          return (
+            <div
+              key={entry.id}
+              className={`overflow-hidden rounded-xl border ${isFeatured ? "" : isCompleted ? "border-white/5 bg-white/[0.015]" : "border-white/10 bg-white/[0.02]"}`}
+              style={
+                isFeatured
+                  ? {
+                      borderColor: "color-mix(in srgb, var(--hf-primary) 45%, transparent)",
+                      background: "linear-gradient(135deg, color-mix(in srgb, var(--hf-primary) 14%, transparent), transparent 70%)",
+                    }
+                  : undefined
+              }
+            >
+              <button
+                onClick={() => !isFeatured && setExpandedId((id) => (id === entry.id ? null : entry.id))}
+                className="flex w-full items-start gap-3 p-3 text-left"
+              >
+                <div
+                  className={`flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl ${
+                    isFeatured ? "" : isCompleted ? "bg-white/5 text-white/30" : "bg-white/5 text-white/70"
+                  }`}
+                  style={isFeatured ? { background: GREEN, color: "#000" } : undefined}
+                >
+                  <span className="text-base font-bold leading-none">{dayNum}</span>
+                  <span className="text-[9px] font-semibold uppercase leading-none">{monthAbbr}</span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-white">{entry.titulo?.trim() || "Sesión de entrenamiento"}</p>
+                      <p className="text-xs capitalize text-white/50">{weekdayLabel}</p>
+                    </div>
+                    {isFeatured ? (
+                      <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold text-black" style={{ background: GREEN }}>
+                        Próxima
+                      </span>
+                    ) : (
+                      <span
+                        className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                          isCompleted ? "bg-white/10 text-white/40" : "bg-emerald-500/10 text-emerald-400"
+                        }`}
+                      >
+                        {isCompleted ? "Completada" : "Confirmada"}
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-0.5 flex items-center gap-1 text-xs text-white/50">
+                    <ModIcon size={11} /> {timeLabel} · {entry.durationMin} min · {modalidadLabel}
+                  </p>
+                </div>
+                {!isFeatured && (
+                  <ChevronDown size={14} className={`mt-1 shrink-0 text-white/30 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                )}
+              </button>
+
+              {isExpanded && (entry.notas?.trim() || !isCompleted) && (
+                <div className="border-t border-white/5 px-3 pb-3 pt-2.5">
+                  {entry.notas?.trim() && <p className="text-xs text-white/60">{entry.notas.trim()}</p>}
+                  {!isCompleted && (
+                    <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
+                      {entry.modalidad === "virtual" && entry.meetLink && (
+                        <a
+                          href={entry.meetLink}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-bold text-black"
+                          style={{ background: GREEN }}
+                        >
+                          <Video size={13} /> Unirme
+                        </a>
+                      )}
+                      <AddToCalendarMenu event={calendarEvent} uid={entry.id} />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
