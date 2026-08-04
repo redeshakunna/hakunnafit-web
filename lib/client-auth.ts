@@ -199,8 +199,22 @@ export async function setClientPassword(
 
   await supabase.from("clients").update({ access_code: null, access_code_expires_at: null }).eq("id", resolved.id);
 
+  // GoTrue (el Auth de Supabase) tarda un instante en propagar internamente
+  // la contraseña recién escrita por la API admin — un signInWithPassword
+  // disparado de inmediato después puede devolver "Invalid login
+  // credentials" aunque la contraseña ya haya quedado bien guardada
+  // (confirmado en los logs de auth: el PUT /admin/users da 200 y el
+  // /token con esa misma contraseña, un instante después, da 400
+  // invalid_credentials). Reintentamos un par de veces con una espera
+  // corta antes de pedirle al cliente que reintente manualmente.
   const client = getSupabaseServerClient();
-  const { error: signInError } = await client.auth.signInWithPassword({ email: resolved.email, password: newPassword });
+  let signInError: { message: string } | null = null;
+  for (const delayMs of [0, 600, 1200]) {
+    if (delayMs > 0) await new Promise((resolve) => setTimeout(resolve, delayMs));
+    const { error } = await client.auth.signInWithPassword({ email: resolved.email, password: newPassword });
+    signInError = error;
+    if (!error) break;
+  }
   if (signInError) return { ok: false, error: "Tu contraseña quedó guardada, pero no pudimos iniciar tu sesión. Intenta ingresar de nuevo." };
 
   return { ok: true };
