@@ -44,6 +44,13 @@ export interface OwnTrainerBranding {
   logoUrl: string | null;
   colorPrimario: string;
   colorSecundario: string;
+  // Tercer color de marca (ver migración de task #231) — se suma acá para
+  // que /mi-cuenta pueda usar el mismo sistema de 3 variables CSS
+  // (--hf-primary/--hf-secondary/--hf-tertiary) que ya usan las plantillas de
+  // landing (brandColorVars en starter-templates/types.ts), en vez de un
+  // único accentColor plano. Así la cuenta del cliente se siente una
+  // continuación visual de la landing del entrenador, no una pantalla aparte.
+  colorTerciario: string;
   whatsapp: string | null;
   subdominio: string | null;
 }
@@ -85,7 +92,7 @@ export async function getOwnClientDashboardData(): Promise<ClientAccountData | n
   const [{ data: trainer }, { data: routine }, { data: nextAppt }, { data: proposal }, { data: measurements }] = await Promise.all([
     supabase
       .from("trainers")
-      .select("business_name, logo_url, color_primario, color_secundario, whatsapp_publico, whatsapp, subdominio")
+      .select("business_name, logo_url, color_primario, color_secundario, color_terciario, whatsapp_publico, whatsapp, subdominio")
       .eq("id", me.trainer_id)
       .maybeSingle(),
     supabase
@@ -140,6 +147,7 @@ export async function getOwnClientDashboardData(): Promise<ClientAccountData | n
       logoUrl: trainer.logo_url,
       colorPrimario: trainer.color_primario,
       colorSecundario: trainer.color_secundario,
+      colorTerciario: trainer.color_terciario,
       whatsapp: trainer.whatsapp_publico?.trim() || trainer.whatsapp,
       subdominio: trainer.subdominio,
     },
