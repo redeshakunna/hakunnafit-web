@@ -116,6 +116,20 @@ export type PlanOfrecido = {
   precioCop: number | null;
 };
 
+// Datos para que el cliente final le transfiera la mensualidad de su plan al
+// entrenador (transferencia bancaria directa, sin pasarela) — se configura
+// una vez en Mi Negocio → Cobros y alimenta el mensaje de recordatorio de
+// pago que se le manda por WhatsApp. Todo opcional porque un entrenador
+// puede tener solo cuenta bancaria, solo Nequi, o ambos.
+export type DatosCobro = {
+  titular: string | null;
+  banco: string | null;
+  tipoCuenta: "ahorros" | "corriente" | null;
+  numeroCuenta: string | null;
+  llaveBreB: string | null;
+  nequi: string | null;
+};
+
 export interface TrainerRow {
   id: string;
   business_name: string;
@@ -166,6 +180,7 @@ export interface TrainerRow {
   landing_published_at: string | null;
   planes_ofrecidos: PlanOfrecido[];
   contrato_inicio: string | null;
+  datos_cobro: DatosCobro | null;
 }
 
 export interface TrainerActivityRow {

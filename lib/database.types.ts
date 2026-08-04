@@ -132,6 +132,7 @@ export interface Database {
           landing_published_at: string | null;
           planes_ofrecidos: Json;
           contrato_inicio: string | null;
+          datos_cobro: Json | null;
         };
         Insert: {
           id?: string;
@@ -180,6 +181,7 @@ export interface Database {
           landing_published_at?: string | null;
           planes_ofrecidos?: Json;
           contrato_inicio?: string | null;
+          datos_cobro?: Json | null;
         };
         Update: Partial<Database["public"]["Tables"]["trainers"]["Insert"]>;
         Relationships: [];
@@ -211,6 +213,8 @@ export interface Database {
           description: string | null;
           leida: boolean;
           created_at: string;
+          link: string | null;
+          dedupe_key: string | null;
         };
         Insert: {
           id?: string;
@@ -220,6 +224,8 @@ export interface Database {
           description?: string | null;
           leida?: boolean;
           created_at?: string;
+          link?: string | null;
+          dedupe_key?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["trainer_activity"]["Insert"]>;
         Relationships: [];
@@ -255,6 +261,11 @@ export interface Database {
           access_code: string | null;
           access_code_expires_at: string | null;
           created_at: string;
+          plan_precio_cop: number | null;
+          fecha_inicio_facturacion: string | null;
+          proximo_cobro_cliente: string | null;
+          compromiso_meses_minimo: number;
+          meses_pagados: number;
         };
         Insert: {
           id?: string;
@@ -284,10 +295,37 @@ export interface Database {
           documento?: string | null;
           avatar_url?: string | null;
           access_code?: string | null;
+          plan_precio_cop?: number | null;
+          fecha_inicio_facturacion?: string | null;
+          proximo_cobro_cliente?: string | null;
+          compromiso_meses_minimo?: number;
+          meses_pagados?: number;
           access_code_expires_at?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["clients"]["Insert"]>;
+        Relationships: [];
+      };
+      client_payments: {
+        Row: {
+          id: string;
+          client_id: string;
+          trainer_id: string;
+          monto_cop: number;
+          periodo_cubierto: string;
+          pagado_en: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          client_id: string;
+          trainer_id: string;
+          monto_cop: number;
+          periodo_cubierto: string;
+          pagado_en?: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["client_payments"]["Insert"]>;
         Relationships: [];
       };
       google_calendar_connections: {
