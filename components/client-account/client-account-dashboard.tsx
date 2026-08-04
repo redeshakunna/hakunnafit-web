@@ -43,6 +43,7 @@ import {
   Video,
   ImagePlus,
   Camera,
+  Wallet,
 } from "lucide-react";
 import { BrandMark } from "@/components/hakunnafit/starter-templates/brand-mark";
 import { whatsappHref } from "@/components/hakunnafit/starter-templates/types";
@@ -199,6 +200,13 @@ export function ClientAccountDashboard({ initialData }: { initialData: ClientAcc
         {/* Vistazo rápido en números */}
         <StatsRow client={client} imc={imc} routine={routine} nextAppointment={nextAppointment} />
 
+        {/* Tu plan — solo lectura: cuánto paga y cuándo vence. El pago sigue
+            siendo transferencia directa coordinada por WhatsApp; acá solo se
+            informa, no se cobra ni se confirma nada. Se oculta por completo
+            si el entrenador todavía no configuró un precio para este
+            cliente (plan_precio_cop null = "a cotizar" sin definir aún). */}
+        {client.plan_precio_cop != null && <BillingCard client={client} />}
+
         {/* Rutina — selector de día en vez de una lista larga */}
         {routine && <RoutineSection routine={routine} />}
 
@@ -318,6 +326,62 @@ function StatsRow({
           <p className="text-[10px] uppercase tracking-wide text-white/40">{s.label}</p>
         </div>
       ))}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Tu plan — cuánto paga el cliente y cuándo vence su próxima mensualidad.
+// Solo lectura: el pago se coordina directo por WhatsApp con el entrenador
+// (transferencia bancaria, sin pasarela) y es el entrenador quien confirma
+// que llegó (ver lib/client-billing-actions.ts). Acá no hay botón de pago
+// ni confirmación — es puramente informativo para que el cliente sepa qué
+// le toca y cuándo, sin depender de que le llegue el WhatsApp a tiempo.
+// ---------------------------------------------------------------------------
+
+function BillingCard({ client }: { client: ClientAccountData["client"] }) {
+  const diasFaltantes = useMemo(() => {
+    if (!client.proximo_cobro_cliente) return null;
+    const ms = new Date(`${client.proximo_cobro_cliente}T00:00:00`).getTime() - new Date(new Date().toISOString().slice(0, 10) + "T00:00:00").getTime();
+    return Math.round(ms / (1000 * 60 * 60 * 24));
+  }, [client.proximo_cobro_cliente]);
+
+  const vencido = diasFaltantes != null && diasFaltantes < 0;
+
+  return (
+    <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+      <div className="flex items-center gap-1.5">
+        <Wallet size={14} style={{ color: "var(--hf-primary)" }} />
+        <p className="text-xs font-bold uppercase tracking-wide text-white/40">Tu plan</p>
+      </div>
+
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-white">{client.plan_elegido || "Tu plan de entrenamiento"}</p>
+          <p className="mt-0.5 text-lg font-bold text-white">
+            ${new Intl.NumberFormat("es-CO").format(client.plan_precio_cop!)}
+            <span className="text-xs font-normal text-white/50"> /mes</span>
+          </p>
+        </div>
+
+        {client.proximo_cobro_cliente && diasFaltantes != null && (
+          <div className="shrink-0 text-right">
+            <p className="text-[10px] uppercase tracking-wide text-white/40">{vencido ? "Venció" : "Próximo pago"}</p>
+            <p className={`text-sm font-semibold ${vencido ? "text-red-400" : "text-white"}`}>
+              {new Date(`${client.proximo_cobro_cliente}T00:00:00`).toLocaleDateString("es-CO", { day: "2-digit", month: "short" })}
+            </p>
+            <p className={`text-[10px] ${vencido ? "text-red-400/70" : "text-white/40"}`}>
+              {vencido
+                ? `Hace ${Math.abs(diasFaltantes)} día${Math.abs(diasFaltantes) === 1 ? "" : "s"}`
+                : diasFaltantes === 0
+                  ? "Hoy"
+                  : `En ${diasFaltantes} día${diasFaltantes === 1 ? "" : "s"}`}
+            </p>
+          </div>
+        )}
+      </div>
+
+      <p className="mt-2.5 text-[11px] text-white/30">Transferencia directa a tu entrenador — coordina el pago por WhatsApp.</p>
     </div>
   );
 }
