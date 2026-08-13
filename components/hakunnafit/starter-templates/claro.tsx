@@ -248,6 +248,7 @@ export function ClaroTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
       </section>
 
       {/* Estadísticas */}
+      {estadisticas.length > 0 && (
       <section className="bg-gray-900 px-6 py-10">
         <div className="mx-auto grid max-w-5xl grid-cols-2 gap-6 divide-gray-700 text-center sm:grid-cols-4 sm:divide-x">
           {estadisticas.map((stat, i) => (
@@ -258,6 +259,7 @@ export function ClaroTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
           ))}
         </div>
       </section>
+      )}
 
       {/* Servicios */}
       {seccionActiva(trainer, "servicios") && (
@@ -404,6 +406,7 @@ export function ClaroTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
       )}
 
       {/* Testimonios */}
+      {testimonios.length > 0 && (
       <section className="border-t border-gray-200/70 bg-white px-6 py-20">
         <div className="mx-auto max-w-5xl text-center">
           <Quote className="mx-auto" style={{ color: "color-mix(in srgb, var(--hf-primary) 30%, transparent)" }} size={26} />
@@ -436,6 +439,7 @@ export function ClaroTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
           </div>
         </div>
       </section>
+      )}
 
       {/* Preguntas frecuentes */}
       {seccionActiva(trainer, "faq") && faqs.length > 0 && (

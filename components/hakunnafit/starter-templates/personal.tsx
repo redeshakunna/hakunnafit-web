@@ -94,6 +94,7 @@ export function PersonalTemplate({ trainer }: { trainer: StarterTrainerProfile }
         )}
 
         {/* Estadísticas */}
+        {estadisticas.length > 0 && (
         <div className="mt-5 grid grid-cols-2 gap-2.5">
           {estadisticas.map((stat, i) => (
             <div key={i} className="rounded-xl border border-white/15 bg-white/5 px-2 py-2.5 text-center">
@@ -102,6 +103,7 @@ export function PersonalTemplate({ trainer }: { trainer: StarterTrainerProfile }
             </div>
           ))}
         </div>
+        )}
 
         {/* Contacto principal */}
         <div className="mt-6 flex flex-col gap-3">
@@ -243,6 +245,7 @@ export function PersonalTemplate({ trainer }: { trainer: StarterTrainerProfile }
         )}
 
         {/* Testimonios */}
+        {testimonios.length > 0 && (
         <div className="mt-8 text-left">
           <p className="mb-2.5 text-xs font-semibold uppercase tracking-[0.2em] text-white/60">Lo que dicen mis clientes</p>
           <div className="flex gap-2.5 overflow-x-auto pb-1">
@@ -266,6 +269,7 @@ export function PersonalTemplate({ trainer }: { trainer: StarterTrainerProfile }
             ))}
           </div>
         </div>
+        )}
 
         {/* Galería adicional — solo si el entrenador subió más de 2 fotos */}
         {seccionActiva(trainer, "galeria") && galeria.length > 0 && (
