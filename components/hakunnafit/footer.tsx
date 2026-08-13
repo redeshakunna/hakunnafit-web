@@ -15,10 +15,11 @@ const legal = [
   { label: "Cookies", href: "/cookies" },
 ];
 
+// Antes estos 3 íconos apuntaban a "#" (no llevaban a ningún lado).
 const social = [
-  { icon: Instagram, label: "Instagram" },
-  { icon: Facebook, label: "Facebook" },
-  { icon: MessageCircle, label: "WhatsApp" },
+  { icon: Instagram, label: "Instagram", href: "https://instagram.com/hakunnafit" },
+  { icon: Facebook, label: "Facebook", href: "https://facebook.com/hakunnafit" },
+  { icon: MessageCircle, label: "WhatsApp", href: "https://wa.me/573126070588" },
 ];
 
 export function HakunnaFitFooter() {
@@ -68,7 +69,9 @@ export function HakunnaFitFooter() {
             {social.map((s) => (
               <a
                 key={s.label}
-                href="#"
+                href={s.href}
+                target="_blank"
+                rel="noopener noreferrer"
                 aria-label={s.label}
                 className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 text-white/60 transition-colors hover:border-hf-blue/50 hover:text-hf-blue"
               >
