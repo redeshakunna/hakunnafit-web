@@ -24,8 +24,13 @@ export function HakunnaFitHeader() {
   const { openModal } = useLeadModal();
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/10 bg-hf-black/90 backdrop-blur-xl">
-      <div className="mx-auto flex h-40 max-w-7xl items-center justify-between px-6">
+    <header className="sticky top-0 z-50 border-b border-white/10">
+      {/* El blur va acá, no en <header>: backdrop-filter en un ancestro
+          convierte a sus hijos "position: fixed" en fixed-relativo-a-ese-
+          ancestro (spec de CSS), lo que rompía el overlay del menú mobile
+          (fixed inset-0 más abajo) — quedaba atrapado dentro del <header>
+          en vez de cubrir toda la pantalla, mezclándose con el Hero. */}
+      <div className="mx-auto flex h-40 max-w-7xl items-center justify-between bg-hf-black/90 px-6 backdrop-blur-xl">
         <Link href="/" className="flex items-center">
           <div className="relative h-[132px] w-[250px] shrink-0">
             <Image
