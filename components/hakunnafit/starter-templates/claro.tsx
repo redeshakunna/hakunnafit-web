@@ -80,7 +80,9 @@ export function ClaroTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
             <a href="#inicio" className="border-b-2 border-[var(--hf-primary)] pb-1 text-gray-900">Inicio</a>
             <a href="#sobre-mi" className="hover:text-gray-900">Sobre mí</a>
             <a href="#servicios" className="hover:text-gray-900">Servicios</a>
-            <a href="#resultados" className="hover:text-gray-900">Resultados</a>
+            {seccionActiva(trainer, "transformaciones") && transformaciones && (
+              <a href="#resultados" className="hover:text-gray-900">Resultados</a>
+            )}
             <a href="#contacto" className="hover:text-gray-900">Contacto</a>
           </nav>
           <div className="flex items-center gap-2">

@@ -128,7 +128,9 @@ export function ProTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
             <a href="#sobre-mi" className="hover:text-white">Sobre mí</a>
             <a href="#ventajas" className="hover:text-white">Ventajas</a>
             <a href="#servicios" className="hover:text-white">Servicios</a>
-            <a href="#resultados" className="hover:text-white">Resultados</a>
+            {seccionActiva(trainer, "transformaciones") && transformaciones && (
+              <a href="#resultados" className="hover:text-white">Resultados</a>
+            )}
             <a href="#contacto" className="hover:text-white">Contacto</a>
           </nav>
           <div className="flex items-center gap-2">

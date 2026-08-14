@@ -86,7 +86,9 @@ export function ImpactoTemplate({ trainer }: { trainer: StarterTrainerProfile })
             <a href="#inicio" className="border-b-2 border-[var(--hf-primary)] pb-1 text-white">Inicio</a>
             <a href="#sobre-mi" className="hover:text-white">Sobre mí</a>
             <a href="#servicios" className="hover:text-white">Servicios</a>
-            <a href="#resultados" className="hover:text-white">Resultados</a>
+            {seccionActiva(trainer, "transformaciones") && transformaciones && (
+              <a href="#resultados" className="hover:text-white">Resultados</a>
+            )}
             <a href="#contacto" className="hover:text-white">Contacto</a>
           </nav>
           <div className="flex items-center gap-2">
