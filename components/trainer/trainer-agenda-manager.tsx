@@ -293,7 +293,6 @@ export function TrainerAgendaManager({
               </button>
             )}
             <TrainerAgendaSettingsMenu
-              clients={clients}
               googleConfigured={googleConfigured}
               googleConnected={googleConnected}
               googleEmail={googleEmail}
