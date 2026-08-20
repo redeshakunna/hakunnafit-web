@@ -43,9 +43,6 @@ import {
   Video,
   ImagePlus,
   Camera,
-  Wallet,
-  CheckCircle2,
-  Upload,
 } from "lucide-react";
 import { BrandMark } from "@/components/hakunnafit/starter-templates/brand-mark";
 import { whatsappHref } from "@/components/hakunnafit/starter-templates/types";
@@ -63,7 +60,6 @@ import {
   getOwnClientDashboardData,
   getOwnReplacementSuggestions,
   rejectAndReplaceOwnItem,
-  submitOwnPaymentReceipt,
   updateOwnHojaDeVida,
   updateOwnPresentation,
   uploadOwnAvatar,
@@ -90,7 +86,7 @@ function todayDiaSemana(): number {
 export function ClientAccountDashboard({ initialData }: { initialData: ClientAccountData }) {
   const router = useRouter();
   const [data, setData] = useState(initialData);
-  const { client, trainer, routine, nextAppointment, upcomingAppointments, pendingProposal, measurements, pendingPayment } = data;
+  const { client, trainer, routine, nextAppointment, upcomingAppointments, pendingProposal, measurements } = data;
   const firstName = client.full_name.split(" ")[0];
   const waHref = whatsappHref(trainer.whatsapp, `Hola ${trainer.businessName}, te escribo desde mi cuenta de HakunnaFit.`);
   const imc = calculateImc(client.peso_actual, client.altura);
@@ -202,15 +198,6 @@ export function ClientAccountDashboard({ initialData }: { initialData: ClientAcc
 
         {/* Vistazo rápido en números */}
         <StatsRow client={client} imc={imc} routine={routine} nextAppointment={nextAppointment} />
-
-        {/* Tu plan — solo lectura: cuánto paga y cuándo vence. El pago sigue
-            siendo transferencia directa coordinada por WhatsApp; acá solo se
-            informa, no se cobra ni se confirma nada. Se oculta por completo
-            si el entrenador todavía no configuró un precio para este
-            cliente (plan_precio_cop null = "a cotizar" sin definir aún). */}
-        {client.plan_precio_cop != null && (
-          <BillingCard client={client} trainer={trainer} pendingPayment={pendingPayment} onSubmitted={refreshData} />
-        )}
 
         {/* Rutina — selector de día en vez de una lista larga */}
         {routine && <RoutineSection routine={routine} />}
@@ -331,231 +318,6 @@ function StatsRow({
           <p className="text-[10px] uppercase tracking-wide text-white/40">{s.label}</p>
         </div>
       ))}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Tu plan — cuánto paga el cliente y cuándo vence su próxima mensualidad.
-// Solo lectura: el pago se coordina directo por WhatsApp con el entrenador
-// (transferencia bancaria, sin pasarela) y es el entrenador quien confirma
-// que llegó (ver lib/client-billing-actions.ts). Acá no hay botón de pago
-// ni confirmación — es puramente informativo para que el cliente sepa qué
-// le toca y cuándo, sin depender de que le llegue el WhatsApp a tiempo.
-// ---------------------------------------------------------------------------
-
-function BillingCard({
-  client,
-  trainer,
-  pendingPayment,
-  onSubmitted,
-}: {
-  client: ClientAccountData["client"];
-  trainer: ClientAccountData["trainer"];
-  pendingPayment: ClientAccountData["pendingPayment"];
-  // Se llama tras subir un comprobante — el padre vuelve a pedir el
-  // dashboard completo para que pendingPayment (y esta tarjeta) reflejen el
-  // envío de inmediato, mismo patrón que refreshData() en SessionsTimeline.
-  onSubmitted: () => void | Promise<void>;
-}) {
-  const [showDatos, setShowDatos] = useState(false);
-  const [showUpload, setShowUpload] = useState(false);
-  const [uploading, startUpload] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const diasFaltantes = useMemo(() => {
-    if (!client.proximo_cobro_cliente) return null;
-    const ms = new Date(`${client.proximo_cobro_cliente}T00:00:00`).getTime() - new Date(new Date().toISOString().slice(0, 10) + "T00:00:00").getTime();
-    return Math.round(ms / (1000 * 60 * 60 * 24));
-  }, [client.proximo_cobro_cliente]);
-
-  const vencido = diasFaltantes != null && diasFaltantes < 0;
-  const d = trainer.datosCobro;
-  const tieneDatosCobro = !!(d && (d.banco || d.numeroCuenta || d.llaveBreB || d.nequi));
-
-  const avisoWhatsappHref = whatsappHref(
-    trainer.whatsapp,
-    `Hola! Soy ${client.full_name}, ya hice la transferencia de mi plan${client.plan_elegido ? ` (${client.plan_elegido})` : ""} por $${new Intl.NumberFormat(
-      "es-CO"
-    ).format(client.plan_precio_cop!)} COP. Te aviso para que la confirmes.`
-  );
-
-  function pickReceipt(file: File) {
-    setError(null);
-    const formData = new FormData();
-    formData.set("comprobante", file);
-    startUpload(async () => {
-      const res = await submitOwnPaymentReceipt(formData);
-      if (!res.ok) {
-        setError(res.error || "No se pudo subir el comprobante.");
-        return;
-      }
-      setShowUpload(false);
-      await onSubmitted();
-    });
-  }
-
-  return (
-    <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-      <div className="flex items-center gap-1.5">
-        <Wallet size={14} style={{ color: "var(--hf-primary)" }} />
-        <p className="text-xs font-bold uppercase tracking-wide text-white/40">Tu plan</p>
-      </div>
-
-      <div className="mt-3 flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-white">{client.plan_elegido || "Tu plan de entrenamiento"}</p>
-          <p className="mt-0.5 text-lg font-bold text-white">
-            ${new Intl.NumberFormat("es-CO").format(client.plan_precio_cop!)}
-            <span className="text-xs font-normal text-white/50"> /mes</span>
-          </p>
-        </div>
-
-        {client.proximo_cobro_cliente && diasFaltantes != null && (
-          <div className="shrink-0 text-right">
-            <p className="text-[10px] uppercase tracking-wide text-white/40">{vencido ? "Venció" : "Próximo pago"}</p>
-            <p className={`text-sm font-semibold ${vencido ? "text-red-400" : "text-white"}`}>
-              {new Date(`${client.proximo_cobro_cliente}T00:00:00`).toLocaleDateString("es-CO", { day: "2-digit", month: "short" })}
-            </p>
-            <p className={`text-[10px] ${vencido ? "text-red-400/70" : "text-white/40"}`}>
-              {vencido
-                ? `Hace ${Math.abs(diasFaltantes)} día${Math.abs(diasFaltantes) === 1 ? "" : "s"}`
-                : diasFaltantes === 0
-                  ? "Hoy"
-                  : `En ${diasFaltantes} día${diasFaltantes === 1 ? "" : "s"}`}
-            </p>
-          </div>
-        )}
-      </div>
-
-      {pendingPayment ? (
-        // Ya subió un comprobante y sigue sin confirmar — se prioriza este
-        // estado sobre el formulario de pago para que no suba dos veces.
-        <div className="mt-3 rounded-xl border border-emerald-400/25 bg-emerald-500/[0.06] p-3">
-          <div className="flex items-center gap-2 text-emerald-400">
-            <CheckCircle2 size={14} />
-            <p className="text-xs font-semibold">Comprobante enviado</p>
-          </div>
-          <p className="mt-1 text-[11px] text-white/50">
-            Lo enviaste el {new Date(pendingPayment.createdAt).toLocaleDateString("es-CO", { day: "2-digit", month: "short" })} — tu
-            entrenador todavía no lo confirma.
-          </p>
-          <div className="mt-2 flex flex-wrap items-center gap-3">
-            {pendingPayment.comprobanteUrl && (
-              <a
-                href={pendingPayment.comprobanteUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="text-[11px] font-semibold text-white/60 underline underline-offset-2 hover:text-white"
-              >
-                Ver comprobante
-              </a>
-            )}
-            {avisoWhatsappHref && (
-              <a
-                href={avisoWhatsappHref}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-1 text-[11px] font-semibold text-emerald-400 hover:text-emerald-300"
-              >
-                <MessageCircle size={11} /> Avisar por WhatsApp
-              </a>
-            )}
-          </div>
-        </div>
-      ) : (
-        <>
-          {tieneDatosCobro && (
-            <div className="mt-3">
-              <button
-                onClick={() => setShowDatos((v) => !v)}
-                className="flex w-full items-center justify-between text-[11px] font-semibold text-white/50 hover:text-white"
-              >
-                <span>Ver datos para pagar</span>
-                <ChevronDown size={13} className={`transition-transform ${showDatos ? "rotate-180" : ""}`} />
-              </button>
-              {showDatos && (
-                <div className="mt-2 space-y-1 rounded-xl border border-white/10 bg-white/[0.02] p-3 text-xs">
-                  {d?.titular && (
-                    <p className="text-white/70">
-                      <span className="text-white/40">Titular: </span>
-                      {d.titular}
-                    </p>
-                  )}
-                  {(d?.banco || d?.numeroCuenta) && (
-                    <p className="text-white/70">
-                      <span className="text-white/40">
-                        {d?.banco ?? "Cuenta"}
-                        {d?.tipoCuenta ? ` (${d.tipoCuenta === "ahorros" ? "Ahorros" : "Corriente"})` : ""}:{" "}
-                      </span>
-                      {d?.numeroCuenta ?? "—"}
-                    </p>
-                  )}
-                  {d?.llaveBreB && (
-                    <p className="text-white/70">
-                      <span className="text-white/40">Llave Bre-B: </span>
-                      {d.llaveBreB}
-                    </p>
-                  )}
-                  {d?.nequi && (
-                    <p className="text-white/70">
-                      <span className="text-white/40">Nequi: </span>
-                      {d.nequi}
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {error && <p className="mt-2 text-[11px] text-red-400">{error}</p>}
-
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            {!showUpload ? (
-              <button
-                onClick={() => setShowUpload(true)}
-                className="flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-bold text-black"
-                style={{ background: GREEN }}
-              >
-                <Upload size={12} /> Ya pagué, subir comprobante
-              </button>
-            ) : (
-              <div className="flex w-full items-center gap-2">
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-bold text-black disabled:opacity-60"
-                  style={{ background: GREEN }}
-                >
-                  {uploading ? <Loader2 size={13} className="animate-spin" /> : <ImagePlus size={13} />}
-                  {uploading ? "Subiendo..." : "Elegir foto del comprobante"}
-                </button>
-                <button
-                  onClick={() => setShowUpload(false)}
-                  disabled={uploading}
-                  className="rounded-full border border-white/15 px-3 py-2 text-xs font-semibold text-white/60 hover:border-white/30 disabled:opacity-50"
-                >
-                  Cancelar
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) pickReceipt(file);
-                    e.target.value = "";
-                  }}
-                />
-              </div>
-            )}
-          </div>
-
-          <p className="mt-2.5 text-[11px] text-white/30">Transferencia directa a tu entrenador — sube el comprobante para que confirme tu pago.</p>
-        </>
-      )}
     </div>
   );
 }

@@ -128,9 +128,7 @@ export function ProTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
             <a href="#sobre-mi" className="hover:text-white">Sobre mí</a>
             <a href="#ventajas" className="hover:text-white">Ventajas</a>
             <a href="#servicios" className="hover:text-white">Servicios</a>
-            {seccionActiva(trainer, "transformaciones") && transformaciones && (
-              <a href="#resultados" className="hover:text-white">Resultados</a>
-            )}
+            <a href="#resultados" className="hover:text-white">Resultados</a>
             <a href="#contacto" className="hover:text-white">Contacto</a>
           </nav>
           <div className="flex items-center gap-2">
@@ -295,7 +293,6 @@ export function ProTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
               {trainer.biografia ||
                 `Soy ${trainer.businessName}${trainer.especialidad ? `, especialista en ${trainer.especialidad.toLowerCase()}` : ""}. Mi enfoque es 100% personalizado, adaptado a tu objetivo, tu estilo de vida y tus necesidades — con tecnología que hace el seguimiento aún más preciso.`}
             </p>
-            {estadisticas.length > 0 && (
             <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
               {estadisticas.map((stat, i) => {
                 const Icon = statIcons[i % statIcons.length];
@@ -315,7 +312,6 @@ export function ProTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
                 );
               })}
             </div>
-            )}
           </div>
         </div>
       </section>
@@ -515,7 +511,6 @@ export function ProTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
       )}
 
       {/* Testimonios */}
-      {testimonios.length > 0 && (
       <section className="bg-[#0b0f1a] px-6 py-20">
         <div className="mx-auto max-w-5xl">
           <div className="flex flex-col items-center gap-2 text-center">
@@ -548,7 +543,6 @@ export function ProTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
           </div>
         </div>
       </section>
-      )}
 
       {/* Preguntas frecuentes */}
       {seccionActiva(trainer, "faq") && faqs.length > 0 && (

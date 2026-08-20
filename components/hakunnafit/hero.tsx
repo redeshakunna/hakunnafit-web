@@ -6,11 +6,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ChevronLeft, ChevronRight, Play } from "lucide-react";
 import { useLeadModal } from "./lead-modal-context";
 
-// Landing real de un entrenador activo en la plataforma — usada tanto por el
-// botón "Ver ejemplo en vivo" del Hero como por la sección "Ejemplos reales"
-// (brand-showcase.tsx). Antes esto apuntaba a "#" (placeholder sin resolver);
-// ahora que hay entrenadores reales con landing publicada, se enlaza de una vez.
-export const EXAMPLE_LIVE_URL = "https://camilorivas.hakunnafit.com";
+// TODO: reemplazar por la URL real de producción de Marion (sitio piloto) cuando esté desplegado.
+export const MARION_LIVE_URL = "#";
 
 // Iconos custom (línea con degradado oficial HakunnaFit, sin glow),
 // generados en /public/icons — ver también las versiones .png transparentes.
@@ -100,21 +97,6 @@ export function HakunnaFitHero() {
 
   return (
     <section id="producto" className="relative w-full overflow-hidden">
-      {/* Fondo full-bleed con SlideMejorado.png, tipo "revolution slider" real
-          (reemplaza el mockup flotante object-contain que había antes).
-          Textos, features y botones no se tocaron. */}
-      <div className="absolute inset-0 -z-10">
-        <Image src="/images/SlideMejorado.png" alt="" fill priority className="object-cover" sizes="100vw" />
-        <div
-          className="absolute inset-0"
-          style={{ background: "linear-gradient(90deg, rgba(10,10,12,0.92) 0%, rgba(10,10,12,0.55) 45%, rgba(10,10,12,0.25) 100%)" }}
-        />
-        <div
-          className="absolute inset-0"
-          style={{ background: "linear-gradient(180deg, transparent 55%, rgba(10,10,12,0.9) 100%)" }}
-        />
-      </div>
-
       {/* Resplandores propios del slide activo (encima del fondo general fijo
           de toda la página), con el color de acento de cada slide. */}
       <AnimatePresence mode="sync">
@@ -211,7 +193,7 @@ export function HakunnaFitHero() {
                 </a>
               )}
               <a
-                href={EXAMPLE_LIVE_URL}
+                href={MARION_LIVE_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 rounded-full border border-white/15 px-7 py-3.5 text-sm font-semibold text-white transition-colors hover:border-white/30 sm:text-base"
@@ -223,6 +205,27 @@ export function HakunnaFitHero() {
           </motion.div>
         </AnimatePresence>
 
+        <div className="relative ml-auto w-full max-w-[420px] shrink-0 aspect-[800/700] lg:aspect-auto lg:max-w-none lg:w-[480px] lg:h-[420px] xl:w-[800px] xl:h-[700px]">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={`img-${slide.id}`}
+              initial={{ opacity: 0, scale: 0.94 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.94 }}
+              transition={{ duration: 0.5, ease: "easeInOut" }}
+              className="absolute inset-0"
+            >
+              <Image
+                src={slide.image}
+                alt={slide.imageAlt}
+                fill
+                priority={index === 0}
+                className="object-contain"
+                sizes="(min-width: 1280px) 800px, (min-width: 1024px) 480px, 90vw"
+              />
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </div>
 
       {/* Controles del slider */}

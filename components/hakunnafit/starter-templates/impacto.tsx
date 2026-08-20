@@ -86,9 +86,7 @@ export function ImpactoTemplate({ trainer }: { trainer: StarterTrainerProfile })
             <a href="#inicio" className="border-b-2 border-[var(--hf-primary)] pb-1 text-white">Inicio</a>
             <a href="#sobre-mi" className="hover:text-white">Sobre mí</a>
             <a href="#servicios" className="hover:text-white">Servicios</a>
-            {seccionActiva(trainer, "transformaciones") && transformaciones && (
-              <a href="#resultados" className="hover:text-white">Resultados</a>
-            )}
+            <a href="#resultados" className="hover:text-white">Resultados</a>
             <a href="#contacto" className="hover:text-white">Contacto</a>
           </nav>
           <div className="flex items-center gap-2">
@@ -244,7 +242,6 @@ export function ImpactoTemplate({ trainer }: { trainer: StarterTrainerProfile })
               {trainer.biografia ||
                 `Soy ${trainer.businessName}${trainer.especialidad ? `, especialista en ${trainer.especialidad.toLowerCase()}` : ""}. Mi enfoque es 100% personalizado, adaptado a tu objetivo, tu estilo de vida y tus necesidades.`}
             </p>
-            {estadisticas.length > 0 && (
             <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
               {estadisticas.map((stat, i) => {
                 const Icon = statIcons[i % statIcons.length];
@@ -264,7 +261,6 @@ export function ImpactoTemplate({ trainer }: { trainer: StarterTrainerProfile })
                 );
               })}
             </div>
-            )}
           </div>
         </div>
       </section>
@@ -430,7 +426,6 @@ export function ImpactoTemplate({ trainer }: { trainer: StarterTrainerProfile })
       )}
 
       {/* Testimonios */}
-      {testimonios.length > 0 && (
       <section className="bg-[#0b0f1a] px-6 py-20">
         <div className="mx-auto max-w-5xl">
           <div className="flex flex-col items-center gap-2 text-center">
@@ -463,7 +458,6 @@ export function ImpactoTemplate({ trainer }: { trainer: StarterTrainerProfile })
           </div>
         </div>
       </section>
-      )}
 
       {/* Preguntas frecuentes */}
       {seccionActiva(trainer, "faq") && faqs.length > 0 && (

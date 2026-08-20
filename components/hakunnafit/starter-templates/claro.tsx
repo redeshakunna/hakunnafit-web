@@ -80,9 +80,7 @@ export function ClaroTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
             <a href="#inicio" className="border-b-2 border-[var(--hf-primary)] pb-1 text-gray-900">Inicio</a>
             <a href="#sobre-mi" className="hover:text-gray-900">Sobre mí</a>
             <a href="#servicios" className="hover:text-gray-900">Servicios</a>
-            {seccionActiva(trainer, "transformaciones") && transformaciones && (
-              <a href="#resultados" className="hover:text-gray-900">Resultados</a>
-            )}
+            <a href="#resultados" className="hover:text-gray-900">Resultados</a>
             <a href="#contacto" className="hover:text-gray-900">Contacto</a>
           </nav>
           <div className="flex items-center gap-2">
@@ -250,7 +248,6 @@ export function ClaroTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
       </section>
 
       {/* Estadísticas */}
-      {estadisticas.length > 0 && (
       <section className="bg-gray-900 px-6 py-10">
         <div className="mx-auto grid max-w-5xl grid-cols-2 gap-6 divide-gray-700 text-center sm:grid-cols-4 sm:divide-x">
           {estadisticas.map((stat, i) => (
@@ -261,7 +258,6 @@ export function ClaroTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
           ))}
         </div>
       </section>
-      )}
 
       {/* Servicios */}
       {seccionActiva(trainer, "servicios") && (
@@ -408,7 +404,6 @@ export function ClaroTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
       )}
 
       {/* Testimonios */}
-      {testimonios.length > 0 && (
       <section className="border-t border-gray-200/70 bg-white px-6 py-20">
         <div className="mx-auto max-w-5xl text-center">
           <Quote className="mx-auto" style={{ color: "color-mix(in srgb, var(--hf-primary) 30%, transparent)" }} size={26} />
@@ -441,7 +436,6 @@ export function ClaroTemplate({ trainer }: { trainer: StarterTrainerProfile }) {
           </div>
         </div>
       </section>
-      )}
 
       {/* Preguntas frecuentes */}
       {seccionActiva(trainer, "faq") && faqs.length > 0 && (

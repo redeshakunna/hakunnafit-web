@@ -13,7 +13,6 @@ import { getSupabaseAdmin } from "./supabase-admin";
 import { requireTrainer } from "./trainer-auth";
 import { PLAN_CLIENT_CAP } from "./catalog";
 import { validateImageFile, imageExtension } from "./image-validation";
-import { computeBillingSnapshotOnPlanChoice, computePriceOnlyOnPlanChange } from "./client-billing";
 import type { AdminActionResult } from "./admin-actions";
 import type { PerfilCrossfit, PerfilRunning } from "./client-profile-types";
 import type { Json } from "./database.types";
@@ -49,18 +48,9 @@ export interface ClientRow {
   documento: string | null;
   avatar_url: string | null;
   created_at: string;
-  // Facturación (mensualidad del cliente final al entrenador) — ver
-  // lib/client-billing-actions.ts para toda la lógica de negocio.
-  plan_precio_cop: number | null;
-  fecha_inicio_facturacion: string | null;
-  proximo_cobro_cliente: string | null;
-  compromiso_meses_minimo: number;
-  meses_pagados: number;
 }
 
-// Exportado para lib/client-billing-actions.ts (mismo chequeo de propiedad,
-// evita duplicarlo).
-export async function assertOwnClient(clientId: string): Promise<{ trainerId: string }> {
+async function assertOwnClient(clientId: string): Promise<{ trainerId: string }> {
   const trainer = await requireTrainer();
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase.from("clients").select("id, trainer_id").eq("id", clientId).maybeSingle();
@@ -177,13 +167,6 @@ export async function createOwnClient(input: CreateOwnClientInput): Promise<Admi
     };
   }
 
-  // Si el plan elegido coincide con uno de trainer.planes_ofrecidos que
-  // tenga precio fijo, arranca el ciclo de cobro de una vez (precio
-  // congelado + fecha de inicio hoy + primer cobro en 1 mes) — ver
-  // lib/client-billing.ts. Si es "a cotizar" o no hay match, queda sin
-  // definir y el entrenador lo completa a mano desde la ficha.
-  const billing = computeBillingSnapshotOnPlanChoice(input.planElegido, trainer.planes_ofrecidos);
-
   const { data, error } = await supabase
     .from("clients")
     .insert({
@@ -204,9 +187,6 @@ export async function createOwnClient(input: CreateOwnClientInput): Promise<Admi
       status: input.status ?? "pendiente_evaluacion",
       perfil_deportivo: (input.perfilDeportivo as unknown as Json) ?? null,
       sesiones_contratadas: input.sesionesContratadas ?? null,
-      plan_precio_cop: billing?.plan_precio_cop ?? null,
-      fecha_inicio_facturacion: billing?.fecha_inicio_facturacion ?? null,
-      proximo_cobro_cliente: billing?.proximo_cobro_cliente ?? null,
     })
     .select("id")
     .single();
@@ -291,9 +271,6 @@ export async function updateOwnClient(clientId: string, input: UpdateOwnClientIn
     pausado_en?: string | null;
     perfil_deportivo?: Json | null;
     sesiones_contratadas?: number | null;
-    plan_precio_cop?: number | null;
-    fecha_inicio_facturacion?: string | null;
-    proximo_cobro_cliente?: string | null;
   } = {};
   if (input.fullName !== undefined) update.full_name = input.fullName.trim();
   if (input.documento !== undefined) update.documento = input.documento?.trim() || null;
@@ -306,31 +283,7 @@ export async function updateOwnClient(clientId: string, input: UpdateOwnClientIn
   if (input.rutinaActual !== undefined) update.rutina_actual = input.rutinaActual || null;
   if (input.pesoActual !== undefined) update.peso_actual = input.pesoActual;
   if (input.altura !== undefined) update.altura = input.altura;
-  if (input.planElegido !== undefined) {
-    update.plan_elegido = input.planElegido || null;
-    // Mismo criterio que createOwnClient: si el cliente todavía no tenía el
-    // ciclo de cobro arrancado, elegir un plan con precio fijo lo arranca de
-    // una (precio + fecha de inicio + primer cobro). Si ya estaba
-    // facturando, cambiar de plan solo actualiza el precio (si el nuevo
-    // plan tiene uno) sin reiniciar el ciclo a mitad de mes.
-    const trainer = await requireTrainer();
-    const { data: currentBilling } = await supabase
-      .from("clients")
-      .select("proximo_cobro_cliente")
-      .eq("id", clientId)
-      .maybeSingle();
-    if (!currentBilling?.proximo_cobro_cliente) {
-      const billing = computeBillingSnapshotOnPlanChoice(input.planElegido, trainer.planes_ofrecidos);
-      if (billing) {
-        update.plan_precio_cop = billing.plan_precio_cop;
-        update.fecha_inicio_facturacion = billing.fecha_inicio_facturacion;
-        update.proximo_cobro_cliente = billing.proximo_cobro_cliente;
-      }
-    } else {
-      const precio = computePriceOnlyOnPlanChange(input.planElegido, trainer.planes_ofrecidos);
-      if (precio != null) update.plan_precio_cop = precio;
-    }
-  }
+  if (input.planElegido !== undefined) update.plan_elegido = input.planElegido || null;
   if (input.diasPorSemana !== undefined) update.dias_por_semana = input.diasPorSemana;
   if (input.horarioEntreno !== undefined) update.horario_entreno = input.horarioEntreno || null;
   // Al pausar se sella la fecha automáticamente; al salir de pausado se

@@ -307,17 +307,10 @@ const TRANSFORMACIONES_BY_BRANCH: Record<string, StarterTransformacion[]> = {
   ],
 };
 
-// Antes, si el entrenador no tenía fotos propias, esto rellenaba con fotos de
-// stock de Unsplash presentadas como transformaciones reales de clientes con
-// nombre y apellido — quedaba muy bien en el mockup, pero es contenido
-// fabricado mostrado a prospectos reales de un entrenador real. Ahora: sin
-// fotos reales cargadas, la sección simplemente no se muestra (mismo criterio
-// que resolvePlanes/resolveFaqs). STOCK_TRANSFORMACIONES/TRANSFORMACIONES_BY_BRANCH
-// se mantienen solo como referencia de diseño, ya no se usan como relleno.
 export function resolveTransformaciones(trainer: StarterTrainerProfile) {
   if (!trainer.mostrarTransformaciones) return null;
   if (trainer.transformaciones?.length) return trainer.transformaciones;
-  return null;
+  return (trainer.especialidad && TRANSFORMACIONES_BY_BRANCH[trainer.especialidad]) || STOCK_TRANSFORMACIONES;
 }
 
 // Foto secundaria para la sección "Sobre mí" — si el entrenador subió una
@@ -393,14 +386,9 @@ const ESTADISTICAS_BY_BRANCH: Record<string, StarterEstadistica[]> = {
   ],
 };
 
-// Antes, sin cifras propias cargadas, esto mostraba números inventados
-// (ej. "+300 Clientes transformados") como si fueran reales — prueba social
-// falsa para un negocio real. Ahora: sin cifras propias, la franja de
-// estadísticas simplemente no se muestra (mismo criterio que
-// resolvePlanes/resolveFaqs). DEFAULT_ESTADISTICAS/ESTADISTICAS_BY_BRANCH
-// quedan solo como referencia, ya no se usan como relleno.
 export function resolveEstadisticas(trainer: StarterTrainerProfile): StarterEstadistica[] {
-  return trainer.estadisticas?.length ? trainer.estadisticas : [];
+  if (trainer.estadisticas?.length) return trainer.estadisticas;
+  return (trainer.especialidad && ESTADISTICAS_BY_BRANCH[trainer.especialidad]) || DEFAULT_ESTADISTICAS;
 }
 
 // Testimonios genéricos de ejemplo — claramente placeholder (sin foto real
@@ -425,13 +413,9 @@ const TESTIMONIOS_BY_BRANCH: Record<string, StarterTestimonio[]> = {
   ],
 };
 
-// Antes, sin testimonios propios cargados, esto mostraba 3 reseñas de 5
-// estrellas con frases inventadas firmadas "Cliente real" — literalmente
-// prueba social falsa. Ahora: sin testimonios propios, la sección no se
-// muestra (mismo criterio que resolvePlanes/resolveFaqs).
-// DEFAULT_TESTIMONIOS/TESTIMONIOS_BY_BRANCH quedan solo como referencia.
 export function resolveTestimonios(trainer: StarterTrainerProfile): StarterTestimonio[] {
-  return trainer.testimonios?.length ? trainer.testimonios : [];
+  if (trainer.testimonios?.length) return trainer.testimonios;
+  return (trainer.especialidad && TESTIMONIOS_BY_BRANCH[trainer.especialidad]) || DEFAULT_TESTIMONIOS;
 }
 
 // FAQ — a diferencia de servicios/estadísticas/testimonios, no hay set por

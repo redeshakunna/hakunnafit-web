@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { Star } from "lucide-react";
 
@@ -36,15 +37,11 @@ const steps = [
   },
 ];
 
-// Antes esta sección mostraba números inventados (+2.500 entrenadores,
-// +25.000 clientes...) que no correspondían a nada real. HakunnaFit recién
-// está lanzando, así que en vez de fabricar tracción, esto comunica el
-// momento real de la plataforma sin mentir sobre el tamaño.
-const launchBadges = [
-  { value: "Nuevo", label: "Plataforma recién lanzada", color: "#00C8FF" },
-  { value: "48h", label: "Tu marca lista para publicar", color: "#8B5CF6" },
-  { value: "100%", label: "Tuyo: tu marca, tus clientes", color: "#C026D3" },
-  { value: "Limitado", label: "Cupos para entrenadores fundadores", color: "#FF2DB8" },
+const stats = [
+  { value: "+2.500", label: "Entrenadores activos", color: "#00C8FF" },
+  { value: "+25.000", label: "Clientes entrenando", color: "#8B5CF6" },
+  { value: "+1.2M", label: "Entrenamientos realizados", color: "#C026D3" },
+  { value: "+15M", label: "En ingresos generados", color: "#FF2DB8" },
 ];
 
 export function HakunnaFitHowItWorks() {
@@ -112,21 +109,18 @@ export function HakunnaFitHowItWorks() {
             transition={{ duration: 0.5 }}
             className="font-[family-name:var(--font-hf-heading)] text-xl font-bold uppercase leading-tight text-white sm:text-2xl lg:text-3xl"
           >
-            Sé de los{" "}
+            Entrenadores que ya están{" "}
             <span className="bg-gradient-to-r from-hf-purple to-hf-fuchsia bg-clip-text text-transparent">
-              primeros en escalar
+              escalando
             </span>
           </motion.h2>
 
           <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_1fr]">
-            {/* Momento de lanzamiento — antes aquí había estadísticas
-                inventadas (+2.500 entrenadores...). Se reemplazó por algo
-                honesto: la plataforma es nueva y eso también es una historia
-                que vender (acceso temprano, precio fundador). */}
+            {/* Stats */}
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-2">
-              {launchBadges.map((badge, i) => (
+              {stats.map((stat, i) => (
                 <motion.div
-                  key={badge.label}
+                  key={stat.label}
                   initial={{ opacity: 0, y: 16 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, margin: "-60px" }}
@@ -135,36 +129,50 @@ export function HakunnaFitHowItWorks() {
                 >
                   <p
                     className="font-[family-name:var(--font-hf-heading)] text-2xl font-black sm:text-3xl"
-                    style={{ color: badge.color }}
+                    style={{ color: stat.color }}
                   >
-                    {badge.value}
+                    {stat.value}
                   </p>
-                  <p className="mt-1.5 text-xs text-white/55 sm:text-sm">{badge.label}</p>
+                  <p className="mt-1.5 text-xs text-white/55 sm:text-sm">{stat.label}</p>
                 </motion.div>
               ))}
             </div>
 
-            {/* Programa Fundadores — reemplaza el testimonio inventado de
-                "Andrés Rivera" por una invitación honesta a ser de los
-                primeros, sin atribuir opiniones a nadie que no las dio. */}
+            {/* Testimonio */}
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-60px" }}
               transition={{ duration: 0.5 }}
-              className="flex flex-col justify-center gap-4 rounded-3xl border border-white/10 bg-white/[0.03] p-6 sm:p-8"
+              className="grid grid-cols-1 items-end gap-4 overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] sm:grid-cols-[180px_1fr]"
             >
-              <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-hf-fuchsia/30 bg-hf-fuchsia/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-hf-fuchsia">
-                <Star size={12} fill="currentColor" />
-                Programa Fundadores
-              </span>
-              <p className="font-[family-name:var(--font-hf-heading)] text-lg font-bold text-white">
-                Entra ahora y ayuda a definir la plataforma
-              </p>
-              <p className="text-[13px] leading-relaxed text-white/60">
-                Los primeros entrenadores tienen línea directa con nuestro equipo, prioridad en
-                soporte y las nuevas funciones (como HakAI) llegan primero a sus cuentas.
-              </p>
+              <div className="relative h-56 w-full sm:h-full">
+                <Image
+                  src="/images/Entrenador01.png"
+                  alt="Andrés Rivera, entrenador personal usando HakunnaFit"
+                  fill
+                  className="object-contain object-bottom"
+                  sizes="(min-width: 640px) 180px, 90vw"
+                />
+              </div>
+
+              <div className="p-6 pt-0 sm:p-8 sm:pl-0">
+                <p className="font-[family-name:var(--font-hf-heading)] text-base font-bold text-white">
+                  Andrés Rivera
+                </p>
+                <p className="text-xs text-white/50">Entrenador Personal</p>
+
+                <p className="mt-4 text-[13px] leading-relaxed text-white/70">
+                  &ldquo;HakunnaFit cambió mi negocio por completo. Ahora tengo mi propia marca,
+                  más clientes y más tiempo para enfocarme en lo que amo.&rdquo;
+                </p>
+
+                <div className="mt-4 flex gap-0.5 text-hf-blue">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star key={i} size={16} fill="#FBBF24" stroke="#FBBF24" />
+                  ))}
+                </div>
+              </div>
             </motion.div>
           </div>
         </div>

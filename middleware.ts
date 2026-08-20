@@ -108,22 +108,14 @@ export async function middleware(req: NextRequest) {
       return redirectResponse;
     }
 
-    // OJO: antes, si ya había una sesión Supabase activa (ej: un entrenador
-    // logueado) y el navegador visitaba /panel/login, acá se forzaba un
-    // redirect a /panel — asumiendo que "ya logueado" siempre significa
-    // "no necesita ver el formulario". Pero /panel/login es también la
-    // puerta de entrada al login de ADMIN (loginUnified() prueba primero
-    // credenciales de super-admin), que es un sistema de auth totalmente
-    // aparte (cookie propio, sin sesión Supabase — ver bloque de
-    // /panel-hakunna arriba). Si Nando (o cualquier admin) tenía además una
-    // sesión de entrenador activa en el mismo navegador, este redirect lo
-    // sacaba del login antes de poder escribir sus credenciales de admin —
-    // bug real: /panel-hakunna/solicitudes lo mandaba a /panel/login para
-    // autenticarse como admin, y de ahí rebotaba directo a /panel (panel de
-    // entrenador) sin nunca ver el formulario. Se quita el redirect: el
-    // formulario de loginUnified ya hace su propio router.push(redirectTo)
-    // correcto tras autenticar, así que no hace falta este atajo y mostrar
-    // el login de más no tiene costo.
+    if (user && req.nextUrl.pathname === "/panel/login") {
+      const url = req.nextUrl.clone();
+      url.pathname = "/panel";
+      const redirectResponse = NextResponse.redirect(url);
+      response.cookies.getAll().forEach((cookie) => redirectResponse.cookies.set(cookie));
+      return redirectResponse;
+    }
+
     return response;
   }
 

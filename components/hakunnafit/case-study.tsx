@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
-import { EXAMPLE_LIVE_URL } from "./hero";
+import { MARION_LIVE_URL } from "./hero";
 
 const CASE_STUDY_IMG = "/images/Personalizado.png";
 
@@ -36,7 +36,7 @@ export function HakunnaFitCaseStudy() {
           </p>
 
           <a
-            href={EXAMPLE_LIVE_URL}
+            href={MARION_LIVE_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="mt-8 inline-flex items-center gap-2 text-sm font-semibold text-hf-blue-text"

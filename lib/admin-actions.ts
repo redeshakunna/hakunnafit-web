@@ -181,6 +181,8 @@ export interface TrainerRow {
   planes_ofrecidos: PlanOfrecido[];
   contrato_inicio: string | null;
   datos_cobro: DatosCobro | null;
+  modalidad: string | null;
+  directorio_pausado_manual: boolean;
 }
 
 export interface TrainerActivityRow {

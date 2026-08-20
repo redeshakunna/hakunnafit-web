@@ -8,6 +8,3 @@ npm-debug.log*
 .env*.local
 next-env.d.ts
 *.tsbuildinfo
-
-# Credenciales de cuentas demo (contraseñas reales) — nunca a git.
-credenciales-demo.txt

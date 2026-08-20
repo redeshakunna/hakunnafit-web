@@ -133,6 +133,8 @@ export interface Database {
           planes_ofrecidos: Json;
           contrato_inicio: string | null;
           datos_cobro: Json | null;
+          modalidad: string | null;
+          directorio_pausado_manual: boolean;
         };
         Insert: {
           id?: string;
@@ -182,8 +184,100 @@ export interface Database {
           planes_ofrecidos?: Json;
           contrato_inicio?: string | null;
           datos_cobro?: Json | null;
+          modalidad?: string | null;
+          directorio_pausado_manual?: boolean;
         };
         Update: Partial<Database["public"]["Tables"]["trainers"]["Insert"]>;
+        Relationships: [];
+      };
+      trainer_directory_stats: {
+        Row: {
+          trainer_id: string;
+          visible: boolean;
+          is_new: boolean;
+          new_status_expires_at: string | null;
+          ranking_score: number;
+          rating_average: number;
+          rating_count: number;
+          conversion_rate: number;
+          cupos_disponibles: number;
+          leads_received_count: number;
+          leads_converted_count: number;
+          grace_period_ends_at: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          trainer_id: string;
+          visible?: boolean;
+          is_new?: boolean;
+          new_status_expires_at?: string | null;
+          ranking_score?: number;
+          rating_average?: number;
+          rating_count?: number;
+          conversion_rate?: number;
+          cupos_disponibles?: number;
+          leads_received_count?: number;
+          leads_converted_count?: number;
+          grace_period_ends_at?: string | null;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["trainer_directory_stats"]["Insert"]>;
+        Relationships: [];
+      };
+      directory_leads: {
+        Row: {
+          id: string;
+          trainer_id: string;
+          ref_code: string;
+          lead_name: string;
+          lead_email: string;
+          consent_given: boolean;
+          consent_given_at: string | null;
+          clicked_at: string;
+          contact_form_submitted_at: string | null;
+          redirected_at: string | null;
+          converted: boolean;
+          converted_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          trainer_id: string;
+          ref_code?: string;
+          lead_name: string;
+          lead_email: string;
+          consent_given?: boolean;
+          consent_given_at?: string | null;
+          clicked_at?: string;
+          contact_form_submitted_at?: string | null;
+          redirected_at?: string | null;
+          converted?: boolean;
+          converted_at?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["directory_leads"]["Insert"]>;
+        Relationships: [];
+      };
+      trainer_reviews: {
+        Row: {
+          id: string;
+          trainer_id: string;
+          client_id: string;
+          rating: number;
+          comment: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          trainer_id: string;
+          client_id: string;
+          rating: number;
+          comment?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["trainer_reviews"]["Insert"]>;
         Relationships: [];
       };
       plan_settings: {

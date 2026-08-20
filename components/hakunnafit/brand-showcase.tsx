@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ExternalLink } from "lucide-react";
+import { ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
+import { MARION_LIVE_URL } from "./hero";
 
 interface BrandCard {
   id: string;
@@ -10,31 +12,70 @@ interface BrandCard {
   domain: string;
   image: string;
   href: string;
+  external: boolean;
 }
 
-// Entrenadores reales de la plataforma — antes esta sección mostraba 6
-// tarjetas con fotos de stock y links muertos ("#"). Ahora enlaza a landings
-// publicadas de verdad. Camilo Rivas ya tiene banner propio subido; Fernando
-// Gonzalez todavía no ha cargado sus fotos, así que usa una foto de stock
-// temporal de la rama (running) hasta que suba las suyas.
 const cards: BrandCard[] = [
   {
-    id: "camilo",
-    name: "Camilo Rivas",
-    domain: "camilorivas.hakunnafit.com",
+    id: "carlos",
+    name: "Carlos Fit",
+    domain: "carlosfit.hakunnafit.com",
     image:
-      "https://agrhzkwpwklycqtmdmed.supabase.co/storage/v1/object/public/avatars/fb719a1b-157f-42aa-9bef-b8a284476d22/banner_url-1786380031124.png",
-    href: "https://camilorivas.hakunnafit.com",
+      "https://images.unsplash.com/photo-1738523687459-963f3fb56522?auto=format&fit=crop&w=800&q=80",
+    href: "#",
+    external: false,
   },
   {
-    id: "fernando",
-    name: "Fernando Gonzalez",
-    domain: "fernandogonzalez.hakunnafit.com",
+    id: "marion",
+    name: "Marion Trainer",
+    domain: "mariontrainer.hakunnafit.com",
     image:
-      "https://images.unsplash.com/photo-1571008887538-b36bb32f4571?auto=format&fit=crop&w=800&q=80",
-    href: "https://fernandogonzalez.hakunnafit.com",
+      "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=800&q=80",
+    href: MARION_LIVE_URL,
+    external: true,
+  },
+  {
+    id: "andres",
+    name: "Andrés Rivera",
+    domain: "andresrivera.hakunnafit.com",
+    image:
+      "https://images.unsplash.com/photo-1745329532593-53a9ec306787?auto=format&fit=crop&w=800&q=80",
+    href: "#",
+    external: false,
+  },
+  {
+    id: "sofia",
+    name: "Sofía Wellness",
+    domain: "sofiawellness.hakunnafit.com",
+    image:
+      "https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?auto=format&fit=crop&w=800&q=80",
+    href: "#",
+    external: false,
+  },
+  {
+    id: "juan",
+    name: "Juan Petrix",
+    domain: "juanpetrix.hakunnafit.com",
+    image:
+      "https://images.unsplash.com/photo-1704223523381-bb976da90793?auto=format&fit=crop&w=800&q=80",
+    href: "#",
+    external: false,
+  },
+  {
+    id: "camila",
+    name: "Camila Strong",
+    domain: "camilastrong.hakunnafit.com",
+    image:
+      "https://images.unsplash.com/photo-1574680096145-d05b474e2155?auto=format&fit=crop&w=800&q=80",
+    href: "#",
+    external: false,
   },
 ];
+
+const PAGE_SIZE = 3;
+const pages = Array.from({ length: Math.ceil(cards.length / PAGE_SIZE) }, (_, i) =>
+  cards.slice(i * PAGE_SIZE, i * PAGE_SIZE + PAGE_SIZE)
+);
 
 function BrandCardItem({ card }: { card: BrandCard }) {
   const inner = (
@@ -46,7 +87,7 @@ function BrandCardItem({ card }: { card: BrandCard }) {
         <span className="ml-3 flex-1 truncate rounded-full bg-black/30 px-3 py-1 text-[11px] text-white/50">
           {card.domain}
         </span>
-        <ExternalLink className="h-3.5 w-3.5 shrink-0 text-white/40" />
+        {card.external && <ExternalLink className="h-3.5 w-3.5 shrink-0 text-white/40" />}
       </div>
 
       <div className="relative aspect-[4/3] w-full overflow-hidden">
@@ -75,14 +116,24 @@ function BrandCardItem({ card }: { card: BrandCard }) {
     </div>
   );
 
-  return (
-    <Link href={card.href} target="_blank" rel="noopener noreferrer" className="block h-full">
-      {inner}
-    </Link>
-  );
+  if (card.external) {
+    return (
+      <Link href={card.href} target="_blank" rel="noopener noreferrer" className="block h-full">
+        {inner}
+      </Link>
+    );
+  }
+
+  return <div className="h-full cursor-default">{inner}</div>;
 }
 
 export function HakunnaFitBrandShowcase() {
+  const [page, setPage] = useState(0);
+
+  function go(delta: number) {
+    setPage((p) => (p + pages.length + delta) % pages.length);
+  }
+
   return (
     <section id="ejemplos" className="relative w-full py-20 sm:py-24">
       <div className="relative mx-auto max-w-7xl px-6">
@@ -104,11 +155,49 @@ export function HakunnaFitBrandShowcase() {
           </p>
         </div>
 
-        <div className="mx-auto mt-12 grid max-w-3xl grid-cols-1 gap-6 sm:grid-cols-2">
-          {cards.map((card) => (
+        <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {pages[page].map((card) => (
             <BrandCardItem key={card.id} card={card} />
           ))}
         </div>
+
+        {pages.length > 1 && (
+          <div className="mt-8 flex items-center justify-center gap-4">
+            <button
+              type="button"
+              onClick={() => go(-1)}
+              aria-label="Anterior"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/70 transition hover:border-hf-blue/40 hover:text-white"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+
+            <div className="flex items-center gap-2">
+              {pages.map((_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setPage(i)}
+                  aria-label={`Ir a la página ${i + 1}`}
+                  className={`h-2 rounded-full transition-all duration-300 ${
+                    i === page
+                      ? "w-8 bg-gradient-to-r from-hf-blue via-hf-purple to-hf-fuchsia"
+                      : "w-2 bg-white/20"
+                  }`}
+                />
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => go(1)}
+              aria-label="Siguiente"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/70 transition hover:border-hf-blue/40 hover:text-white"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          </div>
+        )}
       </div>
     </section>
   );
