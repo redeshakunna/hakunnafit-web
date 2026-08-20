@@ -16,6 +16,7 @@
 
 import { getSupabaseAdmin } from "./supabase-admin";
 import { sendLeadEmail, renderLeadEmail } from "./email";
+import { computeBillingSnapshotOnPlanChoice } from "./client-billing";
 import type { PerfilCrossfit, PerfilRunning } from "./client-profile-types";
 import type { Json } from "./database.types";
 
@@ -83,13 +84,22 @@ export async function submitPublicClientIntake(
 
   const { data: trainer } = await supabase
     .from("trainers")
-    .select("id, business_name, plan")
+    .select("id, business_name, plan, planes_ofrecidos")
     .eq("subdominio", input.subdominio)
     .maybeSingle();
 
   if (!trainer) {
     return { ok: false, error: "No pudimos encontrar esta página. Verifica el link." };
   }
+
+  // Igual que en el alta manual del entrenador (createOwnClient): si el plan
+  // elegido tiene precio fijo en trainer.planes_ofrecidos, arranca el ciclo
+  // de cobro de una vez. Si es "a cotizar" o no hay match, el entrenador lo
+  // completa a mano desde la ficha.
+  let billing = computeBillingSnapshotOnPlanChoice(
+    input.planElegido,
+    (trainer.planes_ofrecidos as unknown as { nombre: string; incluye: string; precioCop: number | null }[]) ?? []
+  );
 
   // Deduplicar por WhatsApp o correo dentro del mismo entrenador — si la
   // persona ya había escrito por el formulario ligero de la landing y ahora
@@ -105,12 +115,16 @@ export async function submitPublicClientIntake(
       .join(",");
     const { data: existing } = await supabase
       .from("clients")
-      .select("id, email, whatsapp, sexo, nivel, objetivo, dias_por_semana, horario_entreno")
+      .select("id, email, whatsapp, sexo, nivel, objetivo, dias_por_semana, horario_entreno, proximo_cobro_cliente")
       .eq("trainer_id", trainer.id)
       .or(orFilters)
       .limit(1)
       .maybeSingle();
     if (existing) existingId = existing.id;
+    // Si ya tenía el ciclo de cobro arrancado, no lo reinicia solo porque
+    // vuelve a llenar el formulario (ej. completando el link largo después
+    // del formulario corto de la landing).
+    if (existing?.proximo_cobro_cliente) billing = null;
   }
 
   const diasPorSemana =
@@ -136,6 +150,9 @@ export async function submitPublicClientIntake(
         dias_por_semana: diasPorSemana ?? undefined,
         horario_entreno: input.horarioEntreno || undefined,
         perfil_deportivo: (input.perfilDeportivo as unknown as Json) ?? undefined,
+        plan_precio_cop: billing?.plan_precio_cop ?? undefined,
+        fecha_inicio_facturacion: billing?.fecha_inicio_facturacion ?? undefined,
+        proximo_cobro_cliente: billing?.proximo_cobro_cliente ?? undefined,
       })
       .eq("id", existingId);
     if (error?.code === "23505") return { ok: false, error: "Ya existe un registro con ese número de documento." };
@@ -162,6 +179,9 @@ export async function submitPublicClientIntake(
     horario_entreno: input.horarioEntreno || null,
     perfil_deportivo: (input.perfilDeportivo as unknown as Json) ?? null,
     status: "pendiente_evaluacion",
+    plan_precio_cop: billing?.plan_precio_cop ?? null,
+    fecha_inicio_facturacion: billing?.fecha_inicio_facturacion ?? null,
+    proximo_cobro_cliente: billing?.proximo_cobro_cliente ?? null,
   });
   if (error) return { ok: false, error: "No pudimos guardar tus datos. Intenta de nuevo." };
 

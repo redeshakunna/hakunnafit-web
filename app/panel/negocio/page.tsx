@@ -4,6 +4,7 @@ import { getOwnClientStats } from "@/lib/trainer-actions";
 import { getPlanPrices } from "@/lib/plan-settings-actions";
 import { TrainerShell } from "@/components/trainer/trainer-shell";
 import { TrainerBusinessOverview } from "@/components/trainer/trainer-business-overview";
+import { TrainerPaymentSettingsForm } from "@/components/trainer/trainer-payment-settings-form";
 
 export default async function TrainerNegocioPage() {
   const trainer = await getCurrentTrainer();
@@ -14,6 +15,7 @@ export default async function TrainerNegocioPage() {
   return (
     <TrainerShell active="negocio" trainer={trainer}>
       <TrainerBusinessOverview trainer={trainer} planPrices={planPrices} clientStats={clientStats} />
+      <TrainerPaymentSettingsForm initial={trainer.datos_cobro} />
     </TrainerShell>
   );
 }

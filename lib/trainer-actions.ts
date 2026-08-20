@@ -400,6 +400,7 @@ export interface OwnActivityRow {
   description: string | null;
   created_at: string;
   leida: boolean;
+  link: string | null;
 }
 
 /**
@@ -412,7 +413,7 @@ export async function getOwnRecentActivity(limit = 6): Promise<OwnActivityRow[]>
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("trainer_activity")
-    .select("id, type, title, description, created_at, leida")
+    .select("id, type, title, description, created_at, leida, link")
     .eq("trainer_id", trainer.id)
     .order("created_at", { ascending: false })
     .limit(limit);
@@ -437,7 +438,7 @@ export async function getOwnActivityInbox(limit = 15): Promise<OwnActivityInbox>
   const [{ data }, { count }] = await Promise.all([
     supabase
       .from("trainer_activity")
-      .select("id, type, title, description, created_at, leida")
+      .select("id, type, title, description, created_at, leida, link")
       .eq("trainer_id", trainer.id)
       .order("created_at", { ascending: false })
       .limit(limit),

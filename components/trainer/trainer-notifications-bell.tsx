@@ -8,7 +8,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, UserPlus, RefreshCcw, AlertTriangle, CheckCircle2, Info } from "lucide-react";
+import { Bell, UserPlus, RefreshCcw, AlertTriangle, CheckCircle2, Info, Wallet } from "lucide-react";
 import {
   getOwnActivityInbox,
   markOwnActivityRead,
@@ -24,6 +24,8 @@ const TYPE_ICON: Record<string, React.ElementType> = {
   suspendido: AlertTriangle,
   reactivado: CheckCircle2,
   informacion_actualizada: Info,
+  cobro_cliente_proximo: Wallet,
+  comprobante_pago_cliente: Wallet,
 };
 
 const TYPE_LINK: Record<string, string> = {
@@ -78,8 +80,17 @@ export function TrainerNotificationsBell() {
       refresh();
     });
     setOpen(false);
-    const link = TYPE_LINK[n.type];
-    if (link) router.push(link);
+    const link = n.link ?? TYPE_LINK[n.type];
+    if (!link) return;
+    // Los recordatorios de cobro a clientes traen un link externo de
+    // WhatsApp (wa.me) listo para mandar — no es una ruta interna, así que
+    // no puede ir por router.push (eso es solo para navegación dentro de la
+    // app). Todo lo demás sigue siendo un link interno normal.
+    if (/^https?:\/\//.test(link)) {
+      window.open(link, "_blank", "noopener,noreferrer");
+    } else {
+      router.push(link);
+    }
   };
 
   const handleMarkAll = () => {

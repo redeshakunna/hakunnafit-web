@@ -19,7 +19,7 @@
 import { getSupabaseAdmin } from "./supabase-admin";
 import { getCurrentClient } from "./client-auth";
 import { validateImageFile, imageExtension } from "./image-validation";
-import type { AdminActionResult } from "./admin-actions";
+import type { AdminActionResult, DatosCobro } from "./admin-actions";
 import type { ClientRow, MeasurementRow } from "./trainer-clients-actions";
 import type { RoutineRow } from "./trainer-routines-actions";
 import type { PerfilCrossfit, PerfilRunning } from "./client-profile-types";
@@ -59,6 +59,11 @@ export interface OwnTrainerBranding {
   // para nada funcional acá, solo para que la pantalla no se sienta vacía en
   // pantallas anchas.
   especialidad: string | null;
+  // Datos para que el cliente le transfiera la mensualidad directamente
+  // (cuenta/llave Bre-B/Nequi) — se muestran de solo lectura en la tarjeta
+  // "Tu plan" de /mi-cuenta para que el cliente pueda pagar ahí mismo sin
+  // esperar a que el entrenador se los mande por WhatsApp.
+  datosCobro: DatosCobro | null;
 }
 
 export interface OwnNextAppointment {
@@ -98,6 +103,18 @@ export interface OwnPendingProposal {
   items: OwnPendingItem[];
 }
 
+// Comprobante de pago que el cliente ya subió (client_payments con
+// confirmado_por_entrenador=false) y que su entrenador todavía no confirmó.
+// Mientras exista uno, la tarjeta "Tu plan" de /mi-cuenta muestra el estado
+// "enviado, esperando confirmación" en vez del formulario para subir otro.
+export interface OwnPendingPayment {
+  id: string;
+  montoCop: number;
+  periodoCubierto: string;
+  comprobanteUrl: string | null;
+  createdAt: string;
+}
+
 export interface ClientAccountData {
   client: ClientRow;
   trainer: OwnTrainerBranding;
@@ -110,6 +127,7 @@ export interface ClientAccountData {
   upcomingAppointments: OwnNextAppointment[];
   pendingProposal: OwnPendingProposal | null;
   measurements: MeasurementRow[];
+  pendingPayment: OwnPendingPayment | null;
 }
 
 export async function getOwnClientDashboardData(): Promise<ClientAccountData | null> {
@@ -124,10 +142,13 @@ export async function getOwnClientDashboardData(): Promise<ClientAccountData | n
   const windowEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
 
   const supabase = getSupabaseAdmin();
-  const [{ data: trainer }, { data: routine }, { data: upcoming }, { data: proposal }, { data: measurements }] = await Promise.all([
+  const [{ data: trainer }, { data: routine }, { data: upcoming }, { data: proposal }, { data: measurements }, { data: pendingPaymentRow }] =
+    await Promise.all([
     supabase
       .from("trainers")
-      .select("business_name, logo_url, color_primario, color_secundario, color_terciario, whatsapp_publico, whatsapp, subdominio, especialidad")
+      .select(
+        "business_name, logo_url, color_primario, color_secundario, color_terciario, whatsapp_publico, whatsapp, subdominio, especialidad, datos_cobro"
+      )
       .eq("id", me.trainer_id)
       .maybeSingle(),
     supabase
@@ -156,6 +177,18 @@ export async function getOwnClientDashboardData(): Promise<ClientAccountData | n
     // quien decide qué mostrar según el status de cada ítem.
     supabase.from("session_proposals").select("id, status").eq("client_id", me.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("measurements").select("*").eq("client_id", me.id).order("fecha", { ascending: false }),
+    // Comprobante ya enviado que el entrenador todavía no confirmó — si
+    // existe, /mi-cuenta muestra "esperando confirmación" en vez de dejar
+    // subir otro (ver submitOwnPaymentReceipt más abajo, que también
+    // bloquea el duplicado del lado del servidor).
+    supabase
+      .from("client_payments")
+      .select("id, monto_cop, periodo_cubierto, comprobante_url, created_at")
+      .eq("client_id", me.id)
+      .eq("confirmado_por_entrenador", false)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   if (!trainer) return null;
@@ -214,12 +247,22 @@ export async function getOwnClientDashboardData(): Promise<ClientAccountData | n
       whatsapp: trainer.whatsapp_publico?.trim() || trainer.whatsapp,
       subdominio: trainer.subdominio,
       especialidad: trainer.especialidad,
+      datosCobro: (trainer.datos_cobro as unknown as DatosCobro | null) ?? null,
     },
     routine: (routine as RoutineRow | null) ?? null,
     nextAppointment,
     upcomingAppointments,
     pendingProposal,
     measurements: (measurements ?? []) as MeasurementRow[],
+    pendingPayment: pendingPaymentRow
+      ? {
+          id: pendingPaymentRow.id,
+          montoCop: pendingPaymentRow.monto_cop,
+          periodoCubierto: pendingPaymentRow.periodo_cubierto,
+          comprobanteUrl: pendingPaymentRow.comprobante_url,
+          createdAt: pendingPaymentRow.created_at,
+        }
+      : null,
   };
 }
 
@@ -352,6 +395,71 @@ export async function addOwnProgressPhoto(formData: FormData): Promise<AdminActi
   }
 
   return { ok: true, url: data.publicUrl };
+}
+
+// ---------------------------------------------------------------------------
+// Comprobante de pago — el cliente sube la foto de su transferencia desde
+// /mi-cuenta ("Ya pagué"). Queda como client_payments con
+// confirmado_por_entrenador=false: NO avanza proximo_cobro_cliente ni suma a
+// meses_pagados todavía — eso solo pasa cuando el entrenador confirma desde
+// su ficha (markClientPaymentReceived en lib/client-billing-actions.ts, que
+// detecta este comprobante pendiente y lo confirma en vez de crear una fila
+// nueva). Se bloquea un segundo envío mientras el primero siga sin confirmar.
+// ---------------------------------------------------------------------------
+
+export async function submitOwnPaymentReceipt(formData: FormData): Promise<AdminActionResult> {
+  const me = await requireOwnClient();
+  if (!me.plan_precio_cop) {
+    return { ok: false, error: "Tu entrenador todavía no definió el valor de tu plan." };
+  }
+
+  const validated = validateImageFile(formData.get("comprobante"));
+  if (!validated.ok) return { ok: false, error: validated.error };
+
+  const supabase = getSupabaseAdmin();
+
+  const { data: existing } = await supabase
+    .from("client_payments")
+    .select("id")
+    .eq("client_id", me.id)
+    .eq("confirmado_por_entrenador", false)
+    .limit(1);
+  if (existing && existing.length > 0) {
+    return { ok: false, error: "Ya enviaste un comprobante que tu entrenador todavía no confirma." };
+  }
+
+  const ext = imageExtension(validated.file);
+  const path = `${me.trainer_id}/clientes/${me.id}/comprobantes/${Date.now()}.${ext}`;
+  const buffer = Buffer.from(await validated.file.arrayBuffer());
+
+  const { error: uploadError } = await supabase.storage
+    .from("avatars")
+    .upload(path, buffer, { contentType: validated.file.type, upsert: true });
+  if (uploadError) return { ok: false, error: uploadError.message };
+
+  const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
+
+  const periodoCubierto = me.proximo_cobro_cliente ?? me.fecha_inicio_facturacion ?? new Date().toISOString().slice(0, 10);
+
+  const { error: insertError } = await supabase.from("client_payments").insert({
+    client_id: me.id,
+    trainer_id: me.trainer_id,
+    monto_cop: me.plan_precio_cop,
+    periodo_cubierto: periodoCubierto,
+    comprobante_url: pub.publicUrl,
+    confirmado_por_entrenador: false,
+  });
+  if (insertError) return { ok: false, error: insertError.message };
+
+  await supabase.from("trainer_activity").insert({
+    trainer_id: me.trainer_id,
+    type: "comprobante_pago_cliente",
+    title: `${me.full_name} envió un comprobante de pago`,
+    description: "Toca para revisarlo y confirmarlo en su ficha.",
+    link: `/panel/clientes/${me.id}`,
+  });
+
+  return { ok: true };
 }
 
 // ---------------------------------------------------------------------------
