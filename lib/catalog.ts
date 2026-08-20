@@ -38,7 +38,11 @@ export const PLAN_CLIENT_CAP: Record<PlanKey, number> = {
 //   sí solo, solo se muestra como "comprometido hasta" en Mi Negocio y en el
 //   editor de entrenador para que quede claro el acuerdo comercial.
 export const TRIAL_DAYS = 15;
-export const CONTRACT_MIN_MONTHS = 6;
+// Bajado de 6 a 3 meses (2026-08-20): en fase de Programa Fundadores se
+// prioriza reducir la fricción de entrada sobre maximizar el colchón de caja
+// por entrenador. Sigue siendo informativo — subir esto a 6 más adelante,
+// cuando haya tracción real, no requiere ningún otro cambio de código.
+export const CONTRACT_MIN_MONTHS = 3;
 
 // Los 3 modelos de landing estandarizados para el plan Starter. El propio
 // entrenador elige uno al llenar el formulario público (ver lead-modal.tsx);
