@@ -22,6 +22,7 @@ import { validateImageFile, imageExtension } from "./image-validation";
 import type { AdminActionResult, DatosCobro } from "./admin-actions";
 import type { ClientRow, MeasurementRow } from "./trainer-clients-actions";
 import type { RoutineRow } from "./trainer-routines-actions";
+import type { MealPlanRow, AlimentoRow } from "./trainer-nutrition-actions";
 import type { PerfilCrossfit, PerfilRunning } from "./client-profile-types";
 import type { Json } from "./database.types";
 import {
@@ -119,6 +120,10 @@ export interface ClientAccountData {
   client: ClientRow;
   trainer: OwnTrainerBranding;
   routine: RoutineRow | null;
+  // Último plan de alimentación aprobado (módulo Nutrición, solo entrenadores
+  // Pro/Elite) — null si el entrenador no tiene ese plan o todavía no le armó
+  // uno a este cliente. Mismo patrón de solo-lectura que "routine".
+  mealPlan: MealPlanRow | null;
   nextAppointment: OwnNextAppointment | null;
   // Citas reales (evaluations, ya aprobadas) en una ventana de ~2 semanas —
   // alimenta la sección "Próximas citas" (vista tipo calendario/semana) en
@@ -142,8 +147,15 @@ export async function getOwnClientDashboardData(): Promise<ClientAccountData | n
   const windowEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
 
   const supabase = getSupabaseAdmin();
-  const [{ data: trainer }, { data: routine }, { data: upcoming }, { data: proposal }, { data: measurements }, { data: pendingPaymentRow }] =
-    await Promise.all([
+  const [
+    { data: trainer },
+    { data: routine },
+    { data: mealPlan },
+    { data: upcoming },
+    { data: proposal },
+    { data: measurements },
+    { data: pendingPaymentRow },
+  ] = await Promise.all([
     supabase
       .from("trainers")
       .select(
@@ -153,6 +165,14 @@ export async function getOwnClientDashboardData(): Promise<ClientAccountData | n
       .maybeSingle(),
     supabase
       .from("weekly_plans")
+      .select("*")
+      .eq("client_id", me.id)
+      .eq("status", "aprobado")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("meal_plans")
       .select("*")
       .eq("client_id", me.id)
       .eq("status", "aprobado")
@@ -250,6 +270,7 @@ export async function getOwnClientDashboardData(): Promise<ClientAccountData | n
       datosCobro: (trainer.datos_cobro as unknown as DatosCobro | null) ?? null,
     },
     routine: (routine as RoutineRow | null) ?? null,
+    mealPlan: (mealPlan as unknown as MealPlanRow | null) ?? null,
     nextAppointment,
     upcomingAppointments,
     pendingProposal,
@@ -264,6 +285,26 @@ export async function getOwnClientDashboardData(): Promise<ClientAccountData | n
         }
       : null,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Detalle de los alimentos referenciados en el plan de nutrición del cliente
+// — searchAlimentos/getAlimentosByIds en trainer-nutrition-actions.ts exigen
+// requireTrainer(), así que acá va un equivalente con requireOwnClient()
+// para que /mi-cuenta pueda resolver nombre/macros/precio de cada item sin
+// exponer la biblioteca completa a nadie sin sesión.
+// ---------------------------------------------------------------------------
+
+export async function getOwnMealPlanAlimentos(ids: string[]): Promise<AlimentoRow[]> {
+  await requireOwnClient();
+  if (ids.length === 0) return [];
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("alimentos")
+    .select("id, nombre, categoria, tiendas, unidad_referencia, calorias, proteina_g, carbohidratos_g, grasa_g, precio_cop")
+    .in("id", ids);
+  if (error || !data) return [];
+  return data as unknown as AlimentoRow[];
 }
 
 // ---------------------------------------------------------------------------

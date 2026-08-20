@@ -576,6 +576,68 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["exercises"]["Insert"]>;
         Relationships: [];
       };
+      alimentos: {
+        Row: {
+          id: string;
+          nombre: string;
+          categoria: string;
+          tiendas: string[];
+          unidad_referencia: string;
+          calorias: number;
+          proteina_g: number;
+          carbohidratos_g: number;
+          grasa_g: number;
+          precio_cop: number | null;
+          active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          nombre: string;
+          categoria: string;
+          tiendas?: string[];
+          unidad_referencia: string;
+          calorias: number;
+          proteina_g?: number;
+          carbohidratos_g?: number;
+          grasa_g?: number;
+          precio_cop?: number | null;
+          active?: boolean;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["alimentos"]["Insert"]>;
+        Relationships: [];
+      };
+      meal_plans: {
+        Row: {
+          id: string;
+          client_id: string;
+          trainer_id: string;
+          comidas_por_dia: number;
+          objetivo: string | null;
+          nota_perfil: string | null;
+          dias: Json;
+          status: "pendiente" | "revisando" | "aprobado";
+          nota_aprobacion: string | null;
+          created_at: string;
+          approved_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          client_id: string;
+          trainer_id: string;
+          comidas_por_dia?: number;
+          objetivo?: string | null;
+          nota_perfil?: string | null;
+          dias?: Json;
+          status?: "pendiente" | "revisando" | "aprobado";
+          nota_aprobacion?: string | null;
+          created_at?: string;
+          approved_at?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["meal_plans"]["Insert"]>;
+        Relationships: [];
+      };
       evaluations: {
         Row: {
           id: string;

@@ -21,7 +21,7 @@
 // día en vez de una lista larga), luego progreso, y al final — colapsados,
 // porque no es lo primero que alguien entra a mirar — los datos de perfil.
 
-import { useMemo, useRef, useState, useTransition, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
@@ -38,6 +38,7 @@ import {
   Moon,
   Pencil,
   Scale,
+  ShoppingBasket,
   Sparkles,
   Target,
   Video,
@@ -53,6 +54,8 @@ import { ClientHojaDeVida } from "@/components/trainer/client-hoja-de-vida";
 import { calculateImc } from "@/lib/imc";
 import { SEXO_LABELS, NIVEL_LABELS, ACTIVIDAD_OPTIONS } from "@/lib/client-ui";
 import { blockKindOf, DIAS_SEMANA, type RoutineExerciseBlock } from "@/lib/routine-types";
+import { MEAL_SLOTS, OBJETIVO_LABELS, dayTotals, type AlimentoLite } from "@/lib/nutrition-types";
+import type { AlimentoRow } from "@/lib/trainer-nutrition-actions";
 import { branchTheme } from "@/lib/branch-theme";
 import { googleCalendarUrl, downloadIcsFile, type CalendarEventInput } from "@/lib/calendar-links";
 import type { MeasurementRow } from "@/lib/trainer-clients-actions";
@@ -61,6 +64,7 @@ import {
   addOwnProgressPhoto,
   approveOwnProposalItem,
   getOwnClientDashboardData,
+  getOwnMealPlanAlimentos,
   getOwnReplacementSuggestions,
   rejectAndReplaceOwnItem,
   submitOwnPaymentReceipt,
@@ -70,6 +74,25 @@ import {
   type ClientAccountData,
   type SuggestedSlot,
 } from "@/lib/client-account-actions";
+
+function formatCop(n: number): string {
+  return n.toLocaleString("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
+}
+
+function toAlimentoLite(a: AlimentoRow): AlimentoLite {
+  return {
+    id: a.id,
+    nombre: a.nombre,
+    categoria: a.categoria,
+    tiendas: a.tiendas,
+    unidadReferencia: a.unidad_referencia,
+    calorias: a.calorias,
+    proteinaG: a.proteina_g,
+    carbohidratosG: a.carbohidratos_g,
+    grasaG: a.grasa_g,
+    precioCop: a.precio_cop,
+  };
+}
 
 const GREEN = "linear-gradient(90deg,var(--hf-primary),var(--hf-secondary))";
 
@@ -90,7 +113,7 @@ function todayDiaSemana(): number {
 export function ClientAccountDashboard({ initialData }: { initialData: ClientAccountData }) {
   const router = useRouter();
   const [data, setData] = useState(initialData);
-  const { client, trainer, routine, nextAppointment, upcomingAppointments, pendingProposal, measurements, pendingPayment } = data;
+  const { client, trainer, routine, mealPlan, nextAppointment, upcomingAppointments, pendingProposal, measurements, pendingPayment } = data;
   const firstName = client.full_name.split(" ")[0];
   const waHref = whatsappHref(trainer.whatsapp, `Hola ${trainer.businessName}, te escribo desde mi cuenta de HakunnaFit.`);
   const imc = calculateImc(client.peso_actual, client.altura);
@@ -214,6 +237,10 @@ export function ClientAccountDashboard({ initialData }: { initialData: ClientAcc
 
         {/* Rutina — selector de día en vez de una lista larga */}
         {routine && <RoutineSection routine={routine} />}
+
+        {/* Nutrición — solo aparece si el entrenador es Pro/Elite y ya armó
+            un plan de alimentación para este cliente. */}
+        {mealPlan && <MealPlanSection mealPlan={mealPlan} />}
 
         {/* Progreso */}
         <ProgressSection
@@ -675,6 +702,119 @@ function ExerciseBlockRow({ block }: { block: RoutineExerciseBlock }) {
         {movimientos && <p className="mt-0.5 text-xs text-white/60">{movimientos}</p>}
         {notas && <p className="mt-0.5 text-xs text-white/40">{notas}</p>}
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Mi plan de alimentación — mismo patrón visual que RoutineSection (selector
+// de día en pills), pero por comida/slot en vez de bloques de ejercicio.
+// Solo lectura: lo arma el entrenador desde el módulo Nutrición (Pro/Elite).
+// Los nombres/macros/precio de cada alimento se resuelven en el cliente
+// porque meal_plans.dias solo guarda el id — mismo motivo que
+// trainer-nutrition-manager.tsx resuelve su propio caché de alimentos.
+// ---------------------------------------------------------------------------
+
+function MealPlanSection({ mealPlan }: { mealPlan: NonNullable<ClientAccountData["mealPlan"]> }) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [alimentosById, setAlimentosById] = useState<Map<string, AlimentoLite>>(new Map());
+  const activeDay = mealPlan.dias[activeIndex] ?? null;
+
+  const referencedIds = useMemo(() => {
+    const ids = new Set<string>();
+    mealPlan.dias.forEach((d) => d.comidas.forEach((m) => m.items.forEach((i) => i.alimentoId && ids.add(i.alimentoId))));
+    return Array.from(ids);
+  }, [mealPlan]);
+
+  useEffect(() => {
+    if (referencedIds.length === 0) return;
+    getOwnMealPlanAlimentos(referencedIds).then((rows) => {
+      setAlimentosById(new Map(rows.map((r) => [r.id, toAlimentoLite(r)])));
+    });
+  }, [referencedIds]);
+
+  const totals = activeDay ? dayTotals(activeDay, alimentosById) : null;
+
+  if (!activeDay) return null;
+
+  return (
+    <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-xs font-bold uppercase tracking-wide text-white/40">Tu plan de alimentación</p>
+          {mealPlan.objetivo && (
+            <p className="truncate text-xs text-white/50">{OBJETIVO_LABELS[mealPlan.objetivo] ?? mealPlan.objetivo}</p>
+          )}
+        </div>
+        {totals && totals.calorias > 0 && (
+          <span className="shrink-0 rounded-full bg-white/5 px-2.5 py-1 text-[10px] font-semibold text-white/50">
+            {Math.round(totals.calorias)} kcal
+          </span>
+        )}
+      </div>
+
+      <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1">
+        {mealPlan.dias.map((day, i) => {
+          const isActive = i === activeIndex;
+          return (
+            <button
+              key={i}
+              onClick={() => setActiveIndex(i)}
+              className="relative shrink-0 rounded-xl border px-3.5 py-2 text-left transition-colors"
+              style={
+                isActive
+                  ? { background: GREEN, borderColor: "transparent" }
+                  : { borderColor: "rgba(255,255,255,0.12)", backgroundColor: "rgba(255,255,255,0.02)" }
+              }
+            >
+              <p className={`text-xs font-bold ${isActive ? "text-black" : "text-white"}`}>{day.nombre}</p>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-3 space-y-1.5">
+        {activeDay.comidas.map((meal, i) => {
+          const slotLabel = MEAL_SLOTS.find((s) => s.value === meal.slot)?.label ?? meal.slot;
+          return (
+            <div key={i} className="rounded-xl border border-white/5 bg-white/[0.02] px-3 py-2.5">
+              <p className="text-xs font-bold text-white/70">{slotLabel}</p>
+              {meal.items.length === 0 ? (
+                <p className="mt-1 text-xs text-white/30">Sin alimentos definidos</p>
+              ) : (
+                <div className="mt-1.5 space-y-1">
+                  {meal.items.map((item, j) => {
+                    const alimento = item.alimentoId ? alimentosById.get(item.alimentoId) : null;
+                    const label = alimento?.nombre ?? item.nombreLibre?.trim() ?? "Alimento";
+                    return (
+                      <div key={j} className="flex items-center justify-between gap-2 text-xs">
+                        <span className="min-w-0 truncate text-white/80">
+                          {label}
+                          {item.cantidad !== 1 ? ` × ${item.cantidad}` : ""}
+                        </span>
+                        {alimento && (
+                          <span className="shrink-0 text-white/40">{Math.round(alimento.calorias * item.cantidad)} kcal</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {totals && totals.costoCop > 0 && (
+        <div className="mt-3 flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">
+          <ShoppingBasket size={14} className="shrink-0 text-emerald-400" />
+          <p className="text-[11px] text-white/70">
+            Costo estimado de este día: <b className="text-emerald-400">{formatCop(totals.costoCop)}</b>
+          </p>
+        </div>
+      )}
+
+      <p className="mt-3 text-[11px] text-white/30">Lo arma tu entrenador con productos de D1, Ara y Éxito — no se puede editar desde acá.</p>
     </div>
   );
 }
