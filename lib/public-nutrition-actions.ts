@@ -27,6 +27,10 @@ export interface PublicMealPlanView {
   trainer: {
     businessName: string;
     logoUrl: string | null;
+    avatarUrl: string | null;
+    whatsappPublico: string | null;
+    instagram: string | null;
+    emailPublico: string | null;
     colorPrimario: string;
     colorSecundario: string;
     colorTerciario: string;
@@ -64,7 +68,9 @@ export async function getMealPlanByShareToken(token: string): Promise<PublicMeal
     supabase.from("clients").select("full_name").eq("id", plan.client_id).maybeSingle(),
     supabase
       .from("trainers")
-      .select("business_name, logo_url, color_primario, color_secundario, color_terciario")
+      .select(
+        "business_name, logo_url, avatar_url, whatsapp_publico, instagram, email_publico, color_primario, color_secundario, color_terciario"
+      )
       .eq("id", plan.trainer_id)
       .maybeSingle(),
   ]);
@@ -94,6 +100,10 @@ export async function getMealPlanByShareToken(token: string): Promise<PublicMeal
     trainer: {
       businessName: (trainer.business_name as string) || "HakunnaFit",
       logoUrl: trainer.logo_url as string | null,
+      avatarUrl: trainer.avatar_url as string | null,
+      whatsappPublico: trainer.whatsapp_publico as string | null,
+      instagram: trainer.instagram as string | null,
+      emailPublico: trainer.email_publico as string | null,
       colorPrimario: (trainer.color_primario as string) || "#22c55e",
       colorSecundario: (trainer.color_secundario as string) || "#0a0d16",
       colorTerciario: (trainer.color_terciario as string) || "#ffffff",
