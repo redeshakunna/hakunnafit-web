@@ -204,8 +204,8 @@ export async function deleteOwnMealPlan(mealPlanId: string): Promise<AdminAction
 // 1. "Plantilla" (generateOwnMealPlanTemplate): reglas simples sobre datos
 //    reales, sin llamar a ningún modelo — mismo espíritu que
 //    estimateMacroTarget/lib/imc.ts. Gratis e instantáneo, cubre 3 días.
-// 2. "HAKAI" (generateOwnMealPlanWithAI): llamada real a Claude (mismo
-//    patrón de fetch crudo que app/api/chat/route.ts, sin SDK nuevo),
+// 2. "HAKAI" (generateOwnMealPlanWithAI): llamada real a HAKAI, el asistente
+//    de IA de HakunnaFit (mismo patrón de fetch crudo que app/api/chat/route.ts, sin SDK nuevo),
 //    forzada a responder por tool-use con el shape exacto de NutritionDias.
 //    Cubre 7 días. Nunca confía ciegamente en la respuesta del modelo: todo
 //    alimentoId que no exista en la biblioteca filtrada se descarta.
@@ -350,7 +350,7 @@ export async function generateOwnMealPlanWithAI(
 
   const slotValues = MEAL_SLOTS.map((s) => s.value).join(", ");
 
-  const systemPrompt = `Eres HAKAI, el asistente de nutrición de HakunnaFit. Armas planes de alimentación de ${AI_NUM_DIAS} días para clientes de entrenadores personales colombianos, usando EXCLUSIVAMENTE alimentos de la biblioteca que se te entrega a continuación (nunca inventes alimentos ni ids que no estén en esa lista). Cada día debe tener exactamente ${input.comidasPorDia} comidas, usando únicamente estos slots: ${slotValues}. Varía los alimentos entre los distintos días para que el plan no sea repetitivo. Responde exclusivamente llamando a la herramienta "generar_plan_alimentacion".`;
+  const systemPrompt = `Eres HAKAI, el asistente de inteligencia artificial de HakunnaFit. Armas planes de alimentación de ${AI_NUM_DIAS} días para clientes de entrenadores personales colombianos, usando EXCLUSIVAMENTE alimentos de la biblioteca que se te entrega a continuación (nunca inventes alimentos ni ids que no estén en esa lista). Cada día debe tener exactamente ${input.comidasPorDia} comidas, usando únicamente estos slots: ${slotValues}. Varía los alimentos entre los distintos días para que el plan no sea repetitivo. Responde exclusivamente llamando a la herramienta "generar_plan_alimentacion".`;
 
   const userPrompt = [
     `Objetivo del cliente: ${OBJETIVO_LABELS[input.objetivo] ?? input.objetivo}.`,

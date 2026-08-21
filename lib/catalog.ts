@@ -270,9 +270,9 @@ export const SUBSCRIPTION_STATUSES = [
 export type SubscriptionStatusKey = (typeof SUBSCRIPTION_STATUSES)[number]["key"];
 
 export const INTEGRATIONS = [
+  "HAKAI",
   "OpenAI",
   "Gemini",
-  "Claude",
   "Wompi",
   "Cloudinary",
   "Resend",

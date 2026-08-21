@@ -109,8 +109,9 @@ export default function PrivacidadPage() {
             transaccionales (confirmaciones, recordatorios, notificaciones).
           </li>
           <li>
-            <span className="font-semibold text-white">Anthropic (Claude)</span> — potencia el
-            asistente de IA para generación de rutinas y respuestas del chat.
+            <span className="font-semibold text-white">HAKAI</span> — asistente de inteligencia
+            artificial de HakunnaFit, usado para generación de rutinas, planes de alimentación y
+            respuestas del chat.
           </li>
         </ul>
         <p>No vendemos datos personales a terceros ni los usamos con fines publicitarios.</p>

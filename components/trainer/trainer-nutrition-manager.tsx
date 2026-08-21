@@ -69,7 +69,7 @@ export function TrainerNutritionManager({ trainer, clients }: { trainer: Trainer
 
   // Flujo de creación en 3 modos (pedido explícito de Nando): al crear un
   // plan nuevo, primero se elige cómo arrancarlo — manual (vacío, como
-  // antes), plantilla (reglas simples, gratis/instantáneo) o HAKAI (Claude
+  // antes), plantilla (reglas simples, gratis/instantáneo) o HAKAI (IA
   // real, 7 días). El resultado de plantilla/HAKAI solo pre-llena el editor
   // — sigue siendo el entrenador quien revisa y guarda.
   const [newPlanMode, setNewPlanMode] = useState<"closed" | "select" | "template" | "ia">("closed");
@@ -763,7 +763,7 @@ function NewPlanModeModal({
     {
       icon: Sparkles,
       title: "Generar con HAKAI",
-      desc: "Claude arma un plan de 7 días adaptado al cliente (objetivo, restricciones, presupuesto). Tú revisas y ajustas antes de guardar.",
+      desc: "HAKAI arma un plan de 7 días adaptado al cliente (objetivo, restricciones, presupuesto). Tú revisas y ajustas antes de guardar.",
       onClick: onIA,
       accent: true,
     },
@@ -947,7 +947,7 @@ function TemplateWizardModal({
 }
 
 // ---------------------------------------------------------------------------
-// HAKAI — llamada real a Claude, 7 días, respetando objetivo/restricciones/
+// HAKAI — llamada real al asistente de IA de HakunnaFit, 7 días, respetando objetivo/restricciones/
 // presupuesto opcional. Ver generateOwnMealPlanWithAI en
 // trainer-nutrition-actions.ts para el detalle de la validación defensiva.
 // ---------------------------------------------------------------------------
