@@ -37,6 +37,10 @@ export interface MealPlanRow {
   nota_aprobacion: string | null;
   created_at: string;
   approved_at: string | null;
+  // Token público para /plan/[token] — ver lib/public-nutrition-actions.ts.
+  // Se genera solo (gen_random_uuid() en la base) al crear el plan, nunca se
+  // pisa desde acá.
+  share_token: string;
 }
 
 export interface AlimentoRow {

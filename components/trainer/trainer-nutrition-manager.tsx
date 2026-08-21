@@ -1,7 +1,21 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { Plus, Trash2, X, Utensils, Library, ArrowLeft, ShoppingBasket, Sparkles, ListChecks, PenLine, Loader2 } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  X,
+  Utensils,
+  Library,
+  ArrowLeft,
+  ShoppingBasket,
+  Sparkles,
+  ListChecks,
+  PenLine,
+  Loader2,
+  Printer,
+  Share2,
+} from "lucide-react";
 import type { TrainerRow } from "@/lib/admin-actions";
 import type { ClientRow } from "@/lib/trainer-clients-actions";
 import {
@@ -40,6 +54,12 @@ import { branchTheme } from "@/lib/branch-theme";
 import { branchLabel } from "@/lib/catalog";
 import { ACTIVIDAD_LABELS } from "@/lib/client-ui";
 import { formatCop } from "@/lib/currency";
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://hakunnafit.com";
+
+function mealPlanShareUrl(shareToken: string): string {
+  return `${SITE_URL}/plan/${shareToken}`;
+}
 
 function toLite(a: AlimentoRow): AlimentoLite {
   return {
@@ -224,17 +244,35 @@ export function TrainerNutritionManager({ trainer, clients }: { trainer: Trainer
                 <p className="mt-0.5 text-xs text-white/40">{p.dias.length} días definidos</p>
               </div>
             </div>
-            <div className="mt-3 flex gap-2">
+            <div className="mt-3 flex flex-wrap gap-2">
               <button
                 onClick={() => setEditing(p)}
                 className="rounded-full border border-white/15 px-3 py-1.5 text-[11px] font-semibold text-white/70 hover:border-white/30 hover:text-white"
               >
                 Editar
               </button>
+              <a
+                href={mealPlanShareUrl(p.share_token)}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1 rounded-full border border-white/15 px-3 py-1.5 text-[11px] font-semibold text-white/70 hover:border-white/30 hover:text-white"
+              >
+                <Printer size={11} /> Ver / Imprimir
+              </a>
+              <button
+                onClick={() => {
+                  const nombre = selectedClient?.full_name?.split(" ")[0] ?? "";
+                  const mensaje = `Hola ${nombre}, este es tu plan de alimentación 🍽️\n${mealPlanShareUrl(p.share_token)}`;
+                  window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, "_blank");
+                }}
+                className="flex items-center gap-1 rounded-full border border-emerald-500/20 px-3 py-1.5 text-[11px] font-semibold text-emerald-400/80 hover:border-emerald-500/40 hover:text-emerald-400"
+              >
+                <Share2 size={11} /> WhatsApp
+              </button>
               <button
                 onClick={() => handleDelete(p)}
                 disabled={isPending}
-                className="flex items-center gap-1 rounded-full border border-red-500/20 px-3 py-1.5 text-[11px] font-semibold text-red-400/80 hover:border-red-500/40 hover:text-red-400"
+                className="ml-auto flex items-center gap-1 rounded-full border border-red-500/20 px-3 py-1.5 text-[11px] font-semibold text-red-400/80 hover:border-red-500/40 hover:text-red-400"
               >
                 <Trash2 size={11} /> Eliminar
               </button>

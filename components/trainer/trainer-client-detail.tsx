@@ -29,6 +29,9 @@ import {
   CalendarCheck2,
   KeyRound,
   Wallet,
+  Printer,
+  Share2,
+  Utensils,
 } from "lucide-react";
 import type { TrainerRow } from "@/lib/admin-actions";
 import { calculateImc } from "@/lib/imc";
@@ -36,6 +39,10 @@ import { daysSinceLastTraining, weeklyTrainingStreak } from "@/lib/training-stat
 import { IMC_CATEGORY_CLASS, STATUS_META, STATUS_DOT, initials, avatarColor, HORARIOS_ENTRENO } from "@/lib/client-ui";
 import { perfilShapeForBranch, type PerfilRunning } from "@/lib/client-profile-types";
 import { branchTheme } from "@/lib/branch-theme";
+import { hasFeature } from "@/lib/admin-helpers";
+import { formatCop } from "@/lib/currency";
+import { getAlimentosByIds, type MealPlanRow, type AlimentoRow } from "@/lib/trainer-nutrition-actions";
+import { OBJETIVO_LABELS, planAverageDayTotals, type AlimentoLite } from "@/lib/nutrition-types";
 import {
   updateOwnClient,
   getOwnClientMeasurements,
@@ -68,7 +75,7 @@ import { addOneMonth, buildClientPaymentWhatsappLink } from "@/lib/client-billin
 import { ClientHojaDeVida } from "@/components/trainer/client-hoja-de-vida";
 import { ClientFormFields, clientToForm, type FormState } from "@/components/trainer/trainer-clients-manager";
 
-type Tab = "resumen" | "progreso" | "evaluaciones" | "rutina";
+type Tab = "resumen" | "progreso" | "evaluaciones" | "rutina" | "nutricion";
 
 export function TrainerClientDetail({
   trainer,
@@ -77,6 +84,7 @@ export function TrainerClientDetail({
   initialEvaluations,
   routines,
   initialTrainingLogs,
+  mealPlan,
 }: {
   trainer: TrainerRow;
   client: ClientRow;
@@ -84,6 +92,7 @@ export function TrainerClientDetail({
   initialEvaluations: EvaluationRow[];
   routines: RoutineRow[];
   initialTrainingLogs: TrainingLogRow[];
+  mealPlan: MealPlanRow | null;
 }) {
   const searchParams = useSearchParams();
   const initialTab = (searchParams.get("tab") as Tab | null) ?? "resumen";
@@ -387,6 +396,9 @@ export function TrainerClientDetail({
             <TabButton label="Progreso" active={tab === "progreso"} onClick={() => setTab("progreso")} />
             <TabButton label="Evaluaciones" active={tab === "evaluaciones"} onClick={() => setTab("evaluaciones")} />
             <TabButton label="Rutina" active={tab === "rutina"} onClick={() => setTab("rutina")} />
+            {hasFeature(trainer.plan, "Nutrición") && (
+              <TabButton label="Nutrición" active={tab === "nutricion"} onClick={() => setTab("nutricion")} />
+            )}
           </div>
 
           {tab === "resumen" && (
@@ -413,6 +425,8 @@ export function TrainerClientDetail({
           )}
 
           {tab === "rutina" && <RutinaTab routines={routines} />}
+
+          {tab === "nutricion" && <NutricionTab mealPlan={mealPlan} clientFirstName={client.full_name.split(" ")[0]} siteUrl={siteUrl} />}
         </>
       )}
     </div>
@@ -1385,6 +1399,120 @@ function RutinaTab({ routines }: { routines: RoutineRow[] }) {
           </Link>
         </div>
       ))}
+    </div>
+  );
+}
+
+function mealPlanShareUrl(siteUrl: string, shareToken: string): string {
+  return `${siteUrl}/plan/${shareToken}`;
+}
+
+function toAlimentoLiteFromRow(a: AlimentoRow): AlimentoLite {
+  return {
+    id: a.id,
+    nombre: a.nombre,
+    categoria: a.categoria,
+    tiendas: a.tiendas,
+    unidadReferencia: a.unidad_referencia,
+    calorias: a.calorias,
+    proteinaG: a.proteina_g,
+    carbohidratosG: a.carbohidratos_g,
+    grasaG: a.grasa_g,
+    precioCop: a.precio_cop,
+  };
+}
+
+function NutricionTab({
+  mealPlan,
+  clientFirstName,
+  siteUrl,
+}: {
+  mealPlan: MealPlanRow | null;
+  clientFirstName: string;
+  siteUrl: string;
+}) {
+  const [alimentosById, setAlimentosById] = useState<Map<string, AlimentoLite>>(new Map());
+
+  const referencedIds = useMemo(() => {
+    if (!mealPlan) return [] as string[];
+    const ids = new Set<string>();
+    mealPlan.dias.forEach((d) => d.comidas.forEach((m) => m.items.forEach((i) => i.alimentoId && ids.add(i.alimentoId))));
+    return Array.from(ids);
+  }, [mealPlan]);
+
+  useEffect(() => {
+    if (referencedIds.length === 0) return;
+    getAlimentosByIds(referencedIds).then((rows) => {
+      setAlimentosById(new Map(rows.map((r) => [r.id, toAlimentoLiteFromRow(r)])));
+    });
+  }, [referencedIds]);
+
+  if (!mealPlan) {
+    return (
+      <div className="mt-4 rounded-2xl border border-dashed border-white/15 p-6 text-center text-xs text-white/35">
+        Este cliente todavía no tiene plan de alimentación.{" "}
+        <Link href="/panel/nutricion" className="font-semibold text-hf-blue hover:underline">
+          Crear uno en Nutrición →
+        </Link>
+      </div>
+    );
+  }
+
+  const avgDay = planAverageDayTotals(mealPlan.dias, alimentosById);
+  const shareUrl = mealPlanShareUrl(siteUrl, mealPlan.share_token);
+
+  return (
+    <div className="mt-4 space-y-3">
+      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-sm font-semibold text-white">
+            <Utensils size={15} className="text-emerald-400" />
+            {mealPlan.comidas_por_dia} comidas/día
+            {mealPlan.objetivo ? ` · ${OBJETIVO_LABELS[mealPlan.objetivo] ?? mealPlan.objetivo}` : ""}
+          </div>
+          {avgDay.calorias > 0 && (
+            <span className="rounded-full bg-white/5 px-2.5 py-1 text-[10px] font-semibold text-white/50">
+              ~{Math.round(avgDay.calorias)} kcal/día
+            </span>
+          )}
+        </div>
+        <p className="mt-1 text-xs text-white/40">{mealPlan.dias.length} días definidos</p>
+        {avgDay.costoCop > 0 && (
+          <p className="mt-2 text-[11px] text-white/50">
+            Costo semanal aproximado: <b className="text-emerald-400">{formatCop(avgDay.costoCop * 7)}</b>
+          </p>
+        )}
+
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Link
+            href="/panel/nutricion"
+            className="rounded-full border border-white/15 px-3 py-1.5 text-[11px] font-semibold text-white/70 hover:border-white/30 hover:text-white"
+          >
+            Editar en Nutrición
+          </Link>
+          <a
+            href={shareUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-1 rounded-full border border-white/15 px-3 py-1.5 text-[11px] font-semibold text-white/70 hover:border-white/30 hover:text-white"
+          >
+            <Printer size={11} /> Ver / Imprimir
+          </a>
+          <button
+            onClick={() => {
+              const mensaje = `Hola ${clientFirstName}, este es tu plan de alimentación 🍽️\n${shareUrl}`;
+              window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, "_blank");
+            }}
+            className="flex items-center gap-1 rounded-full border border-emerald-500/20 px-3 py-1.5 text-[11px] font-semibold text-emerald-400/80 hover:border-emerald-500/40 hover:text-emerald-400"
+          >
+            <Share2 size={11} /> WhatsApp
+          </button>
+        </div>
+      </div>
+
+      <p className="text-[11px] text-white/30">
+        Incluye lista de mercado con cantidades y costo estimado — visible al abrir &quot;Ver / Imprimir&quot;.
+      </p>
     </div>
   );
 }

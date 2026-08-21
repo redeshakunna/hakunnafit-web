@@ -621,6 +621,7 @@ export interface Database {
           nota_aprobacion: string | null;
           created_at: string;
           approved_at: string | null;
+          share_token: string;
         };
         Insert: {
           id?: string;
@@ -634,6 +635,7 @@ export interface Database {
           nota_aprobacion?: string | null;
           created_at?: string;
           approved_at?: string | null;
+          share_token?: string;
         };
         Update: Partial<Database["public"]["Tables"]["meal_plans"]["Insert"]>;
         Relationships: [];
