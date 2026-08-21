@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { Plus, Trash2, X, Utensils, Library, ArrowLeft, ShoppingBasket } from "lucide-react";
+import { Plus, Trash2, X, Utensils, Library, ArrowLeft, ShoppingBasket, Sparkles, ListChecks, PenLine, Loader2 } from "lucide-react";
 import type { TrainerRow } from "@/lib/admin-actions";
 import type { ClientRow } from "@/lib/trainer-clients-actions";
 import {
@@ -11,6 +11,8 @@ import {
   deleteOwnMealPlan,
   searchAlimentos,
   getAlimentosByIds,
+  generateOwnMealPlanTemplate,
+  generateOwnMealPlanWithAI,
   type MealPlanRow,
   type AlimentoRow,
 } from "@/lib/trainer-nutrition-actions";
@@ -36,6 +38,7 @@ import {
 import { BranchHero } from "@/components/trainer/branch-hero";
 import { branchTheme } from "@/lib/branch-theme";
 import { branchLabel } from "@/lib/catalog";
+import { ACTIVIDAD_LABELS } from "@/lib/client-ui";
 
 function toLite(a: AlimentoRow): AlimentoLite {
   return {
@@ -63,6 +66,15 @@ export function TrainerNutritionManager({ trainer, clients }: { trainer: Trainer
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState<MealPlanRow | "new" | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  // Flujo de creación en 3 modos (pedido explícito de Nando): al crear un
+  // plan nuevo, primero se elige cómo arrancarlo — manual (vacío, como
+  // antes), plantilla (reglas simples, gratis/instantáneo) o HAKAI (Claude
+  // real, 7 días). El resultado de plantilla/HAKAI solo pre-llena el editor
+  // — sigue siendo el entrenador quien revisa y guarda.
+  const [newPlanMode, setNewPlanMode] = useState<"closed" | "select" | "template" | "ia">("closed");
+  const [pendingInitialDias, setPendingInitialDias] = useState<NutritionDias | null>(null);
+  const [pendingBadge, setPendingBadge] = useState<string | null>(null);
 
   const selectedClient = clients.find((c) => c.id === selectedClientId) ?? null;
 
@@ -106,9 +118,17 @@ export function TrainerNutritionManager({ trainer, clients }: { trainer: Trainer
         clientId={selectedClientId}
         client={selectedClient}
         plan={editing === "new" ? null : editing}
-        onClose={() => setEditing(null)}
+        initialDias={editing === "new" ? pendingInitialDias ?? undefined : undefined}
+        generatedBadge={editing === "new" ? pendingBadge : null}
+        onClose={() => {
+          setEditing(null);
+          setPendingInitialDias(null);
+          setPendingBadge(null);
+        }}
         onSaved={async () => {
           setEditing(null);
+          setPendingInitialDias(null);
+          setPendingBadge(null);
           await refresh();
         }}
       />
@@ -141,12 +161,53 @@ export function TrainerNutritionManager({ trainer, clients }: { trainer: Trainer
         </label>
 
         <button
-          onClick={() => setEditing("new")}
+          onClick={() => setNewPlanMode("select")}
           className="flex items-center gap-1.5 rounded-full bg-hf-blue px-4 py-2 text-xs font-bold text-black"
         >
           <Plus size={14} /> Nuevo plan
         </button>
       </div>
+
+      {newPlanMode === "select" && (
+        <NewPlanModeModal
+          onClose={() => setNewPlanMode("closed")}
+          onManual={() => {
+            setNewPlanMode("closed");
+            setPendingInitialDias(null);
+            setPendingBadge(null);
+            setEditing("new");
+          }}
+          onTemplate={() => setNewPlanMode("template")}
+          onIA={() => setNewPlanMode("ia")}
+        />
+      )}
+
+      {newPlanMode === "template" && selectedClientId && (
+        <TemplateWizardModal
+          clientId={selectedClientId}
+          onClose={() => setNewPlanMode("closed")}
+          onGenerated={(dias) => {
+            setPendingInitialDias(dias);
+            setPendingBadge("Generado desde plantilla — revisa y ajusta antes de guardar.");
+            setNewPlanMode("closed");
+            setEditing("new");
+          }}
+        />
+      )}
+
+      {newPlanMode === "ia" && selectedClientId && (
+        <IAWizardModal
+          clientId={selectedClientId}
+          client={selectedClient}
+          onClose={() => setNewPlanMode("closed")}
+          onGenerated={(dias) => {
+            setPendingInitialDias(dias);
+            setPendingBadge("Generado por HAKAI — revisa alimentos y cantidades antes de guardar.");
+            setNewPlanMode("closed");
+            setEditing("new");
+          }}
+        />
+      )}
 
       <div className="mt-4 space-y-3">
         {loading && <p className="text-xs text-white/40">Cargando...</p>}
@@ -192,19 +253,23 @@ function MealPlanEditorScreen({
   clientId,
   client,
   plan,
+  initialDias,
+  generatedBadge,
   onClose,
   onSaved,
 }: {
   clientId: string;
   client: ClientRow | null;
   plan: MealPlanRow | null;
+  initialDias?: NutritionDias;
+  generatedBadge?: string | null;
   onClose: () => void;
   onSaved: () => void;
 }) {
   const [objetivo, setObjetivo] = useState(plan?.objetivo ?? "mantenimiento");
   const [notaPerfil, setNotaPerfil] = useState(plan?.nota_perfil ?? "");
   const [dias, setDias] = useState<NutritionDias>(
-    plan?.dias?.length ? plan.dias : [emptyNutritionDay(1), emptyNutritionDay(2)]
+    plan?.dias?.length ? plan.dias : initialDias?.length ? initialDias : [emptyNutritionDay(1), emptyNutritionDay(2)]
   );
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -271,6 +336,13 @@ function MealPlanEditorScreen({
       <h1 className="mt-4 text-xl font-bold text-white">
         {plan ? "Editar plan de alimentación" : "Nuevo plan de alimentación"} — {client?.full_name ?? ""}
       </h1>
+
+      {generatedBadge && (
+        <div className="mt-3 flex items-center gap-2 rounded-xl border border-hf-blue/30 bg-hf-blue/10 px-3.5 py-2.5">
+          <Sparkles size={14} className="shrink-0 text-hf-blue" />
+          <p className="text-xs text-white/80">{generatedBadge}</p>
+        </div>
+      )}
 
       {/* Resumen de macros: objetivo estimado (regla simple sobre peso/actividad,
           no IA) vs lo que realmente arma el entrenador día a día, más el costo
@@ -664,6 +736,380 @@ function AlimentoPickerModal({ onSelect, onClose }: { onSelect: (a: AlimentoRow)
         <div className="border-t border-white/10 px-5 py-2.5 text-center text-[11px] text-white/30">
           {filtered.length} de {all.length} alimentos
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Modo de creación — primer paso al crear un plan nuevo (pedido explícito de
+// Nando): el entrenador elige cómo arrancar antes de ver el editor.
+// ---------------------------------------------------------------------------
+
+const TIENDAS_REALES = ["d1", "ara", "exito"] as const;
+
+function NewPlanModeModal({
+  onClose,
+  onManual,
+  onTemplate,
+  onIA,
+}: {
+  onClose: () => void;
+  onManual: () => void;
+  onTemplate: () => void;
+  onIA: () => void;
+}) {
+  const options = [
+    {
+      icon: Sparkles,
+      title: "Generar con HAKAI",
+      desc: "Claude arma un plan de 7 días adaptado al cliente (objetivo, restricciones, presupuesto). Tú revisas y ajustas antes de guardar.",
+      onClick: onIA,
+      accent: true,
+    },
+    {
+      icon: ListChecks,
+      title: "Usar plantilla",
+      desc: "Genera 3 días automáticamente según el objetivo elegido — reglas simples, instantáneo, sin IA.",
+      onClick: onTemplate,
+      accent: false,
+    },
+    {
+      icon: PenLine,
+      title: "Crear manual",
+      desc: "Arma el plan tú mismo desde cero, comida por comida.",
+      onClick: onManual,
+      accent: false,
+    },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0a0d16] p-5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-bold text-white">¿Cómo quieres crear este plan?</h2>
+          <button onClick={onClose} className="text-white/40 hover:text-white">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="mt-4 space-y-2">
+          {options.map((opt) => (
+            <button
+              key={opt.title}
+              onClick={opt.onClick}
+              className={`flex w-full items-start gap-3 rounded-xl border p-3.5 text-left transition-colors ${
+                opt.accent
+                  ? "border-hf-blue/40 bg-hf-blue/10 hover:border-hf-blue/60"
+                  : "border-white/10 bg-white/[0.02] hover:border-white/25"
+              }`}
+            >
+              <div
+                className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+                  opt.accent ? "bg-hf-blue/20 text-hf-blue" : "bg-white/5 text-white/60"
+                }`}
+              >
+                <opt.icon size={15} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-white">{opt.title}</p>
+                <p className="mt-0.5 text-xs text-white/50">{opt.desc}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Plantilla — reglas simples sobre la biblioteca real (sin IA), 3 días.
+// ---------------------------------------------------------------------------
+
+function TemplateWizardModal({
+  clientId,
+  onClose,
+  onGenerated,
+}: {
+  clientId: string;
+  onClose: () => void;
+  onGenerated: (dias: NutritionDias) => void;
+}) {
+  const [objetivo, setObjetivo] = useState("mantenimiento");
+  const [comidasPorDia, setComidasPorDia] = useState(3);
+  const [tiendas, setTiendas] = useState<string[]>([...TIENDAS_REALES]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function toggleTienda(t: string) {
+    setTiendas((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
+  }
+
+  function submit() {
+    setError(null);
+    setLoading(true);
+    generateOwnMealPlanTemplate({ clientId, objetivo, comidasPorDia, tiendas })
+      .then((res) => {
+        if (!res.ok || !res.dias) {
+          setError(res.error ?? "No se pudo generar la plantilla.");
+          setLoading(false);
+          return;
+        }
+        onGenerated(res.dias);
+      })
+      .catch(() => {
+        setError("No se pudo generar la plantilla. Intenta de nuevo.");
+        setLoading(false);
+      });
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
+      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0a0d16] p-5" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h2 className="flex items-center gap-1.5 text-sm font-bold text-white">
+            <ListChecks size={15} /> Plantilla de 3 días
+          </h2>
+          <button onClick={onClose} className="text-white/40 hover:text-white">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="mt-4 space-y-3">
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] font-semibold text-white/50">Objetivo</span>
+            <select
+              value={objetivo}
+              onChange={(e) => setObjetivo(e.target.value)}
+              className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white outline-none focus:border-white/30"
+            >
+              {OBJETIVO_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value} className="bg-[#0a0d16]">
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] font-semibold text-white/50">Comidas por día</span>
+            <select
+              value={comidasPorDia}
+              onChange={(e) => setComidasPorDia(Number(e.target.value))}
+              className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white outline-none focus:border-white/30"
+            >
+              <option value={3} className="bg-[#0a0d16]">3 (desayuno, almuerzo, cena)</option>
+              <option value={4} className="bg-[#0a0d16]">4 (+ media tarde)</option>
+              <option value={5} className="bg-[#0a0d16]">5 (+ media mañana)</option>
+            </select>
+          </label>
+
+          <div>
+            <span className="text-[11px] font-semibold text-white/50">Tiendas</span>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {TIENDAS_REALES.map((t) => (
+                <button
+                  key={t}
+                  onClick={() => toggleTienda(t)}
+                  className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${
+                    tiendas.includes(t) ? "border-hf-blue/50 bg-hf-blue/15 text-hf-blue" : "border-white/10 text-white/40"
+                  }`}
+                >
+                  {TIENDA_LABELS[t] ?? t}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {error && <p className="text-xs text-red-400">{error}</p>}
+
+          <button
+            onClick={submit}
+            disabled={loading || tiendas.length === 0}
+            className="flex w-full items-center justify-center gap-1.5 rounded-full bg-hf-blue py-2.5 text-xs font-bold text-black disabled:opacity-40"
+          >
+            {loading ? (
+              <>
+                <Loader2 size={13} className="animate-spin" /> Generando...
+              </>
+            ) : (
+              "Generar plantilla"
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// HAKAI — llamada real a Claude, 7 días, respetando objetivo/restricciones/
+// presupuesto opcional. Ver generateOwnMealPlanWithAI en
+// trainer-nutrition-actions.ts para el detalle de la validación defensiva.
+// ---------------------------------------------------------------------------
+
+function IAWizardModal({
+  clientId,
+  client,
+  onClose,
+  onGenerated,
+}: {
+  clientId: string;
+  client: ClientRow | null;
+  onClose: () => void;
+  onGenerated: (dias: NutritionDias) => void;
+}) {
+  const [objetivo, setObjetivo] = useState("mantenimiento");
+  const [comidasPorDia, setComidasPorDia] = useState(4);
+  const [tiendas, setTiendas] = useState<string[]>([...TIENDAS_REALES]);
+  const [restricciones, setRestricciones] = useState("");
+  const [presupuesto, setPresupuesto] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function toggleTienda(t: string) {
+    setTiendas((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
+  }
+
+  function submit() {
+    setError(null);
+    setLoading(true);
+    generateOwnMealPlanWithAI({
+      clientId,
+      objetivo,
+      comidasPorDia,
+      tiendas,
+      restricciones: restricciones.trim() || null,
+      presupuestoSemanalCop: presupuesto.trim() ? Number(presupuesto) : null,
+    })
+      .then((res) => {
+        if (!res.ok || !res.dias) {
+          setError(res.error ?? "HAKAI no pudo generar el plan.");
+          setLoading(false);
+          return;
+        }
+        onGenerated(res.dias);
+      })
+      .catch(() => {
+        setError("HAKAI no pudo generar el plan. Intenta de nuevo.");
+        setLoading(false);
+      });
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4" onClick={loading ? undefined : onClose}>
+      <div
+        className="max-h-[88vh] w-full max-w-md overflow-y-auto rounded-2xl border border-white/10 bg-[#0a0d16] p-5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <h2 className="flex items-center gap-1.5 text-sm font-bold text-white">
+            <Sparkles size={15} className="text-hf-blue" /> Generar con HAKAI
+          </h2>
+          {!loading && (
+            <button onClick={onClose} className="text-white/40 hover:text-white">
+              <X size={18} />
+            </button>
+          )}
+        </div>
+
+        {client && (
+          <p className="mt-1.5 text-[11px] text-white/40">
+            {client.full_name}
+            {client.peso_actual ? ` · ${client.peso_actual} kg` : " · sin peso registrado"}
+            {client.actividad ? ` · actividad ${ACTIVIDAD_LABELS[client.actividad] ?? client.actividad}` : ""}
+          </p>
+        )}
+
+        {loading ? (
+          <div className="mt-8 flex flex-col items-center gap-3 py-6 text-center">
+            <Loader2 size={22} className="animate-spin text-hf-blue" />
+            <p className="text-xs text-white/60">HAKAI está armando el plan de 7 días... puede tardar unos segundos.</p>
+          </div>
+        ) : (
+          <div className="mt-4 space-y-3">
+            <label className="flex flex-col gap-1">
+              <span className="text-[11px] font-semibold text-white/50">Objetivo</span>
+              <select
+                value={objetivo}
+                onChange={(e) => setObjetivo(e.target.value)}
+                className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white outline-none focus:border-white/30"
+              >
+                {OBJETIVO_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value} className="bg-[#0a0d16]">
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="flex flex-col gap-1">
+              <span className="text-[11px] font-semibold text-white/50">Comidas por día</span>
+              <select
+                value={comidasPorDia}
+                onChange={(e) => setComidasPorDia(Number(e.target.value))}
+                className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white outline-none focus:border-white/30"
+              >
+                <option value={3} className="bg-[#0a0d16]">3 (desayuno, almuerzo, cena)</option>
+                <option value={4} className="bg-[#0a0d16]">4 (+ media tarde)</option>
+                <option value={5} className="bg-[#0a0d16]">5 (+ media mañana)</option>
+              </select>
+            </label>
+
+            <div>
+              <span className="text-[11px] font-semibold text-white/50">Tiendas</span>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {TIENDAS_REALES.map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => toggleTienda(t)}
+                    className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${
+                      tiendas.includes(t) ? "border-hf-blue/50 bg-hf-blue/15 text-hf-blue" : "border-white/10 text-white/40"
+                    }`}
+                  >
+                    {TIENDA_LABELS[t] ?? t}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <label className="flex flex-col gap-1">
+              <span className="text-[11px] font-semibold text-white/50">Restricciones / alergias / no le gusta (opcional)</span>
+              <input
+                value={restricciones}
+                onChange={(e) => setRestricciones(e.target.value)}
+                placeholder="Ej: intolerante a la lactosa, no come pescado..."
+                className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white outline-none focus:border-white/30"
+              />
+            </label>
+
+            <label className="flex flex-col gap-1">
+              <span className="text-[11px] font-semibold text-white/50">Presupuesto semanal máximo en COP (opcional)</span>
+              <input
+                type="number"
+                min={0}
+                value={presupuesto}
+                onChange={(e) => setPresupuesto(e.target.value)}
+                placeholder="Ej: 80000"
+                className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white outline-none focus:border-white/30"
+              />
+            </label>
+
+            {error && <p className="text-xs text-red-400">{error}</p>}
+
+            <button
+              onClick={submit}
+              disabled={tiendas.length === 0}
+              className="flex w-full items-center justify-center gap-1.5 rounded-full bg-hf-blue py-2.5 text-xs font-bold text-black disabled:opacity-40"
+            >
+              <Sparkles size={13} /> Generar con HAKAI
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
