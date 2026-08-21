@@ -420,8 +420,13 @@ export async function generateOwnMealPlanWithAI(
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
+        // 8000 en vez de 4000: un plan de 7 días con hasta 5 comidas/día y
+        // varios alimentos por comida (cada uno con un alimentoId completo,
+        // ~36 caracteres) fácilmente supera los 4000 tokens de salida y la
+        // respuesta se cortaba a la mitad del JSON — eso es lo que producía
+        // "HAKAI no devolvió un plan válido" en la prueba real de Nando.
         model: "claude-haiku-4-5-20251001",
-        max_tokens: 4000,
+        max_tokens: 8000,
         system: systemPrompt,
         messages: [{ role: "user", content: userPrompt }],
         tools: [tool],
@@ -443,7 +448,17 @@ export async function generateOwnMealPlanWithAI(
   const toolUse = (data?.content as { type: string; input?: unknown }[] | undefined)?.find((b) => b.type === "tool_use");
   const rawDias = (toolUse?.input as { dias?: unknown } | undefined)?.dias;
   if (!Array.isArray(rawDias)) {
-    return { ok: false, error: "HAKAI no devolvió un plan válido. Intenta de nuevo." };
+    // Log del cuerpo completo para poder diagnosticar si vuelve a pasar —
+    // stop_reason "max_tokens" es la causa más probable (respuesta cortada
+    // antes de cerrar el JSON de la herramienta).
+    console.error("HAKAI nutrición — respuesta sin dias válido. stop_reason:", data?.stop_reason, JSON.stringify(data).slice(0, 2000));
+    const truncated = data?.stop_reason === "max_tokens";
+    return {
+      ok: false,
+      error: truncated
+        ? "HAKAI generó una respuesta demasiado larga y se cortó. Prueba con menos comidas por día o vuelve a intentar."
+        : "HAKAI no devolvió un plan válido. Intenta de nuevo.",
+    };
   }
 
   // Validación defensiva: nunca confiar ciegamente en lo que devuelve el
