@@ -50,6 +50,7 @@ import {
   type AlimentoLite,
 } from "@/lib/nutrition-types";
 import { BranchHero } from "@/components/trainer/branch-hero";
+import { ClientPicker } from "@/components/trainer/client-picker";
 import { branchTheme } from "@/lib/branch-theme";
 import { branchLabel } from "@/lib/catalog";
 import { ACTIVIDAD_LABELS } from "@/lib/client-ui";
@@ -162,20 +163,7 @@ export function TrainerNutritionManager({ trainer, clients }: { trainer: Trainer
       />
 
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-        <label className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2">
-          <span className="text-xs text-white/40">Cliente</span>
-          <select
-            value={selectedClientId}
-            onChange={(e) => setSelectedClientId(e.target.value)}
-            className="bg-transparent text-sm font-medium text-white outline-none"
-          >
-            {clients.map((c) => (
-              <option key={c.id} value={c.id} className="bg-[#0a0d16]">
-                {c.full_name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <ClientPicker clients={clients} selectedClientId={selectedClientId} onSelect={setSelectedClientId} />
 
         <button
           onClick={() => setNewPlanMode("select")}
