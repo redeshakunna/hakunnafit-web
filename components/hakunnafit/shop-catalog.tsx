@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Minus, Plus, ShoppingBag, X } from "lucide-react";
 import { createShopOrder } from "@/lib/actions";
+import { formatCop } from "@/lib/currency";
 
 interface Product {
   id: string;
@@ -14,12 +15,6 @@ interface Product {
   image_url: string | null;
   stock: number;
 }
-
-const cop = new Intl.NumberFormat("es-CO", {
-  style: "currency",
-  currency: "COP",
-  maximumFractionDigits: 0,
-});
 
 const categoryLabels: Record<"todos" | Product["category"], string> = {
   todos: "Todos",
@@ -171,7 +166,7 @@ export function HakunnaFitShopCatalog({ products }: { products: Product[] }) {
                 <p className="mt-1 text-sm text-white/50">{product.description}</p>
               )}
               <div className="mt-4 flex items-center justify-between">
-                <span className="text-lg font-bold text-white">{cop.format(product.price_cop)}</span>
+                <span className="text-lg font-bold text-white">{formatCop(product.price_cop)}</span>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => updateQty(product.id, -1, product.stock)}
@@ -223,11 +218,11 @@ export function HakunnaFitShopCatalog({ products }: { products: Product[] }) {
                   <div>
                     <p className="text-sm font-medium text-white">{line.product.name}</p>
                     <p className="text-xs text-white/50">
-                      {line.quantity} × {cop.format(line.product.price_cop)}
+                      {line.quantity} × {formatCop(line.product.price_cop)}
                     </p>
                   </div>
                   <span className="text-sm font-semibold text-white">
-                    {cop.format(line.product.price_cop * line.quantity)}
+                    {formatCop(line.product.price_cop * line.quantity)}
                   </span>
                 </div>
               ))}
@@ -237,7 +232,7 @@ export function HakunnaFitShopCatalog({ products }: { products: Product[] }) {
               <div className="mt-4 space-y-3 border-t border-white/10 pt-4">
                 <div className="flex items-center justify-between text-white">
                   <span className="font-medium">Total</span>
-                  <span className="text-xl font-bold">{cop.format(total)}</span>
+                  <span className="text-xl font-bold">{formatCop(total)}</span>
                 </div>
 
                 <input

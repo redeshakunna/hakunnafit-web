@@ -16,6 +16,7 @@ import type { PlanPrices } from "@/lib/plan-settings-actions";
 import { PLANS, STARTER_LANDING_TEMPLATES, DEFAULT_STARTER_TEMPLATE } from "@/lib/catalog";
 import Link from "next/link";
 import { fmtDate, planLabels } from "./admin-ui";
+import { formatCop } from "@/lib/currency";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://hakunnafit.com";
 
@@ -73,8 +74,6 @@ const cicloLabels: Record<PagoCiclo, string> = {
   semestral: "Semestral (6 meses)",
   anual: "Anual",
 };
-
-const cop = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
 
 function cicloAmountCop(plan: PlanKey, ciclo: PagoCiclo, prices: PlanPrices): number {
   const p = prices[plan];
@@ -472,7 +471,7 @@ export function LeadEditModal({
 
                 {lead.pago_monto_cop && (
                   <p className="mt-2 text-[11px] text-white/50">
-                    Último generado: {cop.format(lead.pago_monto_cop)}
+                    Último generado: {formatCop(lead.pago_monto_cop)}
                     {lead.pago_ciclo ? ` · ${cicloLabels[lead.pago_ciclo as PagoCiclo] ?? lead.pago_ciclo}` : ""}
                   </p>
                 )}
@@ -501,7 +500,7 @@ export function LeadEditModal({
                     </div>
                     {lead.plan && (
                       <p className="mt-1.5 text-[10.5px] text-white/40">
-                        Vas a generar: <span className="text-white/70">{cop.format(cicloAmountCop(lead.plan, payingCycle, planPrices))}</span> ·{" "}
+                        Vas a generar: <span className="text-white/70">{formatCop(cicloAmountCop(lead.plan, payingCycle, planPrices))}</span> ·{" "}
                         {cicloLabels[payingCycle]}
                       </p>
                     )}

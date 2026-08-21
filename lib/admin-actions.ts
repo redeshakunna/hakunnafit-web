@@ -13,6 +13,7 @@ import {
   type LandingStatusKey,
   type PlanKey,
 } from "./catalog";
+import { formatCop } from "./currency";
 import { isActiveTrainer, getPaymentStatus } from "./admin-helpers";
 import { firstAvailableSlug, RESERVED_SUBDOMAINS } from "./slug";
 import { createNotification } from "./notifications";
@@ -800,9 +801,7 @@ export async function sendPaymentLinkEmail(leadId: string): Promise<AdminActionR
   }
 
   const cicloTxt = lead.pago_ciclo ? CICLO_LABELS[lead.pago_ciclo as PagoCiclo] ?? lead.pago_ciclo : null;
-  const montoTxt = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(
-    lead.pago_monto_cop
-  );
+  const montoTxt = formatCop(lead.pago_monto_cop);
 
   await sendLeadEmail({
     to: lead.email,

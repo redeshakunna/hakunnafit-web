@@ -37,7 +37,7 @@ import {
   contractCommittedUntil,
 } from "@/lib/admin-helpers";
 
-const cop = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
+import { formatCop } from "@/lib/currency";
 
 function formatDate(iso: string | null): string {
   if (!iso) return "Sin fecha";
@@ -91,7 +91,7 @@ export function TrainerBusinessOverview({
             <p className="text-xs font-semibold uppercase tracking-wide">Plan actual</p>
           </div>
           <p className="mt-3 text-2xl font-bold text-white">{planLabel(plan)}</p>
-          <p className="mt-1 text-sm text-white/50">{cop.format(planPrices[plan].monthlyCop)} / mes</p>
+          <p className="mt-1 text-sm text-white/50">{formatCop(planPrices[plan].monthlyCop)} / mes</p>
           <span
             className={`mt-3 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
               suspended ? "bg-red-500/10 text-red-400" : "bg-emerald-500/10 text-emerald-400"
@@ -115,7 +115,7 @@ export function TrainerBusinessOverview({
           </div>
           <p className="mt-3 text-lg font-bold text-white">{formatDate(trainer.proximo_cobro)}</p>
           <p className="mt-1 text-sm text-white/50">
-            Referencia mensual: {cop.format(planPrices[plan].monthlyCop)}
+            Referencia mensual: {formatCop(planPrices[plan].monthlyCop)}
           </p>
           <span
             className={`mt-3 inline-block rounded-full px-2.5 py-1 text-[11px] font-semibold ${
@@ -230,7 +230,7 @@ export function TrainerBusinessOverview({
             <p className="text-xs font-semibold uppercase tracking-wide">Sugerencia de upgrade</p>
           </div>
           <p className="mt-2 text-sm font-semibold text-white">
-            Pasa a {planLabel(nextPlan)} ({cop.format(planPrices[nextPlan].monthlyCop)}/mes) y desbloquea:
+            Pasa a {planLabel(nextPlan)} ({formatCop(planPrices[nextPlan].monthlyCop)}/mes) y desbloquea:
           </p>
           <ul className="mt-2 flex flex-wrap gap-2">
             {newFeatures.map((f) => (

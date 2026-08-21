@@ -6,6 +6,7 @@ import { sendAdminEmail, renderNotificationEmail, sendLeadEmail, renderLeadEmail
 import { PLAN_PRICE_COP, planLabel, type PlanKey } from "./catalog";
 import { buildWompiCheckoutUrl } from "./wompi";
 import { getPlanPrices } from "./plan-settings-actions";
+import { formatCop } from "./currency";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://hakunnafit.com";
 
@@ -100,10 +101,6 @@ const PASARELA_LABELS: Record<string, string> = {
   mercado_pago: "Mercado Pago",
   aun_no_se: "Aún no definida",
 };
-
-function formatCop(n: number): string {
-  return `$${new Intl.NumberFormat("es-CO").format(n)} COP`;
-}
 
 function formatBillingMonth(isoDate: string): string {
   const d = new Date(`${isoDate}T00:00:00`);

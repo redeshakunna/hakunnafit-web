@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { AlertTriangle, Loader2, LogOut, ShieldAlert } from "lucide-react";
 import { getOwnAccessStatus, type OwnAccessStatus } from "@/lib/subscription-lifecycle";
 import { logoutTrainer } from "@/lib/trainer-auth";
-import { cop } from "@/lib/client-ui";
+import { formatCop } from "@/lib/currency";
 
 /**
  * Pantalla de bloqueo total del panel — reemplaza sidebar + contenido
@@ -63,7 +63,7 @@ export function TrainerAccessLocked() {
             <div className="mt-5 rounded-2xl border border-white/10 bg-black/30 p-4 text-left">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-white/50">Monto pendiente</span>
-                <span className="font-bold text-white">{status?.amountCop != null ? cop.format(status.amountCop) : "—"}</span>
+                <span className="font-bold text-white">{status?.amountCop != null ? formatCop(status.amountCop) : "—"}</span>
               </div>
               <div className="mt-2 flex items-center justify-between text-sm">
                 <span className="text-white/50">Vencía el</span>

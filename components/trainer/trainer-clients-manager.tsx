@@ -28,10 +28,10 @@ import {
   IMC_CATEGORY_CLASS,
   initials,
   avatarColor,
-  cop,
   ACTIVIDAD_OPTIONS,
   HORARIOS_ENTRENO,
 } from "@/lib/client-ui";
+import { formatCop } from "@/lib/currency";
 import { createOwnClient, updateOwnClient, deleteOwnClient, getOwnClients, type ClientRow, type ClientStatus } from "@/lib/trainer-clients-actions";
 import {
   ACCESO_EQUIPO,
@@ -835,7 +835,7 @@ export function ClientFormFields({
                 <option value="">—</option>
                 {planesOfrecidos.map((p) => (
                   <option key={p.nombre} value={p.nombre}>
-                    {p.nombre} ({p.precioCop != null ? cop.format(p.precioCop) : "Personalizado"})
+                    {p.nombre} ({p.precioCop != null ? formatCop(p.precioCop) : "Personalizado"})
                   </option>
                 ))}
               </select>

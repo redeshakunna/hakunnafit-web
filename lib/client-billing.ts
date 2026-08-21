@@ -7,6 +7,7 @@
 // task #360).
 
 import type { DatosCobro, PlanOfrecido } from "./admin-actions";
+import { formatCop } from "./currency";
 
 export interface BillingSnapshot {
   plan_precio_cop: number;
@@ -65,10 +66,6 @@ export function computePriceOnlyOnPlanChange(
 // Mensaje de WhatsApp del recordatorio de cobro — el entrenador siempre
 // confirma el envío a mano, nunca se manda nada automático.
 // ---------------------------------------------------------------------------
-
-function formatCop(n: number): string {
-  return `$${new Intl.NumberFormat("es-CO").format(n)} COP`;
-}
 
 function formatFecha(isoDate: string): string {
   const d = new Date(`${isoDate}T00:00:00`);

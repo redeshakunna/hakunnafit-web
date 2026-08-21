@@ -39,6 +39,7 @@ import { BranchHero } from "@/components/trainer/branch-hero";
 import { branchTheme } from "@/lib/branch-theme";
 import { branchLabel } from "@/lib/catalog";
 import { ACTIVIDAD_LABELS } from "@/lib/client-ui";
+import { formatCop } from "@/lib/currency";
 
 function toLite(a: AlimentoRow): AlimentoLite {
   return {
@@ -53,10 +54,6 @@ function toLite(a: AlimentoRow): AlimentoLite {
     grasaG: a.grasa_g,
     precioCop: a.precio_cop,
   };
-}
-
-function formatCop(n: number): string {
-  return n.toLocaleString("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
 }
 
 export function TrainerNutritionManager({ trainer, clients }: { trainer: TrainerRow; clients: ClientRow[] }) {

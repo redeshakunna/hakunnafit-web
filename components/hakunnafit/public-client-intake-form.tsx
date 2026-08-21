@@ -29,8 +29,7 @@ import {
   type PerfilCrossfit,
   type PerfilRunning,
 } from "@/lib/client-profile-types";
-
-const cop = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
+import { formatCop } from "@/lib/currency";
 
 const NIVELES = [
   { value: "", label: "Selecciona tu nivel" },
@@ -288,7 +287,7 @@ export function PublicClientIntakeForm({
             </option>
             {planes.map((p) => (
               <option key={p.nombre} value={p.nombre} className="bg-hf-black">
-                {p.nombre} — {p.precioCop != null ? cop.format(p.precioCop) : "Personalizado"}
+                {p.nombre} — {p.precioCop != null ? formatCop(p.precioCop) : "Personalizado"}
               </option>
             ))}
           </select>

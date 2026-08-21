@@ -16,9 +16,9 @@ import { useState } from "react";
 import { Plus, Trash2, Check, Loader2, ClipboardList } from "lucide-react";
 import type { PlanOfrecido } from "@/lib/admin-actions";
 import { updateOwnPlanesOfrecidos } from "@/lib/trainer-actions";
+import { formatCop } from "@/lib/currency";
 
 const EMPTY_PLAN: PlanOfrecido = { nombre: "", incluye: "", precioCop: null };
-const cop = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
 
 export function TrainerPlanesManager({
   initialPlanes,
@@ -125,7 +125,7 @@ export function TrainerPlanesManager({
                 className="mt-2 w-full resize-none rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white outline-none focus:border-hf-blue"
               />
               <p className="mt-1.5 text-[11px] text-white/30">
-                {p.precioCop != null ? cop.format(p.precioCop) : "Personalizado (a cotizar)"}
+                {p.precioCop != null ? formatCop(p.precioCop) : "Personalizado (a cotizar)"}
               </p>
             </div>
           ))}

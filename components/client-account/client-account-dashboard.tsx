@@ -74,10 +74,7 @@ import {
   type ClientAccountData,
   type SuggestedSlot,
 } from "@/lib/client-account-actions";
-
-function formatCop(n: number): string {
-  return n.toLocaleString("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
-}
+import { formatCop } from "@/lib/currency";
 
 function toAlimentoLite(a: AlimentoRow): AlimentoLite {
   return {

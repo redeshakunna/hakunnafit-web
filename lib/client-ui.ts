@@ -46,8 +46,6 @@ export function avatarColor(id: string) {
   return AVATAR_COLORS[sum % AVATAR_COLORS.length];
 }
 
-export const cop = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
-
 // Niveles estándar de actividad diaria (fuera del entreno con el
 // entrenador) — misma clasificación que se usa para calcular gasto
 // calórico, así queda lista para cuando HAKAI genere rutinas/nutrición.

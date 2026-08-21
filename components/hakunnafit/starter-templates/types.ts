@@ -9,6 +9,7 @@
 import type { CSSProperties } from "react";
 import { TRAINER_BRANCHES } from "@/lib/catalog";
 import type { PlanOfrecido } from "@/lib/admin-actions";
+import { formatCop } from "@/lib/currency";
 
 export interface StarterServicio {
   titulo: string;
@@ -230,10 +231,8 @@ export function resolveServicios(trainer: StarterTrainerProfile): StarterServici
 // testimonios no hay un set genérico de relleno: son precios reales del
 // entrenador, así que si todavía no cargó ninguno la sección simplemente no
 // se muestra (mismo criterio que FAQ, ver resolveFaqs).
-const copFormatter = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
-
 export function formatPlanPrice(precioCop: number | null): string {
-  return precioCop != null ? copFormatter.format(precioCop) : "Personalizado";
+  return precioCop != null ? formatCop(precioCop) : "Personalizado";
 }
 
 export function resolvePlanes(trainer: StarterTrainerProfile): PlanOfrecido[] {

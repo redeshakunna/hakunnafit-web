@@ -12,7 +12,10 @@ const CYCLES: { key: keyof PlanPrices[PlanKey]; label: string; hint: string }[] 
   { key: "annualCop", label: "Anual", hint: "Ahorra 15% + 1 mes gratis" },
 ];
 
-function formatCop(n: number): string {
+// Este input ya tiene "$" y "COP" como afijos fijos alrededor (ver JSX abajo)
+// y su value se re-parsea en cada onChange — por eso NO usa el formatCop
+// compartido (que antepone "COP $" como texto), solo separadores de miles.
+function formatCopInput(n: number): string {
   return new Intl.NumberFormat("es-CO").format(n);
 }
 
@@ -90,7 +93,7 @@ function PreciosSection({ initialPrices }: { initialPrices: PlanPrices }) {
                   <div className="flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3">
                     <span className="text-xs text-white/40">$</span>
                     <input
-                      value={formatCop(prices[p.key as PlanKey][c.key])}
+                      value={formatCopInput(prices[p.key as PlanKey][c.key])}
                       onChange={(e) => setValue(p.key as PlanKey, c.key, e.target.value)}
                       inputMode="numeric"
                       className="h-9 w-full bg-transparent text-sm text-white focus:outline-none"
