@@ -145,7 +145,7 @@ export function PublicMealPlanView({
   };
 
   function handleShareWhatsapp() {
-    const mensaje = `Hola ${clientFirstName}, este es tu plan de alimentación 🍽️\n${shareUrl}`;
+    const mensaje = `Hola ${clientFirstName}, este es tu plan de alimentación 🍽\n${shareUrl}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, "_blank");
   }
 

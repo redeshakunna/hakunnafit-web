@@ -250,7 +250,7 @@ export function TrainerNutritionManager({ trainer, clients }: { trainer: Trainer
               <button
                 onClick={() => {
                   const nombre = selectedClient?.full_name?.split(" ")[0] ?? "";
-                  const mensaje = `Hola ${nombre}, este es tu plan de alimentación 🍽️\n${mealPlanShareUrl(p.share_token)}`;
+                  const mensaje = `Hola ${nombre}, este es tu plan de alimentación 🍽\n${mealPlanShareUrl(p.share_token)}`;
                   window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, "_blank");
                 }}
                 className="flex items-center gap-1 rounded-full border border-emerald-500/20 px-3 py-1.5 text-[11px] font-semibold text-emerald-400/80 hover:border-emerald-500/40 hover:text-emerald-400"

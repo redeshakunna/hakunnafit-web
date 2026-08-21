@@ -1500,7 +1500,7 @@ function NutricionTab({
           </a>
           <button
             onClick={() => {
-              const mensaje = `Hola ${clientFirstName}, este es tu plan de alimentación 🍽️\n${shareUrl}`;
+              const mensaje = `Hola ${clientFirstName}, este es tu plan de alimentación 🍽\n${shareUrl}`;
               window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, "_blank");
             }}
             className="flex items-center gap-1 rounded-full border border-emerald-500/20 px-3 py-1.5 text-[11px] font-semibold text-emerald-400/80 hover:border-emerald-500/40 hover:text-emerald-400"
